@@ -1,0 +1,12 @@
+{
+  "brokerUrl": "tcp://localhost:1883",
+  "clientId": "ignition-mqtt-test",
+  "username": "",
+  "password": "",
+  "useTls": false,
+  "qos": 1,
+  "retained": false,
+  "keepAlive": 60,
+  "connectionTimeout": 30,
+  "cleanSession": true
+}

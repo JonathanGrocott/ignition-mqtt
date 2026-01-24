@@ -1,6 +1,8 @@
 package com.inductiveautomation.ignition.examples.mqtt.gateway;
 
 import com.inductiveautomation.ignition.common.licensing.LicenseState;
+import com.inductiveautomation.ignition.examples.mqtt.common.model.MqttBrokerConfig;
+import com.inductiveautomation.ignition.examples.mqtt.gateway.config.ConfigurationManager;
 import com.inductiveautomation.ignition.gateway.model.AbstractGatewayModuleHook;
 import com.inductiveautomation.ignition.gateway.model.GatewayContext;
 import org.slf4j.Logger;
@@ -22,6 +24,8 @@ public class MqttGatewayHook extends AbstractGatewayModuleHook {
     private static final Logger logger = LoggerFactory.getLogger(MqttGatewayHook.class);
     
     private GatewayContext gatewayContext;
+    private MqttPublisherManager publisherManager;
+    private ConfigurationManager configManager;
     
     /**
      * Called during Gateway startup to set up the module.
@@ -34,9 +38,15 @@ public class MqttGatewayHook extends AbstractGatewayModuleHook {
         this.gatewayContext = context;
         logger.info("Setting up {} module (ID: {})", MODULE_NAME, MODULE_ID);
         
-        // TODO: Register configuration resources
-        // TODO: Register web routes
-        // TODO: Initialize managers (will be created in Phase 2 and 3)
+        // Initialize configuration manager
+        this.configManager = new ConfigurationManager(context);
+        
+        // Initialize MQTT publisher manager
+        this.publisherManager = new MqttPublisherManager();
+        
+        logger.info("Initialized MQTT Publisher Manager and Configuration Manager");
+        
+        // TODO: Register web routes (Phase 5)
     }
     
     /**
@@ -49,7 +59,24 @@ public class MqttGatewayHook extends AbstractGatewayModuleHook {
     public void startup(LicenseState activationState) {
         logger.info("Starting up {} module", MODULE_NAME);
         
-        // TODO: Start MQTT connection (Phase 2)
+        // Load configuration and start MQTT connection
+        MqttBrokerConfig config = configManager.loadConfig();
+        
+        if (config != null) {
+            try {
+                config.validate();
+                logger.info("Loaded MQTT configuration: {}", config.getBrokerUrl());
+                publisherManager.connect(config);
+            } catch (IllegalArgumentException e) {
+                logger.warn("Loaded configuration is invalid: {}. Module will start but MQTT will not connect.", 
+                           e.getMessage());
+            }
+        } else {
+            logger.info("No MQTT configuration found. Module started but not connected to broker.");
+            logger.info("You can configure the module by editing: {}", 
+                       configManager.configExists() ? "existing config" : "creating mqtt-uns-config.json in data directory");
+        }
+        
         // TODO: Start tag subscriptions (Phase 3)
         
         logger.info("{} module started successfully", MODULE_NAME);
@@ -64,8 +91,11 @@ public class MqttGatewayHook extends AbstractGatewayModuleHook {
         logger.info("Shutting down {} module", MODULE_NAME);
         
         // TODO: Stop tag subscriptions (Phase 3)
-        // TODO: Disconnect MQTT client (Phase 2)
-        // TODO: Clean up resources
+        
+        // Shutdown MQTT connection
+        if (publisherManager != null) {
+            publisherManager.shutdown();
+        }
         
         logger.info("{} module shut down successfully", MODULE_NAME);
     }
