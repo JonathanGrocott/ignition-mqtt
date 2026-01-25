@@ -64,6 +64,24 @@ public final class MqttDataRoutes {
             .mount();
         logger.info("Successfully mounted: /config/broker");
         
+        logger.info("Mounting route: /config/broker/{id} (GET)");
+        routes.newRoute("/config/broker/{id}")
+            .type(RouteGroup.TYPE_JSON)
+            .handler(MqttDataRoutes::handleBrokerById)
+            .method(HttpMethod.GET)
+            .accessControl(AccessControlStrategy.OPEN_ROUTE)
+            .mount();
+        logger.info("Successfully mounted: /config/broker/{id} (GET)");
+        
+        logger.info("Mounting route: /config/broker/{id} (DELETE)");
+        routes.newRoute("/config/broker/{id}")
+            .type(RouteGroup.TYPE_JSON)
+            .handler(MqttDataRoutes::handleBrokerById)
+            .method(HttpMethod.DELETE)
+            .accessControl(AccessControlStrategy.OPEN_ROUTE)
+            .mount();
+        logger.info("Successfully mounted: /config/broker/{id} (DELETE)");
+        
         logger.info("Mounting route: /config/tags (GET)");
         routes.newRoute("/config/tags")
             .type(RouteGroup.TYPE_JSON)
@@ -113,8 +131,8 @@ public final class MqttDataRoutes {
             res.setContentType("application/json");
             
             if ("GET".equals(req.getMethod().name())) {
-                logger.info("Processing GET request for broker config");
-                return getBrokerConfig(req);
+                logger.info("Processing GET request for broker config (all brokers)");
+                return getAllBrokerConfigs(req);
             } else if ("POST".equals(req.getMethod().name())) {
                 logger.info("Processing POST request for broker config");
                 return saveBrokerConfig(req);
@@ -124,6 +142,31 @@ public final class MqttDataRoutes {
             }
         } catch (Exception e) {
             logger.error("Error handling broker config request", e);
+            return errorJson("Error: " + e.getMessage());
+        }
+    }
+    
+    /**
+     * Handle GET/DELETE for specific broker by ID
+     */
+    private static Object handleBrokerById(RequestContext req, HttpServletResponse res) {
+        logger.info("handleBrokerById called! Method: {}, Path: {}", req.getMethod().name(), req.getPath());
+        
+        try {
+            res.setContentType("application/json");
+            
+            if ("GET".equals(req.getMethod().name())) {
+                logger.info("Processing GET request for specific broker");
+                return getBrokerById(req);
+            } else if ("DELETE".equals(req.getMethod().name())) {
+                logger.info("Processing DELETE request for broker");
+                return deleteBroker(req);
+            } else {
+                logger.warn("Unsupported method: {}", req.getMethod().name());
+                return errorJson("Unsupported method: " + req.getMethod().name());
+            }
+        } catch (Exception e) {
+            logger.error("Error handling broker by ID request", e);
             return errorJson("Error: " + e.getMessage());
         }
     }
@@ -223,7 +266,10 @@ public final class MqttDataRoutes {
     
     // Helper methods
     
-    private static JsonObject getBrokerConfig(RequestContext req) throws Exception {
+    /**
+     * Get all broker configurations
+     */
+    private static JsonObject getAllBrokerConfigs(RequestContext req) throws Exception {
         GatewayContext context = hook.getGatewayContext();
         if (context == null) {
             return errorJson("Module not initialized");
@@ -236,24 +282,151 @@ public final class MqttDataRoutes {
         JsonObject response = new JsonObject();
         response.addProperty("success", true);
         
-        if (!records.isEmpty()) {
-            MqttBrokerConfigRecord record = records.get(0);
-            JsonObject data = new JsonObject();
-            data.addProperty("id", record.getId());
-            data.addProperty("brokerUrl", record.getBrokerUrl());
-            data.addProperty("clientId", record.getClientId());
-            data.addProperty("username", record.getUsername());
-            data.addProperty("useTls", record.isUseTls());
-            data.addProperty("qos", record.getQos());
-            data.addProperty("retained", record.isRetained());
-            data.addProperty("cleanSession", record.isCleanSession());
-            data.addProperty("connectionTimeout", record.getConnectionTimeout());
-            data.addProperty("keepAliveInterval", record.getKeepAliveInterval());
-            data.addProperty("enabled", record.isEnabled());
-            response.add("data", data);
-        } else {
-            response.add("data", null);
+        JsonArray brokers = new JsonArray();
+        for (MqttBrokerConfigRecord record : records) {
+            JsonObject brokerJson = new JsonObject();
+            brokerJson.addProperty("id", record.getId());
+            brokerJson.addProperty("name", record.getName());
+            brokerJson.addProperty("brokerUrl", record.getBrokerUrl());
+            brokerJson.addProperty("clientId", record.getClientId());
+            brokerJson.addProperty("username", record.getUsername());
+            brokerJson.addProperty("useTls", record.isUseTls());
+            brokerJson.addProperty("qos", record.getQos());
+            brokerJson.addProperty("retained", record.isRetained());
+            brokerJson.addProperty("cleanSession", record.isCleanSession());
+            brokerJson.addProperty("connectionTimeout", record.getConnectionTimeout());
+            brokerJson.addProperty("keepAliveInterval", record.getKeepAliveInterval());
+            brokerJson.addProperty("enabled", record.isEnabled());
+            brokers.add(brokerJson);
         }
+        
+        response.add("data", brokers);
+        return response;
+    }
+    
+    /**
+     * Get a specific broker by ID
+     */
+    private static JsonObject getBrokerById(RequestContext req) throws Exception {
+        GatewayContext context = hook.getGatewayContext();
+        if (context == null) {
+            return errorJson("Module not initialized");
+        }
+        
+        // Get ID from query parameter instead of path parameter
+        String idParam = req.getParameter("id");
+        
+        if (idParam == null || idParam.isEmpty()) {
+            return errorJson("Broker ID is required");
+        }
+        
+        long id;
+        try {
+            id = Long.parseLong(idParam);
+        } catch (NumberFormatException e) {
+            return errorJson("Invalid broker ID: " + idParam);
+        }
+        
+        PersistenceInterface db = context.getPersistenceInterface();
+        MqttBrokerConfigRecord record = db.find(MqttBrokerConfigRecord.META, id);
+        
+        if (record == null) {
+            return errorJson("Broker not found with ID: " + id);
+        }
+        
+        JsonObject response = new JsonObject();
+        response.addProperty("success", true);
+        
+        JsonObject data = new JsonObject();
+        data.addProperty("id", record.getId());
+        data.addProperty("name", record.getName());
+        data.addProperty("brokerUrl", record.getBrokerUrl());
+        data.addProperty("clientId", record.getClientId());
+        data.addProperty("username", record.getUsername());
+        data.addProperty("useTls", record.isUseTls());
+        data.addProperty("qos", record.getQos());
+        data.addProperty("retained", record.isRetained());
+        data.addProperty("cleanSession", record.isCleanSession());
+        data.addProperty("connectionTimeout", record.getConnectionTimeout());
+        data.addProperty("keepAliveInterval", record.getKeepAliveInterval());
+        data.addProperty("enabled", record.isEnabled());
+        
+        response.add("data", data);
+        return response;
+    }
+    
+    /**
+     * Delete a broker by ID
+     */
+    private static JsonObject deleteBroker(RequestContext req) throws Exception {
+        GatewayContext context = hook.getGatewayContext();
+        if (context == null) {
+            return errorJson("Module not initialized");
+        }
+        
+        // Get ID from query parameter
+        String idParam = req.getParameter("id");
+        
+        if (idParam == null || idParam.isEmpty()) {
+            return errorJson("Broker ID is required");
+        }
+        
+        long id;
+        try {
+            id = Long.parseLong(idParam);
+        } catch (NumberFormatException e) {
+            return errorJson("Invalid broker ID: " + idParam);
+        }
+        
+        PersistenceInterface db = context.getPersistenceInterface();
+        
+        // Check if any topic mappings reference this broker
+        SQuery<MqttTagConfigRecord> tagQuery = new SQuery<>(MqttTagConfigRecord.META);
+        List<MqttTagConfigRecord> tagRecords = db.query(tagQuery);
+        
+        for (MqttTagConfigRecord tagRecord : tagRecords) {
+            try {
+                String mappingsJson = tagRecord.getTopicMappingsJson();
+                if (mappingsJson != null && !mappingsJson.isEmpty()) {
+                    JsonElement mappingsElement = JsonParser.parseString(mappingsJson);
+                    if (mappingsElement.isJsonArray()) {
+                        JsonArray mappings = mappingsElement.getAsJsonArray();
+                        for (JsonElement mappingElement : mappings) {
+                            if (mappingElement.isJsonObject()) {
+                                JsonObject mapping = mappingElement.getAsJsonObject();
+                                if (mapping.has("brokerId")) {
+                                    JsonElement brokerIdElement = mapping.get("brokerId");
+                                    if (brokerIdElement != null && !brokerIdElement.isJsonNull()) {
+                                        long brokerId = brokerIdElement.getAsLong();
+                                        if (brokerId == id) {
+                                            return errorJson("Cannot delete broker: topic mappings still reference it");
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            } catch (Exception e) {
+                logger.warn("Error checking topic mappings for broker references", e);
+            }
+        }
+        
+        // Delete the broker
+        MqttBrokerConfigRecord record = db.find(MqttBrokerConfigRecord.META, id);
+        if (record == null) {
+            return errorJson("Broker not found with ID: " + id);
+        }
+        
+        record.deleteRecord();
+        logger.info("Deleted broker configuration: {} (ID: {})", record.getName(), id);
+        
+        // Remove broker from MultiBrokerManager
+        hook.getMultiBrokerManager().removeBroker(id);
+        
+        JsonObject response = new JsonObject();
+        response.addProperty("success", true);
+        response.addProperty("message", "Broker deleted successfully");
         
         return response;
     }
@@ -270,20 +443,28 @@ public final class MqttDataRoutes {
         
         PersistenceInterface db = context.getPersistenceInterface();
         
-        // Check if updating existing or creating new
-        SQuery<MqttBrokerConfigRecord> query = new SQuery<>(MqttBrokerConfigRecord.META);
-        List<MqttBrokerConfigRecord> existing = db.query(query);
-        
         MqttBrokerConfigRecord record;
-        if (!existing.isEmpty()) {
-            record = existing.get(0);
+        boolean isNewRecord = false;
+        
+        // Check if this is an update (has ID) or create (no ID)
+        if (data.containsKey("id") && data.get("id") != null) {
+            // UPDATE existing
+            long id = ((Number) data.get("id")).longValue();
+            record = db.find(MqttBrokerConfigRecord.META, id);
+            if (record == null) {
+                return errorJson("Broker not found with ID: " + id);
+            }
+            logger.info("Updating existing broker with ID: {}", id);
         } else {
+            // CREATE new
             record = db.createNew(MqttBrokerConfigRecord.META);
-            // Set required Name field for new records
-            record.setName("MQTT Broker Configuration");
+            record.setName("New MQTT Broker");
+            isNewRecord = true;
+            logger.info("Creating new broker configuration");
         }
         
         // Update fields
+        if (data.containsKey("name")) record.setName((String) data.get("name"));
         if (data.containsKey("brokerUrl")) record.setBrokerUrl((String) data.get("brokerUrl"));
         if (data.containsKey("clientId")) record.setClientId((String) data.get("clientId"));
         if (data.containsKey("username")) record.setUsername((String) data.get("username"));
@@ -303,28 +484,11 @@ public final class MqttDataRoutes {
         
         db.save(record);
         
-        logger.info("Saved broker configuration: {}", record.getBrokerUrl());
+        logger.info("Saved broker configuration: {} (ID: {})", record.getName(), record.getId());
         
-        // Apply the new broker configuration immediately (reconnect to broker)
-        if (hook != null && hook.getPublisherManager() != null) {
-            try {
-                MqttBrokerConfig config = com.inductiveautomation.ignition.examples.mqtt.gateway.records.RecordMapper.toModel(record);
-                if (config != null && record.isEnabled()) {
-                    config.validate();
-                    logger.info("Applying broker configuration: {}", config.getBrokerUrl());
-                    
-                    // Disconnect and reconnect with new config
-                    hook.getPublisherManager().disconnect();
-                    hook.getPublisherManager().connect(config);
-                    logger.info("Broker connection updated successfully");
-                } else {
-                    logger.info("Broker disabled, disconnecting");
-                    hook.getPublisherManager().disconnect();
-                }
-            } catch (Exception e) {
-                logger.error("Error applying broker configuration", e);
-            }
-        }
+        // Note: In multi-broker architecture, we don't apply configuration here
+        // The MultiBrokerManager will be responsible for managing connections
+        // based on which brokers have enabled topic mappings
         
         // Return the full saved configuration
         JsonObject response = new JsonObject();
@@ -332,6 +496,7 @@ public final class MqttDataRoutes {
         
         JsonObject savedData = new JsonObject();
         savedData.addProperty("id", record.getId());
+        savedData.addProperty("name", record.getName());
         savedData.addProperty("brokerUrl", record.getBrokerUrl());
         savedData.addProperty("clientId", record.getClientId());
         savedData.addProperty("username", record.getUsername());

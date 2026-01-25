@@ -4,6 +4,7 @@
 
 export interface MqttBrokerConfig {
     id?: number;
+    name: string;
     brokerUrl: string;
     clientId: string;
     username?: string;
@@ -33,6 +34,7 @@ export interface MqttTagConfig {
 
 export interface TopicMapping {
     id?: string;  // For UI tracking
+    brokerId: number;  // Which broker this mapping publishes to
     sourcePattern: string;  // Tag pattern like "[default]TestTags" or "[default]"
     topicPrefix: string;    // UNS topic prefix like "enterprise/site1/area2"
     enabled: boolean;
@@ -44,8 +46,8 @@ export interface ModuleStatus {
     statusMessage: string;
     connectionState?: string;
     connectionStateDisplay?: string;
-    brokerUrl?: string;
-    reconnectAttempts?: number;
+    activeBrokers: number;  // Number of brokers currently connected
+    totalBrokers: number;   // Total number of brokers configured in database
     statistics?: ModuleStatistics;  // Optional - may be undefined during initialization
     monitoredTagCount: number;
 }

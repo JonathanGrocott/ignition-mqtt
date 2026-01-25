@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { getBrokerConfig, getTagConfig } from '../api';
-import { MqttBrokerConfig, MqttTagConfig } from '../types';
+import { getTagConfig } from '../api';
+import { MqttTagConfig } from '../types';
 import BrokerSettings from './BrokerSettings';
 import TagSelection from './TagSelection';
 import StatusDashboard from './StatusDashboard';
@@ -12,7 +12,6 @@ const Configuration: React.FC = () => {
     console.log('[Configuration] Component rendering started');
     
     const [activeTab, setActiveTab] = useState<TabType>('broker');
-    const [brokerConfig, setBrokerConfig] = useState<MqttBrokerConfig | null>(null);
     const [tagConfig, setTagConfig] = useState<MqttTagConfig | null>(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
@@ -28,18 +27,7 @@ const Configuration: React.FC = () => {
         setError(null);
 
         try {
-            // Load broker config
-            console.log('[Configuration] Fetching broker config...');
-            const brokerResponse = await getBrokerConfig();
-            console.log('[Configuration] Broker response:', brokerResponse);
-            
-            if (brokerResponse.success && brokerResponse.data) {
-                setBrokerConfig(brokerResponse.data);
-            } else if (!brokerResponse.success) {
-                throw new Error(brokerResponse.error || 'Failed to load broker configuration');
-            }
-
-            // Load tag config
+            // Load tag config (brokers are now loaded by BrokerSettings component)
             console.log('[Configuration] Fetching tag config...');
             const tagResponse = await getTagConfig();
             console.log('[Configuration] Tag response:', tagResponse);
@@ -59,8 +47,9 @@ const Configuration: React.FC = () => {
         }
     };
 
-    const handleBrokerConfigSaved = (newConfig: MqttBrokerConfig) => {
-        setBrokerConfig(newConfig);
+    const handleBrokersChanged = () => {
+        // Reload tag config when brokers change to ensure consistency
+        loadConfiguration();
     };
 
     const handleTagConfigSaved = (newConfig: MqttTagConfig) => {
@@ -94,7 +83,7 @@ const Configuration: React.FC = () => {
             <header className="page-header">
                 <h1>MQTT UNS Publisher Configuration</h1>
                 <p className="page-description">
-                    Configure MQTT broker connection and tag publishing settings
+                    Configure MQTT broker connections and tag publishing settings
                 </p>
             </header>
 
@@ -122,8 +111,7 @@ const Configuration: React.FC = () => {
             <div className="tab-content">
                 {activeTab === 'broker' && (
                     <BrokerSettings
-                        config={brokerConfig}
-                        onConfigSaved={handleBrokerConfigSaved}
+                        onBrokersChanged={handleBrokersChanged}
                     />
                 )}
                 {activeTab === 'tags' && (

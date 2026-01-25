@@ -30,6 +30,9 @@ public class TopicMapping {
     @SerializedName("enabled")
     private boolean enabled;
     
+    @SerializedName("brokerId")
+    private Long brokerId;
+    
     /**
      * Default constructor
      */
@@ -38,16 +41,25 @@ public class TopicMapping {
         this.sourcePattern = "";
         this.topicPrefix = "";
         this.enabled = true;
+        this.brokerId = null;
     }
     
     /**
      * Constructor with all parameters
      */
-    public TopicMapping(String id, String sourcePattern, String topicPrefix, boolean enabled) {
+    public TopicMapping(String id, String sourcePattern, String topicPrefix, boolean enabled, Long brokerId) {
         this.id = id != null ? id : UUID.randomUUID().toString();
         this.sourcePattern = sourcePattern;
         this.topicPrefix = topicPrefix;
         this.enabled = enabled;
+        this.brokerId = brokerId;
+    }
+    
+    /**
+     * Constructor with all parameters except brokerId (for backward compatibility)
+     */
+    public TopicMapping(String id, String sourcePattern, String topicPrefix, boolean enabled) {
+        this(id, sourcePattern, topicPrefix, enabled, null);
     }
     
     /**
@@ -91,12 +103,23 @@ public class TopicMapping {
         this.enabled = enabled;
     }
     
+    public Long getBrokerId() {
+        return brokerId;
+    }
+    
+    public void setBrokerId(Long brokerId) {
+        this.brokerId = brokerId;
+    }
+    
     /**
      * Validates the mapping configuration
      * 
      * @throws IllegalArgumentException if configuration is invalid
      */
     public void validate() {
+        if (brokerId == null) {
+            throw new IllegalArgumentException("Topic mapping must be assigned to a broker");
+        }
         if (sourcePattern == null || sourcePattern.trim().isEmpty()) {
             throw new IllegalArgumentException("Source pattern cannot be empty");
         }
@@ -154,12 +177,13 @@ public class TopicMapping {
         return enabled == that.enabled &&
                Objects.equals(id, that.id) &&
                Objects.equals(sourcePattern, that.sourcePattern) &&
-               Objects.equals(topicPrefix, that.topicPrefix);
+               Objects.equals(topicPrefix, that.topicPrefix) &&
+               Objects.equals(brokerId, that.brokerId);
     }
     
     @Override
     public int hashCode() {
-        return Objects.hash(id, sourcePattern, topicPrefix, enabled);
+        return Objects.hash(id, sourcePattern, topicPrefix, enabled, brokerId);
     }
     
     @Override
@@ -169,6 +193,7 @@ public class TopicMapping {
                ", sourcePattern='" + sourcePattern + '\'' +
                ", topicPrefix='" + topicPrefix + '\'' +
                ", enabled=" + enabled +
+               ", brokerId=" + brokerId +
                '}';
     }
     
@@ -176,6 +201,6 @@ public class TopicMapping {
      * Creates a copy of this mapping
      */
     public TopicMapping copy() {
-        return new TopicMapping(id, sourcePattern, topicPrefix, enabled);
+        return new TopicMapping(id, sourcePattern, topicPrefix, enabled, brokerId);
     }
 }

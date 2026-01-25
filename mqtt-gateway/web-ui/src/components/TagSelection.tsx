@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { saveTagConfig } from '../api';
-import { MqttTagConfig, TopicMapping } from '../types';
+import { saveTagConfig, getBrokerConfig } from '../api';
+import { MqttTagConfig, TopicMapping, MqttBrokerConfig } from '../types';
 
 interface Props {
     config: MqttTagConfig | null;
@@ -21,16 +21,45 @@ const TagSelection: React.FC<Props> = ({ config, onConfigSaved }) => {
         publishOnQualityChange: true
     });
 
+    const [brokers, setBrokers] = useState<MqttBrokerConfig[]>([]);
+    const [selectedBrokerId, setSelectedBrokerId] = useState<number | null>(null);
     const [saving, setSaving] = useState(false);
     const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
     const [newMappingSource, setNewMappingSource] = useState('');
     const [newMappingTopic, setNewMappingTopic] = useState('');
+    const [newMappingBrokerId, setNewMappingBrokerId] = useState<number | null>(null);
 
     useEffect(() => {
         if (config) {
             setFormData(config);
         }
+        // Always reload brokers when component mounts or config changes
+        loadBrokers();
     }, [config]);
+    
+    // Also reload brokers when tab becomes visible (e.g., after adding a broker)
+    useEffect(() => {
+        const handleFocus = () => {
+            loadBrokers();
+        };
+        window.addEventListener('focus', handleFocus);
+        return () => window.removeEventListener('focus', handleFocus);
+    }, []);
+
+    const loadBrokers = async () => {
+        try {
+            const response = await getBrokerConfig();
+            if (response.success && response.data) {
+                setBrokers(response.data);
+                // Auto-select first broker for new mappings
+                if (response.data.length > 0 && !newMappingBrokerId) {
+                    setNewMappingBrokerId(response.data[0].id || null);
+                }
+            }
+        } catch (error) {
+            console.error('Failed to load brokers:', error);
+        }
+    };
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
         const { name, value, type } = e.target;
@@ -54,9 +83,10 @@ const TagSelection: React.FC<Props> = ({ config, onConfigSaved }) => {
     };
 
     const addTopicMapping = () => {
-        if (newMappingSource && newMappingTopic) {
+        if (newMappingSource && newMappingTopic && newMappingBrokerId) {
             const newMapping: TopicMapping = {
                 id: Date.now().toString(),
+                brokerId: newMappingBrokerId,
                 sourcePattern: newMappingSource,
                 topicPrefix: newMappingTopic,
                 enabled: true
@@ -67,6 +97,12 @@ const TagSelection: React.FC<Props> = ({ config, onConfigSaved }) => {
             }));
             setNewMappingSource('');
             setNewMappingTopic('');
+            // Keep the same broker selected for convenience
+        } else {
+            setMessage({
+                type: 'error',
+                text: 'Please fill in all fields and select a broker'
+            });
         }
     };
 
@@ -110,77 +146,214 @@ const TagSelection: React.FC<Props> = ({ config, onConfigSaved }) => {
         }
     };
 
+    // Group mappings by broker
+    const mappingsByBroker = formData.topicMappings.reduce((acc, mapping) => {
+        const key = mapping.brokerId ?? 'unassigned';
+        if (!acc[key]) {
+            acc[key] = [];
+        }
+        acc[key].push(mapping);
+        return acc;
+    }, {} as Record<number | 'unassigned', TopicMapping[]>);
+
+    const getBrokerName = (brokerId: number | 'unassigned') => {
+        if (brokerId === 'unassigned') {
+            return 'Unassigned (No Broker)';
+        }
+        const broker = brokers.find(b => b.id === brokerId);
+        return broker ? broker.name : `Broker ${brokerId}`;
+    };
+
     return (
         <div className="tag-selection">
             <form onSubmit={handleSave}>
                 <div className="form-section">
                     <h2>UNS Topic Mappings</h2>
                     <p className="section-description">
-                        Map tag providers or folders to custom UNS topic prefixes. 
-                        Only tags matching enabled mappings will be published to MQTT.
+                        Map tag providers or folders to custom UNS topic prefixes and assign them to MQTT brokers. 
+                        Only tags matching enabled mappings will be published to their assigned broker.
                         Example: Map <code>[Sample_Tags]Random</code> to <code>enterprise/site1/line1</code>
                     </p>
 
-                    <div className="form-group">
-                        <label>Topic Mappings</label>
-                        <div className="mapping-input">
-                            <input
-                                type="text"
-                                value={newMappingSource}
-                                onChange={(e) => setNewMappingSource(e.target.value)}
-                                placeholder="Source pattern (e.g., [default]TestTags)"
-                                className="mapping-source"
-                            />
-                            <span className="mapping-arrow">→</span>
-                            <input
-                                type="text"
-                                value={newMappingTopic}
-                                onChange={(e) => setNewMappingTopic(e.target.value)}
-                                placeholder="UNS topic prefix (e.g., enterprise/site1/area2)"
-                                className="mapping-topic"
-                            />
-                            <button type="button" onClick={addTopicMapping} className="btn-add">
-                                Add Mapping
+                    {brokers.length === 0 ? (
+                        <div className="warning-message">
+                            <strong>No brokers configured.</strong> Please configure at least one MQTT broker in the Broker Settings tab before creating topic mappings.
+                            <button type="button" onClick={loadBrokers} className="btn-secondary" style={{marginLeft: '10px'}}>
+                                Refresh
                             </button>
                         </div>
-                        
-                        {formData.topicMappings.length > 0 ? (
-                            <div className="mappings-list">
-                                {formData.topicMappings.map(mapping => (
-                                    <div key={mapping.id} className={`mapping-item ${!mapping.enabled ? 'disabled' : ''}`}>
-                                        <div className="mapping-details">
-                                            <span className="mapping-source-display">{mapping.sourcePattern}</span>
-                                            <span className="mapping-arrow">→</span>
-                                            <span className="mapping-topic-display">{mapping.topicPrefix}</span>
-                                        </div>
-                                        <div className="mapping-actions">
-                                            <label className="toggle-switch">
-                                                <input
-                                                    type="checkbox"
-                                                    checked={mapping.enabled}
-                                                    onChange={() => toggleMappingEnabled(mapping.id!)}
-                                                />
-                                                <span className="toggle-slider"></span>
-                                            </label>
-                                            <button
-                                                type="button"
-                                                onClick={() => removeTopicMapping(mapping.id!)}
-                                                className="btn-remove-small"
-                                            >
-                                                ✕
-                                            </button>
-                                        </div>
+                    ) : (
+                        <>
+                            <div className="form-group">
+                                <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px'}}>
+                                    <label>Add New Topic Mapping</label>
+                                    <button type="button" onClick={loadBrokers} className="btn-secondary" style={{fontSize: '12px', padding: '4px 10px'}}>
+                                        🔄 Refresh Brokers
+                                    </button>
+                                </div>
+                                <div className="mapping-input-container">
+                                    <div className="mapping-input-row">
+                                        <select
+                                            value={newMappingBrokerId || ''}
+                                            onChange={(e) => setNewMappingBrokerId(Number(e.target.value))}
+                                            className="broker-select"
+                                        >
+                                            <option value="">Select broker...</option>
+                                            {brokers.map(broker => (
+                                                <option key={broker.id} value={broker.id}>
+                                                    {broker.name} ({broker.brokerUrl})
+                                                </option>
+                                            ))}
+                                        </select>
                                     </div>
-                                ))}
+                                    <div className="mapping-input-row">
+                                        <input
+                                            type="text"
+                                            value={newMappingSource}
+                                            onChange={(e) => setNewMappingSource(e.target.value)}
+                                            placeholder="Source pattern (e.g., [default]TestTags)"
+                                            className="mapping-source"
+                                        />
+                                        <span className="mapping-arrow">→</span>
+                                        <input
+                                            type="text"
+                                            value={newMappingTopic}
+                                            onChange={(e) => setNewMappingTopic(e.target.value)}
+                                            placeholder="UNS topic prefix (e.g., enterprise/site1/area2)"
+                                            className="mapping-topic"
+                                        />
+                                        <button type="button" onClick={addTopicMapping} className="btn-add">
+                                            Add Mapping
+                                        </button>
+                                    </div>
+                                </div>
                             </div>
-                        ) : (
-                            <p className="no-mappings">
-                                No custom topic mappings. Tags will use default mapping: <code>[provider]/folder/tag</code>
-                            </p>
-                        )}
-                        
-                        <small>Custom mappings override default topic generation for matching tags</small>
-                    </div>
+
+                            {formData.topicMappings.length > 0 ? (
+                                <div className="mappings-by-broker">
+                                    {selectedBrokerId === null ? (
+                                        // Show all brokers (and unassigned)
+                                        <>
+                                            {/* Show unassigned mappings first with a warning */}
+                                            {mappingsByBroker['unassigned'] && mappingsByBroker['unassigned'].length > 0 && (
+                                                <div key="unassigned" className="broker-mappings-group unassigned-group">
+                                                    <h3 className="broker-group-header">
+                                                        ⚠️ Unassigned Mappings (No Broker)
+                                                        <span className="mapping-count">{mappingsByBroker['unassigned'].length} mapping{mappingsByBroker['unassigned'].length !== 1 ? 's' : ''}</span>
+                                                    </h3>
+                                                    <p className="warning-text">These mappings were created before multi-broker support. Delete them and recreate with a broker assigned.</p>
+                                                    <div className="mappings-list">
+                                                        {mappingsByBroker['unassigned'].map(mapping => (
+                                                            <div key={mapping.id} className="mapping-item disabled">
+                                                                <div className="mapping-details">
+                                                                    <span className="mapping-source-display">{mapping.sourcePattern}</span>
+                                                                    <span className="mapping-arrow">→</span>
+                                                                    <span className="mapping-topic-display">{mapping.topicPrefix}</span>
+                                                                </div>
+                                                                <div className="mapping-actions">
+                                                                    <button
+                                                                        type="button"
+                                                                        onClick={() => removeTopicMapping(mapping.id!)}
+                                                                        className="btn-remove-small"
+                                                                        title="Delete this unassigned mapping"
+                                                                    >
+                                                                        ✕ Delete
+                                                                    </button>
+                                                                </div>
+                                                            </div>
+                                                        ))}
+                                                    </div>
+                                                </div>
+                                            )}
+                                            
+                                            {/* Show assigned brokers */}
+                                            {brokers.map(broker => {
+                                                const brokerMappings = mappingsByBroker[broker.id!] || [];
+                                                if (brokerMappings.length === 0) return null;
+                                                
+                                                return (
+                                                    <div key={broker.id} className="broker-mappings-group">
+                                                        <h3 className="broker-group-header">
+                                                            {broker.name}
+                                                            <span className="broker-url">{broker.brokerUrl}</span>
+                                                            <span className="mapping-count">{brokerMappings.length} mapping{brokerMappings.length !== 1 ? 's' : ''}</span>
+                                                        </h3>
+                                                        <div className="mappings-list">
+                                                            {brokerMappings.map(mapping => (
+                                                                <div key={mapping.id} className={`mapping-item ${!mapping.enabled ? 'disabled' : ''}`}>
+                                                                    <div className="mapping-details">
+                                                                        <span className="mapping-source-display">{mapping.sourcePattern}</span>
+                                                                        <span className="mapping-arrow">→</span>
+                                                                        <span className="mapping-topic-display">{mapping.topicPrefix}</span>
+                                                                    </div>
+                                                                    <div className="mapping-actions">
+                                                                        <label className="toggle-switch">
+                                                                            <input
+                                                                                type="checkbox"
+                                                                                checked={mapping.enabled}
+                                                                                onChange={() => toggleMappingEnabled(mapping.id!)}
+                                                                            />
+                                                                            <span className="toggle-slider"></span>
+                                                                        </label>
+                                                                        <button
+                                                                            type="button"
+                                                                            onClick={() => removeTopicMapping(mapping.id!)}
+                                                                            className="btn-remove-small"
+                                                                        >
+                                                                            ✕
+                                                                        </button>
+                                                                    </div>
+                                                                </div>
+                                                            ))}
+                                                        </div>
+                                                    </div>
+                                                );
+                                            })}
+                                        </>
+                                    ) : (
+                                        // Show selected broker only
+                                        <div className="broker-mappings-group">
+                                            <h3>{getBrokerName(selectedBrokerId)}</h3>
+                                            <div className="mappings-list">
+                                                {(mappingsByBroker[selectedBrokerId] || []).map(mapping => (
+                                                    <div key={mapping.id} className={`mapping-item ${!mapping.enabled ? 'disabled' : ''}`}>
+                                                        <div className="mapping-details">
+                                                            <span className="mapping-source-display">{mapping.sourcePattern}</span>
+                                                            <span className="mapping-arrow">→</span>
+                                                            <span className="mapping-topic-display">{mapping.topicPrefix}</span>
+                                                        </div>
+                                                        <div className="mapping-actions">
+                                                            <label className="toggle-switch">
+                                                                <input
+                                                                    type="checkbox"
+                                                                    checked={mapping.enabled}
+                                                                    onChange={() => toggleMappingEnabled(mapping.id!)}
+                                                                />
+                                                                <span className="toggle-slider"></span>
+                                                            </label>
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => removeTopicMapping(mapping.id!)}
+                                                                className="btn-remove-small"
+                                                            >
+                                                                ✕
+                                                            </button>
+                                                        </div>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
+                            ) : (
+                                <p className="no-mappings">
+                                    No custom topic mappings configured yet.
+                                </p>
+                            )}
+                            
+                            <small>Custom mappings override default topic generation for matching tags</small>
+                        </>
+                    )}
                 </div>
 
                 <div className="form-section">

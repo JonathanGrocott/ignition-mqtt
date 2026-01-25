@@ -66,19 +66,35 @@ async function apiFetch<T>(url: string, options?: RequestInit): Promise<ApiRespo
 }
 
 /**
- * Get broker configuration
+ * Get all broker configurations
  */
-export async function getBrokerConfig(): Promise<ApiResponse<MqttBrokerConfig>> {
-    return apiFetch<MqttBrokerConfig>(`${API_BASE}/config/broker`);
+export async function getBrokerConfig(): Promise<ApiResponse<MqttBrokerConfig[]>> {
+    return apiFetch<MqttBrokerConfig[]>(`${API_BASE}/config/broker`);
 }
 
 /**
- * Save broker configuration
+ * Get a specific broker configuration by ID
+ */
+export async function getBrokerById(id: number): Promise<ApiResponse<MqttBrokerConfig>> {
+    return apiFetch<MqttBrokerConfig>(`${API_BASE}/config/broker?id=${id}`);
+}
+
+/**
+ * Save broker configuration (create new or update existing)
  */
 export async function saveBrokerConfig(config: MqttBrokerConfig): Promise<ApiResponse<MqttBrokerConfig>> {
     return apiFetch<MqttBrokerConfig>(`${API_BASE}/config/broker`, {
         method: 'POST',
         body: JSON.stringify(config)
+    });
+}
+
+/**
+ * Delete a broker by ID
+ */
+export async function deleteBroker(id: number): Promise<ApiResponse<void>> {
+    return apiFetch<void>(`${API_BASE}/config/broker?id=${id}`, {
+        method: 'DELETE'
     });
 }
 
@@ -117,8 +133,8 @@ export async function testConnection(config: TestConnectionRequest): Promise<Api
 }
 
 /**
- * Get all configuration (broker + tags)
+ * Get all configuration (brokers + tags)
  */
-export async function getAllConfig(): Promise<ApiResponse<{ broker: MqttBrokerConfig | null, tags: MqttTagConfig | null }>> {
+export async function getAllConfig(): Promise<ApiResponse<{ brokers: MqttBrokerConfig[], tags: MqttTagConfig | null }>> {
     return apiFetch(`${API_BASE}/config`);
 }

@@ -218,6 +218,41 @@ public class ConfigurationManager {
     }
     
     /**
+     * Loads all broker configurations from database.
+     * 
+     * @return List of all broker configurations (may be empty)
+     */
+    public List<MqttBrokerConfig> loadAllBrokerConfigs() {
+        java.util.List<MqttBrokerConfig> configs = new java.util.ArrayList<>();
+        
+        try {
+            PersistenceInterface db = context.getPersistenceInterface();
+            
+            // Query for all broker config records
+            SQuery<MqttBrokerConfigRecord> query = new SQuery<>(MqttBrokerConfigRecord.META);
+            List<MqttBrokerConfigRecord> records = db.query(query);
+            
+            for (MqttBrokerConfigRecord record : records) {
+                try {
+                    MqttBrokerConfig config = RecordMapper.toModel(record);
+                    configs.add(config);
+                    logger.debug("Loaded broker config from database: {} (ID: {})", 
+                        config.getName(), config.getId());
+                } catch (Exception e) {
+                    logger.error("Error converting broker record to model: {}", e.getMessage());
+                }
+            }
+            
+            logger.info("Loaded {} broker configuration(s) from database", configs.size());
+            
+        } catch (Exception e) {
+            logger.error("Error loading broker configurations from database", e);
+        }
+        
+        return configs;
+    }
+    
+    /**
      * Loads tag configuration from database.
      * 
      * @return The loaded tag configuration, or null if none exists

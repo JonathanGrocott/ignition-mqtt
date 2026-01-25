@@ -115,15 +115,25 @@ const StatusDashboard: React.FC = () => {
 
                 {/* Connection Status */}
                 <div className="status-card">
-                    <h3>MQTT Connection</h3>
+                    <h3>MQTT Brokers</h3>
                     <div className="status-content">
                         <div className={`badge ${getConnectionBadgeClass(status.connectionState)}`}>
                             {status.connectionStateDisplay || status.connectionState || 'UNKNOWN'}
                         </div>
-                        {status.brokerUrl && <p className="broker-url">{status.brokerUrl}</p>}
-                        {status.reconnectAttempts !== undefined && status.reconnectAttempts > 0 && (
-                            <p className="reconnect-info">
-                                Reconnect attempts: {status.reconnectAttempts}
+                        {status.totalBrokers === 0 ? (
+                            <p className="broker-counts">No brokers configured</p>
+                        ) : status.activeBrokers === 0 ? (
+                            <>
+                                <p className="broker-counts">
+                                    {status.totalBrokers} available, 0 in use
+                                </p>
+                                <p className="hint-text">
+                                    Create topic mappings in <strong>Tag Selection</strong> to activate
+                                </p>
+                            </>
+                        ) : (
+                            <p className="broker-counts">
+                                {status.activeBrokers} connected / {status.totalBrokers} available
                             </p>
                         )}
                     </div>

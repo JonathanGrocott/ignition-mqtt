@@ -1,12 +1,13 @@
 package com.inductiveautomation.ignition.examples.mqtt.gateway.records;
 
-import com.google.gson.Gson;
+import com.google.gson.*;
 import com.google.gson.reflect.TypeToken;
 import com.inductiveautomation.ignition.examples.mqtt.common.model.MqttBrokerConfig;
 import com.inductiveautomation.ignition.examples.mqtt.common.model.TagPublishConfig;
 import com.inductiveautomation.ignition.examples.mqtt.common.model.TopicMapping;
 
 import java.lang.reflect.Type;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
@@ -16,7 +17,47 @@ import java.util.Map;
  */
 public class RecordMapper {
     
-    private static final Gson gson = new Gson();
+    // Custom deserializer to handle brokerId as either integer or floating point
+    private static class TopicMappingDeserializer implements JsonDeserializer<TopicMapping> {
+        @Override
+        public TopicMapping deserialize(JsonElement json, Type typeOfT, JsonDeserializationContext context) 
+                throws JsonParseException {
+            JsonObject obj = json.getAsJsonObject();
+            
+            TopicMapping mapping = new TopicMapping();
+            
+            if (obj.has("id")) {
+                mapping.setId(obj.get("id").getAsString());
+            }
+            if (obj.has("sourcePattern")) {
+                mapping.setSourcePattern(obj.get("sourcePattern").getAsString());
+            }
+            if (obj.has("topicPrefix")) {
+                mapping.setTopicPrefix(obj.get("topicPrefix").getAsString());
+            }
+            if (obj.has("enabled")) {
+                mapping.setEnabled(obj.get("enabled").getAsBoolean());
+            }
+            if (obj.has("brokerId") && !obj.get("brokerId").isJsonNull()) {
+                // Handle brokerId as either integer or floating point
+                JsonElement brokerIdElement = obj.get("brokerId");
+                if (brokerIdElement.isJsonPrimitive()) {
+                    JsonPrimitive primitive = brokerIdElement.getAsJsonPrimitive();
+                    if (primitive.isNumber()) {
+                        // Convert any number type to Long
+                        mapping.setBrokerId(primitive.getAsLong());
+                    }
+                }
+            }
+            
+            return mapping;
+        }
+    }
+    
+    // Configure Gson with custom deserializer
+    private static final Gson gson = new GsonBuilder()
+        .registerTypeAdapter(TopicMapping.class, new TopicMappingDeserializer())
+        .create();
     
     /**
      * Converts MqttBrokerConfigRecord to MqttBrokerConfig POJO
@@ -26,18 +67,20 @@ public class RecordMapper {
             return null;
         }
         
-        return new MqttBrokerConfig(
-            record.getBrokerUrl(),
-            record.getClientId(),
-            record.getUsername(),
-            record.getPassword(),
-            record.isUseTls(),
-            record.getQos(),
-            record.isRetained(),
-            record.getKeepAliveInterval(),
-            record.getConnectionTimeout(),
-            record.isCleanSession()
-        );
+        MqttBrokerConfig config = new MqttBrokerConfig();
+        config.setId(record.getId());
+        config.setName(record.getName());
+        config.setBrokerUrl(record.getBrokerUrl());
+        config.setClientId(record.getClientId());
+        config.setUsername(record.getUsername());
+        config.setPassword(record.getPassword());
+        config.setUseTls(record.isUseTls());
+        config.setQos(record.getQos());
+        config.setRetained(record.isRetained());
+        config.setKeepAlive(record.getKeepAliveInterval());
+        config.setConnectionTimeout(record.getConnectionTimeout());
+        config.setCleanSession(record.isCleanSession());
+        return config;
     }
     
     /**
@@ -48,6 +91,7 @@ public class RecordMapper {
             return;
         }
         
+        record.setName(model.getName());
         record.setBrokerUrl(model.getBrokerUrl());
         record.setClientId(model.getClientId());
         record.setUsername(model.getUsername());
@@ -79,7 +123,9 @@ public class RecordMapper {
         List<String> providers = gson.fromJson(record.getTagProvidersJson(), listType);
         List<String> folders = gson.fromJson(record.getTagFoldersJson(), listType);
         Map<String, String> overrides = gson.fromJson(record.getTopicOverridesJson(), mapType);
-        List<TopicMapping> mappings = gson.fromJson(record.getTopicMappingsJson(), topicMappingsType);
+        
+        String mappingsJson = record.getTopicMappingsJson();
+        List<TopicMapping> mappings = gson.fromJson(mappingsJson, topicMappingsType);
         
         config.setTagProviders(providers);
         config.setTagFolders(folders);

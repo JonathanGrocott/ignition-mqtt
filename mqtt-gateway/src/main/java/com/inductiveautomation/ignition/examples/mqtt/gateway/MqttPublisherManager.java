@@ -107,7 +107,8 @@ public class MqttPublisherManager {
             mqttClient.setCallback(new MqttCallback() {
                 @Override
                 public void connectionLost(Throwable cause) {
-                    logger.warn("MQTT connection lost: {}", cause.getMessage());
+                    logger.warn("MQTT connection lost for client '{}' to {}: {}", 
+                        cfg.getClientId(), cfg.getBrokerUrl(), cause.getMessage());
                     setConnectionState(ConnectionState.RECONNECTING);
                     scheduleReconnect();
                 }
@@ -133,7 +134,8 @@ public class MqttPublisherManager {
             setConnectionState(ConnectionState.CONNECTED);
             reconnectAttempts.set(0);
             statistics.recordSuccessfulConnection();
-            logger.info("Successfully connected to MQTT broker: {}", cfg.getBrokerUrl());
+            logger.info("Successfully connected to MQTT broker: {} (client ID: '{}')", 
+                cfg.getBrokerUrl(), cfg.getClientId());
             
         } catch (MqttException e) {
             logger.error("Failed to connect to MQTT broker: {} - {}", 

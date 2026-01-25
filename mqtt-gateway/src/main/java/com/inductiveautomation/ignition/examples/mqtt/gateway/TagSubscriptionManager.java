@@ -23,14 +23,15 @@ import java.util.stream.Collectors;
  * Manages tag subscriptions using event-driven tag change notifications.
  * 
  * Uses the Ignition 8.3 SDK's TagChangeListener API to receive real-time tag value changes
- * and publish them to MQTT. This is more efficient and responsive than polling.
+ * and publish them to MQTT brokers. Supports multi-broker architecture where each topic
+ * mapping can be assigned to a specific broker.
  */
 public class TagSubscriptionManager {
     
     private static final Logger logger = LoggerFactory.getLogger(TagSubscriptionManager.class);
     
     private final GatewayContext gatewayContext;
-    private final MqttPublisherManager publisherManager;
+    private final MultiBrokerManager multiBrokerManager;
     private final MqttTopicMapper topicMapper;
     private final JsonPayloadBuilder payloadBuilder;
     private final ModuleStatistics statistics;
@@ -49,12 +50,12 @@ public class TagSubscriptionManager {
      * Creates a new tag subscription manager
      * 
      * @param context Gateway context
-     * @param publisherManager MQTT publisher manager
+     * @param multiBrokerManager Multi-broker manager
      * @param statistics Module statistics tracker
      */
-    public TagSubscriptionManager(GatewayContext context, MqttPublisherManager publisherManager, ModuleStatistics statistics) {
+    public TagSubscriptionManager(GatewayContext context, MultiBrokerManager multiBrokerManager, ModuleStatistics statistics) {
         this.gatewayContext = context;
-        this.publisherManager = publisherManager;
+        this.multiBrokerManager = multiBrokerManager;
         this.statistics = statistics;
         this.topicMapper = new MqttTopicMapper();
         this.payloadBuilder = new JsonPayloadBuilder();
@@ -326,7 +327,7 @@ public class TagSubscriptionManager {
         try {
             String fullPath = tagPath.toStringFull();
             
-            // Check if tag matches any enabled topic mapping
+            // Find matching enabled topic mapping with longest source pattern (most specific)
             com.inductiveautomation.ignition.examples.mqtt.common.model.TopicMapping matchedMapping = null;
             if (config.getTopicMappings() != null) {
                 matchedMapping = config.getTopicMappings().stream()
@@ -341,20 +342,37 @@ public class TagSubscriptionManager {
             
             // Only publish if tag matches an enabled mapping
             if (matchedMapping == null) {
-                logger.trace("Skipping tag {} - no enabled mapping matches", tagPath);
+                logger.debug("Skipping tag {} - no enabled mapping matches (fullPath: {})", tagPath, fullPath);
                 return;
             }
             
-            // Map tag to topic (with custom mappings applied)
-            String topic = topicMapper.mapTagToTopicWithMappings(tagPath);
+            // Get the broker ID from the mapping
+            Long brokerId = matchedMapping.getBrokerId();
+            if (brokerId == null) {
+                logger.warn("Skipping tag {} - mapping has no broker assigned", tagPath);
+                return;
+            }
+            
+            logger.info("Matched tag {} to mapping: source={}, topicPrefix={}, brokerId={}", 
+                fullPath, matchedMapping.getSourcePattern(), matchedMapping.getTopicPrefix(), brokerId);
+            
+            // Map tag to topic using the matched mapping (not searching again)
+            String topic = topicMapper.mapTagToTopicWithMapping(tagPath, matchedMapping);
             
             // Build payload
             String payload = payloadBuilder.buildPayload(tagPath, value, config.isIncludeMetadata());
             
-            // Publish to MQTT
-            publisherManager.publish(topic, payload);
+            logger.info("Publishing to broker {}: topic={}, payload={}", brokerId, topic, payload);
             
-            logger.trace("Published {}: {} to {}", tagPath, value.getValue(), topic);
+            // Publish to the SPECIFIC broker assigned to this mapping
+            boolean published = multiBrokerManager.publish(brokerId, topic, payload);
+            
+            if (published) {
+                logger.info("Published {}: {} to {} on broker {}", 
+                    tagPath, value.getValue(), topic, brokerId);
+            } else {
+                logger.warn("Failed to publish {} to broker {}", tagPath, brokerId);
+            }
             
         } catch (Exception e) {
             logger.error("Error publishing tag {}: {}", tagPath, e.getMessage());

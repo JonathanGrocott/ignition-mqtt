@@ -54,7 +54,6 @@ public class MqttStatusRoute implements RouteHandler {
         try {
             ModuleHealthStatus health = gatewayHook.getHealthStatus();
             ModuleStatistics statistics = gatewayHook.getStatistics();
-            MqttPublisherManager publisherManager = gatewayHook.getPublisherManager();
             
             Map<String, Object> status = new HashMap<>();
             
@@ -63,15 +62,27 @@ public class MqttStatusRoute implements RouteHandler {
             status.put("healthLevel", health.getHealthLevel().name());
             status.put("statusMessage", health.getStatusMessage());
             
-            // Connection information
+            // Connection information (overall state across all brokers)
             if (health.getMqttConnectionState() != null) {
                 status.put("connectionState", health.getMqttConnectionState().name());
                 status.put("connectionStateDisplay", health.getMqttConnectionState().getDisplayName());
             }
             
-            if (publisherManager != null) {
-                status.put("brokerUrl", publisherManager.getBrokerUrl());
-                status.put("reconnectAttempts", publisherManager.getReconnectAttempts());
+            // Multi-broker information
+            var multiBrokerManager = gatewayHook.getMultiBrokerManager();
+            if (multiBrokerManager != null) {
+                int activeBrokers = multiBrokerManager.getActiveBrokerCount();
+                status.put("activeBrokers", activeBrokers);
+                
+                // Get total brokers from database
+                var configManager = gatewayHook.getConfigurationManager();
+                if (configManager != null) {
+                    int totalBrokers = configManager.loadAllBrokerConfigs().size();
+                    status.put("totalBrokers", totalBrokers);
+                }
+            } else {
+                status.put("activeBrokers", 0);
+                status.put("totalBrokers", 0);
             }
             
             // Statistics

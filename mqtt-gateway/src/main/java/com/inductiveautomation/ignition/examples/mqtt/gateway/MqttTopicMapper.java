@@ -78,6 +78,48 @@ public class MqttTopicMapper {
     }
     
     /**
+     * Maps a tag path to an MQTT topic using a specific mapping.
+     * 
+     * This method applies a pre-selected mapping to transform the tag path to a topic.
+     * It's useful when you've already identified the correct mapping and want to avoid
+     * duplicate mapping searches.
+     * 
+     * Example:
+     *   Mapping: "[default]Site1/Area2" -> "enterprise/nashville/assembly"
+     *   Tag: [default]Site1/Area2/Line3/Temperature
+     *   Result: enterprise/nashville/assembly/line3/temperature
+     * 
+     * @param tagPath The Ignition tag path
+     * @param mapping The specific mapping to apply
+     * @return The MQTT topic string (with mapping applied)
+     */
+    public String mapTagToTopicWithMapping(TagPath tagPath, TopicMapping mapping) {
+        if (tagPath == null) {
+            throw new IllegalArgumentException("Tag path cannot be null");
+        }
+        
+        if (mapping == null) {
+            return mapTagToTopic(tagPath);
+        }
+        
+        String fullPath = tagPath.toStringFull();
+        
+        // Apply the mapping transformation
+        String remainder = fullPath.substring(mapping.getSourcePattern().length());
+        if (remainder.startsWith("/")) {
+            remainder = remainder.substring(1);
+        }
+        
+        String topic = mapping.getTopicPrefix();
+        if (!remainder.isEmpty()) {
+            // Sanitize the remainder portion
+            topic = topic + "/" + sanitizeTopicSegment(remainder);
+        }
+        
+        return topic;
+    }
+    
+    /**
      * Maps a tag path to an MQTT topic, applying custom topic mappings if available.
      * 
      * This method first checks if any enabled topic mapping matches the tag path.
@@ -110,19 +152,7 @@ public class MqttTopicMapper {
             .orElse(null);
         
         if (matchedMapping != null) {
-            // Apply the mapping transformation
-            String remainder = fullPath.substring(matchedMapping.getSourcePattern().length());
-            if (remainder.startsWith("/")) {
-                remainder = remainder.substring(1);
-            }
-            
-            String topic = matchedMapping.getTopicPrefix();
-            if (!remainder.isEmpty()) {
-                // Sanitize the remainder portion
-                topic = topic + "/" + sanitizeTopicSegment(remainder);
-            }
-            
-            return topic;
+            return mapTagToTopicWithMapping(tagPath, matchedMapping);
         }
         
         // No mapping found, use default topic generation
