@@ -343,6 +343,16 @@ public class MqttPublisherManager {
     }
     
     /**
+     * Gets the broker URL from the current configuration
+     * 
+     * @return The broker URL, or null if not configured
+     */
+    public String getBrokerUrl() {
+        MqttBrokerConfig cfg = config.get();
+        return cfg != null ? cfg.getBrokerUrl() : null;
+    }
+    
+    /**
      * Gets the module statistics
      * 
      * @return The statistics object

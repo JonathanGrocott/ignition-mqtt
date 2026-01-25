@@ -57,3 +57,5 @@ docs/*
 BUILD-AND-TEST-PLAN.md
 PHASE2-TESTING.md
 
+#examples
+examples/*

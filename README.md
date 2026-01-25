@@ -44,8 +44,10 @@ The compiled `.modl` file will be located at `build/MQTT-UNS-Publisher.unsigned.
 2. Navigate to your Ignition Gateway web interface (typically `http://localhost:8088`)
 3. Go to **Config > Modules**
 4. Scroll down and click **Install or Upgrade a Module**
-5. Select the `MQTT-UNS-Publisher.modl` file
+5. Select the `MQTT-UNS-Publisher.unsigned.modl` file from the `build/` directory
 6. Click **Install**
+7. Wait for the module to load (should show "Running" status)
+8. Navigate to **Config > Connections > MQTT UNS Publisher** to access the web configuration UI
 
 ### Development Mode
 
@@ -59,7 +61,32 @@ Replace `[index]` with the next available index number.
 
 ## Configuration
 
-The module is configured via a JSON file located in your Ignition data directory:
+The module can be configured in two ways:
+
+### Option 1: Web UI (Recommended)
+
+Navigate to **Config > Connections > MQTT UNS Publisher** in the Gateway web interface. The web UI provides three tabs:
+
+1. **Broker Settings**: Configure MQTT broker connection parameters
+   - Broker URL, client ID, credentials
+   - QoS, retained messages, connection timeout
+   - Test connection functionality
+
+2. **Tag Publishing**: Select tags and configure publishing behavior
+   - Choose tag providers or specific folders
+   - Set polling rate and deadband filtering
+   - Configure topic overrides
+   - Enable/disable metadata publishing
+
+3. **Status & Statistics**: Monitor real-time module performance
+   - Connection status and uptime
+   - Publish statistics (success/failure rates)
+   - Tag read statistics
+   - Health monitoring with auto-refresh
+
+### Option 2: JSON File (Legacy)
+
+The module can also be configured via a JSON file located in your Ignition data directory:
 
 ```
 <ignition-data>/mqtt-uns-config.json
@@ -128,7 +155,7 @@ See [MQTT-BROKER-SETUP.md](MQTT-BROKER-SETUP.md) for detailed broker setup instr
 
 ## Development Status
 
-This module is **functionally complete** for core features. Current phase: **Phase 5 - Production Ready** ✅
+This module is **production-ready** with full web UI configuration. Current phase: **Phase 6 Complete** ✅
 
 ### Completed Features
 - [x] **Phase 1**: Project structure and module skeleton
@@ -157,12 +184,15 @@ This module is **functionally complete** for core features. Current phase: **Pha
   - [x] Tag read success rate calculation
   - [x] Connection success rate calculation
   - [x] Detailed statistics reporting
+- [x] **Phase 6**: Gateway web configuration UI ✅
+  - [x] React-based configuration interface
+  - [x] REST API endpoints for configuration CRUD
+  - [x] Database-backed configuration storage (PersistentRecord)
+  - [x] Real-time status dashboard with auto-refresh
+  - [x] Test MQTT connection functionality
+  - [x] Three-tab interface (Broker Settings, Tag Publishing, Status Dashboard)
 
 ### Pending Features
-- [ ] **Phase 6**: Gateway web configuration UI
-  - [ ] REST API endpoints for config
-  - [ ] HTML/JavaScript configuration interface
-  - [ ] Real-time status dashboard
 - [ ] **Phase 7**: Advanced features
   - [ ] Custom payload templates
   - [ ] Sparkplug B protocol support
@@ -175,9 +205,9 @@ This module is **functionally complete** for core features. Current phase: **Pha
   - [ ] Load testing
 
 ### Known Limitations
-- No web UI yet (configuration via JSON file only)
-- No TLS/SSL support (plaintext MQTT only)
-- Poll-based rather than event-driven (acceptable for most use cases)
+- Poll-based rather than event-driven tag monitoring (acceptable for most use cases)
+- No TLS/SSL support yet (plaintext MQTT only)
+- No Sparkplug B protocol support yet
 - Not compatible with Ignition Maker Edition
 
 ## Project Structure
@@ -193,16 +223,38 @@ ignition-mqtt/
 │           ├── TagPublishConfig.java
 │           └── MqttModuleConfig.java
 ├── mqtt-gateway/                     # Gateway scope (main implementation)
-│   └── src/main/java/.../gateway/
-│       ├── MqttGatewayHook.java         # Module entry point
-│       ├── MqttPublisherManager.java    # MQTT connection management
-│       ├── TagSubscriptionManager.java  # Tag polling & publishing
-│       ├── MqttTopicMapper.java         # Tag-to-topic mapping
-│       ├── JsonPayloadBuilder.java      # JSON payload generation
-│       ├── ModuleStatistics.java        # Runtime statistics
-│       ├── ModuleHealthStatus.java      # Health monitoring
-│       └── config/
-│           └── ConfigurationManager.java  # JSON config loader
+│   ├── src/main/java/.../gateway/
+│   │   ├── MqttGatewayHook.java         # Module entry point
+│   │   ├── MqttPublisherManager.java    # MQTT connection management
+│   │   ├── TagSubscriptionManager.java  # Tag polling & publishing
+│   │   ├── MqttTopicMapper.java         # Tag-to-topic mapping
+│   │   ├── JsonPayloadBuilder.java      # JSON payload generation
+│   │   ├── ModuleStatistics.java        # Runtime statistics
+│   │   ├── ModuleHealthStatus.java      # Health monitoring
+│   │   ├── config/
+│   │   │   └── ConfigurationManager.java  # JSON config loader
+│   │   ├── records/                     # Database persistence
+│   │   │   ├── MqttBrokerSettings.java
+│   │   │   ├── MqttTagSettings.java
+│   │   │   └── MqttConfigRecordListener.java
+│   │   └── web/                         # REST API
+│   │       ├── MqttConfigRoute.java
+│   │       ├── MqttStatusRoute.java
+│   │       └── TestConnectionRoute.java
+│   ├── web-ui/                          # React web interface
+│   │   ├── src/
+│   │   │   ├── components/
+│   │   │   │   ├── Configuration.tsx    # Main container
+│   │   │   │   ├── BrokerSettings.tsx   # Broker config tab
+│   │   │   │   ├── TagSelection.tsx     # Tag selection tab
+│   │   │   │   └── StatusDashboard.tsx  # Status monitoring tab
+│   │   │   ├── index.tsx                # Entry point
+│   │   │   └── styles.css               # Global styles
+│   │   ├── package.json
+│   │   └── webpack.config.js
+│   └── src/main/resources/
+│       └── mounted/                     # Webpack output
+│           └── mqtt-config.js           # Bundled React app
 ├── build.gradle.kts                  # Root build configuration
 ├── settings.gradle.kts               # Gradle settings
 ├── build.sh                          # Build script

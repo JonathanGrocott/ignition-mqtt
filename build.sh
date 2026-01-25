@@ -1,34 +1,172 @@
 #!/bin/bash
 
-# Build script for MQTT UNS Publisher module
+###################################################################################
+# MQTT UNS Publisher Module - Complete Build Script
+###################################################################################
+# This script builds the complete module including:
+# 1. React/TypeScript frontend (web UI)
+# 2. Java backend (Gateway module)
+# 3. Packages everything into a .modl file
+###################################################################################
 
-set -e  # Exit on error
+set -e  # Exit on any error
 
-# Set JAVA_HOME if not already set
+# Colors for output
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+NC='\033[0m' # No Color
+
+# Project paths
+PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+WEB_UI_DIR="$PROJECT_ROOT/mqtt-gateway/web-ui"
+MOUNTED_DIR="$PROJECT_ROOT/mqtt-gateway/src/main/resources/mounted"
+
+echo -e "${BLUE}════════════════════════════════════════════════════════════════${NC}"
+echo -e "${BLUE}   MQTT UNS Publisher Module - Complete Build${NC}"
+echo -e "${BLUE}════════════════════════════════════════════════════════════════${NC}"
+echo ""
+
+###################################################################################
+# Step 1: Check Prerequisites
+###################################################################################
+echo -e "${YELLOW}[1/4] Checking prerequisites...${NC}"
+
+# Set JAVA_HOME if not already set (macOS specific)
 if [ -z "$JAVA_HOME" ]; then
     if [ -d "/opt/homebrew/opt/openjdk@17" ]; then
         export JAVA_HOME=/opt/homebrew/opt/openjdk@17
-        echo "Setting JAVA_HOME to $JAVA_HOME"
-    else
-        echo "Error: JAVA_HOME not set and openjdk@17 not found"
-        echo "Please install OpenJDK 17: brew install openjdk@17"
-        exit 1
+        echo -e "${BLUE}  → Setting JAVA_HOME to $JAVA_HOME${NC}"
+    elif [ -d "/usr/lib/jvm/java-11-openjdk" ]; then
+        export JAVA_HOME=/usr/lib/jvm/java-11-openjdk
+        echo -e "${BLUE}  → Setting JAVA_HOME to $JAVA_HOME${NC}"
     fi
 fi
 
-echo "Building MQTT UNS Publisher module..."
-echo "Java version:"
-"$JAVA_HOME/bin/java" -version
+# Check for Node.js
+if ! command -v node &> /dev/null; then
+    echo -e "${RED}✗ Node.js is not installed. Please install Node.js 16+ and try again.${NC}"
+    exit 1
+fi
+NODE_VERSION=$(node --version)
+echo -e "${GREEN}✓ Node.js found: $NODE_VERSION${NC}"
 
-./gradlew clean build
+# Check for npm
+if ! command -v npm &> /dev/null; then
+    echo -e "${RED}✗ npm is not installed. Please install npm and try again.${NC}"
+    exit 1
+fi
+NPM_VERSION=$(npm --version)
+echo -e "${GREEN}✓ npm found: $NPM_VERSION${NC}"
+
+# Check for Java
+if ! command -v java &> /dev/null; then
+    echo -e "${RED}✗ Java is not installed. Please install Java 11+ and try again.${NC}"
+    exit 1
+fi
+JAVA_VERSION=$(java -version 2>&1 | head -n 1)
+echo -e "${GREEN}✓ Java found: $JAVA_VERSION${NC}"
+
+# Check for Gradle wrapper
+if [ ! -f "$PROJECT_ROOT/gradlew" ]; then
+    echo -e "${RED}✗ Gradle wrapper not found. Please ensure gradlew exists in project root.${NC}"
+    exit 1
+fi
+echo -e "${GREEN}✓ Gradle wrapper found${NC}"
 
 echo ""
-echo "✅ Build successful!"
+
+###################################################################################
+# Step 2: Build Frontend (React/TypeScript)
+###################################################################################
+echo -e "${YELLOW}[2/4] Building frontend (React/TypeScript)...${NC}"
+
+cd "$WEB_UI_DIR"
+
+# Check if node_modules exists, install if needed
+if [ ! -d "node_modules" ]; then
+    echo -e "${BLUE}  → Installing npm dependencies...${NC}"
+    npm install
+else
+    echo -e "${BLUE}  → npm dependencies already installed${NC}"
+fi
+
+# Build React application
+echo -e "${BLUE}  → Building React application with webpack...${NC}"
+npm run build
+
+# Verify output file exists
+if [ ! -f "$MOUNTED_DIR/mqtt-config.js" ]; then
+    echo -e "${RED}✗ Frontend build failed: mqtt-config.js not found${NC}"
+    exit 1
+fi
+
+FILE_SIZE=$(du -h "$MOUNTED_DIR/mqtt-config.js" | cut -f1)
+echo -e "${GREEN}✓ Frontend built successfully: mqtt-config.js ($FILE_SIZE)${NC}"
 echo ""
-echo "Module file: build/MQTT-UNS-Publisher.unsigned.modl"
-ls -lh build/*.modl
+
+###################################################################################
+# Step 3: Build Backend (Java/Gradle)
+###################################################################################
+echo -e "${YELLOW}[3/4] Building backend (Java/Gradle)...${NC}"
+
+cd "$PROJECT_ROOT"
+
+# Clean previous builds
+echo -e "${BLUE}  → Cleaning previous builds...${NC}"
+./gradlew clean --quiet
+
+# Build the module
+echo -e "${BLUE}  → Compiling Java code and packaging module...${NC}"
+./gradlew build
+
+# Check if build succeeded
+if [ $? -ne 0 ]; then
+    echo -e "${RED}✗ Gradle build failed${NC}"
+    exit 1
+fi
+
+echo -e "${GREEN}✓ Backend built successfully${NC}"
 echo ""
-echo "To install:"
-echo "1. Go to http://localhost:8088 (your Gateway)"
-echo "2. Config > Modules > Install or Upgrade a Module"
-echo "3. Select build/MQTT-UNS-Publisher.unsigned.modl"
+
+###################################################################################
+# Step 4: Locate and Display Output
+###################################################################################
+echo -e "${YELLOW}[4/4] Locating build artifacts...${NC}"
+
+# Find the .modl file
+MODL_FILE=$(find "$PROJECT_ROOT/build" -name "*.modl" -type f | head -n 1)
+
+if [ -z "$MODL_FILE" ]; then
+    echo -e "${RED}✗ Could not find .modl file in build directory${NC}"
+    exit 1
+fi
+
+MODL_SIZE=$(du -h "$MODL_FILE" | cut -f1)
+MODL_NAME=$(basename "$MODL_FILE")
+
+echo -e "${GREEN}✓ Module file created: $MODL_NAME ($MODL_SIZE)${NC}"
+echo ""
+
+###################################################################################
+# Success Summary
+###################################################################################
+echo -e "${BLUE}════════════════════════════════════════════════════════════════${NC}"
+echo -e "${GREEN}   Build Completed Successfully! 🎉${NC}"
+echo -e "${BLUE}════════════════════════════════════════════════════════════════${NC}"
+echo ""
+echo -e "${BLUE}Module file location:${NC}"
+echo -e "  $MODL_FILE"
+echo ""
+echo -e "${BLUE}Next steps:${NC}"
+echo -e "  1. Navigate to your Ignition Gateway web interface"
+echo -e "  2. Go to Config → System → Modules"
+echo -e "  3. Click 'Install or Upgrade a Module'"
+echo -e "  4. Upload: $MODL_NAME"
+echo -e "  5. After installation, navigate to Config → MQTT UNS Publisher"
+echo ""
+echo -e "${BLUE}Web UI will be available at:${NC}"
+echo -e "  http://your-gateway:8088/web/config/mqtt-uns-publisher"
+echo ""
+echo -e "${GREEN}Happy publishing! 📡${NC}"

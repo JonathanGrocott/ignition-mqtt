@@ -3,6 +3,7 @@ package com.inductiveautomation.ignition.examples.mqtt.common.model;
 import com.google.gson.annotations.SerializedName;
 
 import java.util.*;
+import java.util.stream.Collectors;
 
 import static com.inductiveautomation.ignition.examples.mqtt.common.MqttModuleConstants.DEFAULT_VALUE_DEADBAND;
 
@@ -36,8 +37,8 @@ public class TagPublishConfig {
     @SerializedName("publishOnQualityChange")
     private boolean publishOnQualityChange;
     
-    @SerializedName("pollRateMs")
-    private long pollRateMs;
+    @SerializedName("topicMappings")
+    private List<TopicMapping> topicMappings;
     
     /**
      * Default constructor with sensible defaults
@@ -51,7 +52,7 @@ public class TagPublishConfig {
         this.includeMetadata = true;
         this.valueDeadband = DEFAULT_VALUE_DEADBAND;
         this.publishOnQualityChange = true;
-        this.pollRateMs = 1000; // Default 1 second
+        this.topicMappings = new ArrayList<>();
     }
     
     // Getters and Setters
@@ -120,12 +121,12 @@ public class TagPublishConfig {
         this.publishOnQualityChange = publishOnQualityChange;
     }
     
-    public long getPollRateMs() {
-        return pollRateMs;
+    public List<TopicMapping> getTopicMappings() {
+        return topicMappings;
     }
     
-    public void setPollRateMs(long pollRateMs) {
-        this.pollRateMs = pollRateMs;
+    public void setTopicMappings(List<TopicMapping> topicMappings) {
+        this.topicMappings = topicMappings != null ? topicMappings : new ArrayList<>();
     }
     
     /**
@@ -167,25 +168,48 @@ public class TagPublishConfig {
     }
     
     /**
+     * Adds a topic mapping for source pattern -> topic prefix transformation
+     */
+    public void addTopicMapping(TopicMapping mapping) {
+        if (mapping != null) {
+            topicMappings.add(mapping);
+        }
+    }
+    
+    /**
+     * Removes a topic mapping by ID
+     */
+    public void removeTopicMapping(String id) {
+        topicMappings.removeIf(mapping -> mapping.getId().equals(id));
+    }
+    
+    /**
+     * Finds the first enabled mapping that matches the given tag path
+     */
+    public TopicMapping findMatchingMapping(String tagPath) {
+        if (tagPath == null) {
+            return null;
+        }
+        // Sort by source pattern length (longest first) to match most specific patterns first
+        return topicMappings.stream()
+            .filter(TopicMapping::isEnabled)
+            .filter(mapping -> mapping.matches(tagPath))
+            .max(Comparator.comparingInt(m -> m.getSourcePattern().length()))
+            .orElse(null);
+    }
+    
+    /**
      * Validates the configuration
      */
     public void validate() {
-        if (enabled && tagProviders.isEmpty() && tagFolders.isEmpty()) {
+        if (enabled && tagProviders.isEmpty() && tagFolders.isEmpty() && topicMappings.isEmpty()) {
             throw new IllegalArgumentException(
-                "Tag publishing is enabled but no providers or folders are configured"
+                "Tag publishing is enabled but no providers, folders, or topic mappings are configured"
             );
         }
         
         if (valueDeadband < 0) {
             throw new IllegalArgumentException("Value deadband cannot be negative");
-        }
-        
-        if (pollRateMs < 100) {
-            throw new IllegalArgumentException("Poll rate must be at least 100ms");
-        }
-        
-        if (pollRateMs > 60000) {
-            throw new IllegalArgumentException("Poll rate cannot exceed 60 seconds");
         }
     }
     
@@ -198,7 +222,6 @@ public class TagPublishConfig {
                ", includeMetadata=" + includeMetadata +
                ", valueDeadband=" + valueDeadband +
                ", publishOnQualityChange=" + publishOnQualityChange +
-               ", pollRateMs=" + pollRateMs +
                '}';
     }
     
@@ -215,7 +238,9 @@ public class TagPublishConfig {
         copy.includeMetadata = this.includeMetadata;
         copy.valueDeadband = this.valueDeadband;
         copy.publishOnQualityChange = this.publishOnQualityChange;
-        copy.pollRateMs = this.pollRateMs;
+        copy.topicMappings = this.topicMappings.stream()
+            .map(TopicMapping::copy)
+            .collect(Collectors.toList());
         return copy;
     }
 }

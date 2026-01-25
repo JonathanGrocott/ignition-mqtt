@@ -1,6 +1,10 @@
 package com.inductiveautomation.ignition.examples.mqtt.gateway;
 
 import com.inductiveautomation.ignition.common.tags.model.TagPath;
+import com.inductiveautomation.ignition.examples.mqtt.common.model.TopicMapping;
+
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * Maps Ignition tag paths to MQTT topics.
@@ -9,6 +13,22 @@ import com.inductiveautomation.ignition.common.tags.model.TagPath;
  * to MQTT topics like "default/site/area/line/device/temperature"
  */
 public class MqttTopicMapper {
+    
+    private List<TopicMapping> topicMappings = new ArrayList<>();
+    
+    /**
+     * Sets the topic mappings to use for custom tag-to-topic transformations
+     */
+    public void setTopicMappings(List<TopicMapping> mappings) {
+        this.topicMappings = mappings != null ? mappings : new ArrayList<>();
+    }
+    
+    /**
+     * Gets the current topic mappings
+     */
+    public List<TopicMapping> getTopicMappings() {
+        return topicMappings;
+    }
     
     /**
      * Converts a tag path to an MQTT topic using direct path mapping.
@@ -55,6 +75,58 @@ public class MqttTopicMapper {
         }
         
         return topic.toString();
+    }
+    
+    /**
+     * Maps a tag path to an MQTT topic, applying custom topic mappings if available.
+     * 
+     * This method first checks if any enabled topic mapping matches the tag path.
+     * If a match is found, it applies the mapping to transform the topic.
+     * Otherwise, it falls back to the default mapping.
+     * 
+     * Example with mapping:
+     *   Mapping: "[default]Site1/Area2" -> "enterprise/nashville/assembly"
+     *   Tag: [default]Site1/Area2/Line3/Temperature
+     *   Result: enterprise/nashville/assembly/line3/temperature
+     * 
+     * @param tagPath The Ignition tag path
+     * @return The MQTT topic string (with mappings applied if available)
+     */
+    public String mapTagToTopicWithMappings(TagPath tagPath) {
+        if (tagPath == null) {
+            throw new IllegalArgumentException("Tag path cannot be null");
+        }
+        
+        String fullPath = tagPath.toStringFull();
+        
+        // Check if any topic mapping matches (sorted by source pattern length, longest first)
+        TopicMapping matchedMapping = topicMappings.stream()
+            .filter(TopicMapping::isEnabled)
+            .filter(mapping -> mapping.matches(fullPath))
+            .max((m1, m2) -> Integer.compare(
+                m1.getSourcePattern().length(), 
+                m2.getSourcePattern().length()
+            ))
+            .orElse(null);
+        
+        if (matchedMapping != null) {
+            // Apply the mapping transformation
+            String remainder = fullPath.substring(matchedMapping.getSourcePattern().length());
+            if (remainder.startsWith("/")) {
+                remainder = remainder.substring(1);
+            }
+            
+            String topic = matchedMapping.getTopicPrefix();
+            if (!remainder.isEmpty()) {
+                // Sanitize the remainder portion
+                topic = topic + "/" + sanitizeTopicSegment(remainder);
+            }
+            
+            return topic;
+        }
+        
+        // No mapping found, use default topic generation
+        return mapTagToTopic(tagPath);
     }
     
     /**

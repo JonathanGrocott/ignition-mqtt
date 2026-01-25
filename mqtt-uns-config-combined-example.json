@@ -22,7 +22,6 @@
       "[default]Production/Line1"
     ],
     "valueDeadband": 0.1,
-    "pollRateMs": 1000,
     "publishOnQualityChange": true,
     "includeMetadata": true,
     "topicOverrides": {

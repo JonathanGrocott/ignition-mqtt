@@ -97,6 +97,27 @@ public class ModuleStatistics {
         return System.currentTimeMillis() - startTimeMs;
     }
     
+    /**
+     * Gets uptime in human-readable format (e.g., "2d 5h 30m")
+     */
+    public String getUptimeDisplay() {
+        long uptimeMs = getUptimeMs();
+        long seconds = uptimeMs / 1000;
+        long minutes = seconds / 60;
+        long hours = minutes / 60;
+        long days = hours / 24;
+        
+        if (days > 0) {
+            return String.format("%dd %dh %dm", days, hours % 24, minutes % 60);
+        } else if (hours > 0) {
+            return String.format("%dh %dm %ds", hours, minutes % 60, seconds % 60);
+        } else if (minutes > 0) {
+            return String.format("%dm %ds", minutes, seconds % 60);
+        } else {
+            return String.format("%ds", seconds);
+        }
+    }
+    
     public long getTimeSinceLastPublishMs() {
         if (lastPublishTimeMs == 0) {
             return -1; // Never published
