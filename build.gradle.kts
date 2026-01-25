@@ -12,14 +12,14 @@ ignitionModule {
     moduleVersion.set(version.toString())
     moduleDescription.set("Publishes Ignition tags to MQTT broker in Unified Namespace structure with configurable JSON payloads")
     requiredIgnitionVersion.set("8.3.0")
+    freeModule.set(true)
     
     projectScopes.putAll(
         mapOf(
+            ":mqtt-common" to "G",
             ":mqtt-gateway" to "G"
         )
     )
-
-    moduleDependencies.put("com.inductiveautomation.ignition.common", "G")
     
     hooks.putAll(
         mapOf(

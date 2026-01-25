@@ -51,3 +51,9 @@ gateway-backup/
 *.zip
 *.tar.gz
 *.rar
+
+#Docs
+docs/*
+BUILD-AND-TEST-PLAN.md
+PHASE2-TESTING.md
+

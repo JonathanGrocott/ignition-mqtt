@@ -30,6 +30,7 @@ public class MqttPublisherManager {
     
     private static final Logger logger = LoggerFactory.getLogger(MqttPublisherManager.class);
     
+    private final ModuleStatistics statistics;
     private final AtomicReference<MqttBrokerConfig> config = new AtomicReference<>();
     private final AtomicReference<ConnectionState> connectionState = new AtomicReference<>(ConnectionState.DISCONNECTED);
     private final AtomicInteger reconnectAttempts = new AtomicInteger(0);
@@ -41,7 +42,8 @@ public class MqttPublisherManager {
     /**
      * Initializes the MQTT publisher manager
      */
-    public MqttPublisherManager() {
+    public MqttPublisherManager(ModuleStatistics statistics) {
+        this.statistics = statistics;
         this.reconnectScheduler = Executors.newSingleThreadScheduledExecutor(r -> {
             Thread t = new Thread(r, "MQTT-Reconnect-Thread");
             t.setDaemon(true);
@@ -86,6 +88,7 @@ public class MqttPublisherManager {
         }
         
         setConnectionState(ConnectionState.CONNECTING);
+        statistics.incrementConnectionAttempts();
         
         try {
             // Close existing client if present
@@ -129,11 +132,13 @@ public class MqttPublisherManager {
             // Success!
             setConnectionState(ConnectionState.CONNECTED);
             reconnectAttempts.set(0);
+            statistics.recordSuccessfulConnection();
             logger.info("Successfully connected to MQTT broker: {}", cfg.getBrokerUrl());
             
         } catch (MqttException e) {
             logger.error("Failed to connect to MQTT broker: {} - {}", 
                         cfg.getBrokerUrl(), e.getMessage(), e);
+            statistics.incrementConnectionFailures();
             setConnectionState(ConnectionState.RECONNECTING);
             scheduleReconnect();
         }
@@ -227,6 +232,7 @@ public class MqttPublisherManager {
     public boolean publish(String topic, String payload, int qos, boolean retained) {
         if (!isConnected()) {
             logger.debug("Cannot publish to topic '{}': not connected", topic);
+            statistics.incrementMessagesFailedToPublish();
             return false;
         }
         
@@ -236,6 +242,7 @@ public class MqttPublisherManager {
             message.setRetained(retained);
             
             mqttClient.publish(topic, message);
+            statistics.incrementMessagesPublished();
             
             logger.trace("Published message to topic '{}' (QoS: {}, Retained: {})", 
                         topic, qos, retained);
@@ -243,6 +250,7 @@ public class MqttPublisherManager {
             
         } catch (MqttException e) {
             logger.error("Failed to publish to topic '{}': {}", topic, e.getMessage(), e);
+            statistics.incrementMessagesFailedToPublish();
             return false;
         }
     }
@@ -332,6 +340,15 @@ public class MqttPublisherManager {
      */
     public int getReconnectAttempts() {
         return reconnectAttempts.get();
+    }
+    
+    /**
+     * Gets the module statistics
+     * 
+     * @return The statistics object
+     */
+    public ModuleStatistics getStatistics() {
+        return statistics;
     }
     
     /**

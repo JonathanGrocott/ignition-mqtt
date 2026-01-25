@@ -1,0 +1,33 @@
+{
+  "broker": {
+    "brokerUrl": "tcp://localhost:1883",
+    "clientId": "ignition-mqtt-publisher",
+    "username": "",
+    "password": "",
+    "qos": 1,
+    "retained": false,
+    "cleanSession": true,
+    "connectionTimeout": 30,
+    "keepAliveInterval": 60,
+    "automaticReconnect": true,
+    "maxReconnectDelay": 30000
+  },
+  "tags": {
+    "enabled": true,
+    "tagProviders": [
+      "default"
+    ],
+    "tagFolders": [
+      "[default]TestTags",
+      "[default]Production/Line1"
+    ],
+    "valueDeadband": 0.1,
+    "pollRateMs": 1000,
+    "publishOnQualityChange": true,
+    "includeMetadata": true,
+    "topicOverrides": {
+      "[default]TestTags/Temperature": "factory/zone1/temp",
+      "[default]TestTags/Pressure": "factory/zone1/pressure"
+    }
+  }
+}

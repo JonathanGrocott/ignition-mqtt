@@ -3,6 +3,8 @@ package com.inductiveautomation.ignition.examples.mqtt.gateway.config;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.inductiveautomation.ignition.examples.mqtt.common.model.MqttBrokerConfig;
+import com.inductiveautomation.ignition.examples.mqtt.common.model.MqttModuleConfig;
+import com.inductiveautomation.ignition.examples.mqtt.common.model.TagPublishConfig;
 import com.inductiveautomation.ignition.gateway.model.GatewayContext;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -14,8 +16,10 @@ import java.io.IOException;
 
 /**
  * Simple configuration persistence using JSON files.
- * This is a temporary solution for Phase 2. Will be replaced with 
+ * This is a temporary solution for Phase 2-3. Will be replaced with 
  * Config Resource API in Phase 5 when we add the web UI.
+ * 
+ * Manages both MQTT broker configuration and tag publishing configuration.
  */
 public class ConfigurationManager {
     
@@ -38,33 +42,63 @@ public class ConfigurationManager {
     }
     
     /**
-     * Loads the MQTT broker configuration from file
+     * Loads the complete module configuration from file
      * 
      * @return The loaded configuration, or a default configuration if file doesn't exist
      */
-    public MqttBrokerConfig loadConfig() {
+    public MqttModuleConfig loadModuleConfig() {
         if (!configFile.exists()) {
             logger.info("Configuration file does not exist, returning default configuration");
-            return new MqttBrokerConfig();
+            return new MqttModuleConfig();
         }
         
         try (FileReader reader = new FileReader(configFile)) {
-            MqttBrokerConfig config = gson.fromJson(reader, MqttBrokerConfig.class);
-            logger.info("Loaded configuration from file");
+            MqttModuleConfig config = gson.fromJson(reader, MqttModuleConfig.class);
+            logger.info("Loaded module configuration from file");
             return config;
         } catch (IOException e) {
             logger.error("Failed to load configuration from file", e);
-            return new MqttBrokerConfig();
+            return new MqttModuleConfig();
         }
     }
     
     /**
-     * Saves the MQTT broker configuration to file
+     * Loads the MQTT broker configuration from file (legacy method for backwards compatibility)
+     * 
+     * @return The loaded broker configuration, or a default configuration if file doesn't exist
+     */
+    public MqttBrokerConfig loadConfig() {
+        MqttModuleConfig moduleConfig = loadModuleConfig();
+        if (moduleConfig.hasBrokerConfig()) {
+            return moduleConfig.getBroker();
+        }
+        
+        logger.info("No broker configuration found, returning default");
+        return new MqttBrokerConfig();
+    }
+    
+    /**
+     * Loads the tag publishing configuration from file
+     * 
+     * @return The loaded tag configuration, or null if not configured
+     */
+    public TagPublishConfig loadTagConfig() {
+        MqttModuleConfig moduleConfig = loadModuleConfig();
+        if (moduleConfig.hasTagConfig()) {
+            return moduleConfig.getTags();
+        }
+        
+        logger.info("No tag publishing configuration found");
+        return null;
+    }
+    
+    /**
+     * Saves the complete module configuration to file
      * 
      * @param config The configuration to save
      * @return true if saved successfully, false otherwise
      */
-    public boolean saveConfig(MqttBrokerConfig config) {
+    public boolean saveModuleConfig(MqttModuleConfig config) {
         try {
             config.validate();
         } catch (IllegalArgumentException e) {
@@ -74,12 +108,25 @@ public class ConfigurationManager {
         
         try (FileWriter writer = new FileWriter(configFile)) {
             gson.toJson(config, writer);
-            logger.info("Saved configuration to file");
+            logger.info("Saved module configuration to file");
             return true;
         } catch (IOException e) {
             logger.error("Failed to save configuration to file", e);
             return false;
         }
+    }
+    
+    /**
+     * Saves the MQTT broker configuration to file (legacy method - updates broker config only)
+     * 
+     * @param config The broker configuration to save
+     * @return true if saved successfully, false otherwise
+     */
+    public boolean saveConfig(MqttBrokerConfig config) {
+        // Load existing module config and update broker settings
+        MqttModuleConfig moduleConfig = loadModuleConfig();
+        moduleConfig.setBroker(config);
+        return saveModuleConfig(moduleConfig);
     }
     
     /**
