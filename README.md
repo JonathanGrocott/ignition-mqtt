@@ -4,30 +4,39 @@ An Ignition module that publishes tag data to an external MQTT broker in a Unifi
 
 ## Features
 
-- **MQTT Integration**: Connect to external MQTT brokers (Mosquitto, HiveMQ, etc.)
-- **Tag Monitoring**: Subscribe to tag changes from selected providers/folders
-- **Flexible Topic Mapping**: Direct tag path to MQTT topic conversion with customization support
-- **Customizable Payloads**: Default JSON structure with value, quality, timestamp, and metadata, plus custom template support
-- **Gateway Web UI**: Complete configuration interface in the Gateway web pages
+- **MQTT Integration**: Connect to external MQTT brokers (Mosquitto, HiveMQ, EMQX, etc.)
+- **Tag Monitoring**: Poll-based tag monitoring with configurable intervals (100ms - 60s)
+- **Flexible Topic Mapping**: Direct tag path to MQTT topic conversion with custom overrides
+- **Customizable Payloads**: JSON structure with value, quality, timestamp, and optional metadata
+- **Statistics & Health Monitoring**: Real-time performance metrics and health status
 - **Robust Connection Handling**: Automatic reconnection with exponential backoff
-- **Change Detection**: Configurable deadband and quality change detection
+- **Change Detection**: Configurable deadband filtering and quality change detection
+- **Thread-Safe Operations**: Concurrent tag polling and MQTT publishing
 
 ## Requirements
 
-- Ignition 8.3.0 or later
-- Java 17
-- Gradle 7.6 or later
-- External MQTT broker (for runtime)
+- **Ignition**: 8.3.0 or later (Standard or Enterprise Edition - NOT Maker Edition)
+- **Java**: 17
+- **Gradle**: 7.6 or later
+- **MQTT Broker**: Mosquitto, HiveMQ, EMQX, or any MQTT 3.1.1 compatible broker
+
+**Important:** This module will NOT work on Ignition Maker Edition, as Maker Edition does not support third-party modules.
 
 ## Building
 
-To build the module:
+Use the included build script:
 
 ```bash
-./gradlew build
+./build.sh
 ```
 
-The compiled `.modl` file will be located in `build/` directory.
+Or use Gradle directly:
+
+```bash
+./gradlew clean build
+```
+
+The compiled `.modl` file will be located at `build/MQTT-UNS-Publisher.unsigned.modl` (approximately 250KB).
 
 ## Installation
 
@@ -50,53 +59,370 @@ Replace `[index]` with the next available index number.
 
 ## Configuration
 
-After installation, configure the module via the Gateway web interface:
+The module is configured via a JSON file located in your Ignition data directory:
 
-1. Navigate to **Config > MQTT UNS Publisher** (configuration UI coming in Phase 5)
-2. Configure your MQTT broker settings
-3. Select tag providers and folders to publish
-4. Customize topic mappings (optional)
-5. Customize JSON payload format (optional)
+```
+<ignition-data>/mqtt-uns-config.json
+```
+
+### Example Configuration
+
+```json
+{
+  "broker": {
+    "brokerUrl": "tcp://localhost:1883",
+    "clientId": "ignition-mqtt-publisher",
+    "username": "",
+    "password": "",
+    "qos": 1,
+    "retained": false,
+    "cleanSession": true,
+    "connectionTimeout": 30,
+    "keepAliveInterval": 60
+  },
+  "tags": {
+    "enabled": true,
+    "tagProviders": ["default"],
+    "tagFolders": ["[default]TestTags"],
+    "valueDeadband": 0.1,
+    "pollRateMs": 1000,
+    "publishOnQualityChange": true,
+    "includeMetadata": true,
+    "topicOverrides": {
+      "[default]TestTags/Temperature": "factory/zone1/temp"
+    }
+  }
+}
+```
+
+See `mqtt-uns-config-combined-example.json` for a complete example.
+
+### Configuration Options
+
+**Broker Settings:**
+- `brokerUrl`: MQTT broker URL (tcp://host:port or ssl://host:port)
+- `clientId`: Unique client identifier
+- `username`/`password`: Authentication credentials (optional)
+- `qos`: Quality of Service (0, 1, or 2)
+- `retained`: Whether messages should be retained by broker
+- `cleanSession`: Whether to use clean session
+
+**Tag Settings:**
+- `enabled`: Enable/disable tag publishing
+- `tagProviders`: List of tag providers to monitor (or use tagFolders)
+- `tagFolders`: Specific tag folders to monitor (format: `[provider]Path/To/Folder`)
+- `valueDeadband`: Minimum value change to trigger publish
+- `pollRateMs`: Tag polling interval in milliseconds (100-60000)
+- `publishOnQualityChange`: Publish when quality changes (true/false)
+- `includeMetadata`: Include tag metadata in payload (true/false)
+- `topicOverrides`: Map specific tag paths to custom MQTT topics
+
+### MQTT Broker Setup
+
+See [MQTT-BROKER-SETUP.md](MQTT-BROKER-SETUP.md) for detailed broker setup instructions including:
+- Mosquitto (open source)
+- HiveMQ Community Edition
+- EMQX
+- AWS IoT Core
+- Azure IoT Hub
 
 ## Development Status
 
-This module is currently under active development. Current phase: **Phase 2 - MQTT Connection Management** ✅
+This module is **functionally complete** for core features. Current phase: **Phase 5 - Production Ready** ✅
 
-### Completed
-- [x] Phase 1: Project structure and module skeleton
-- [x] Phase 2: MQTT connection management
+### Completed Features
+- [x] **Phase 1**: Project structure and module skeleton
+- [x] **Phase 2**: MQTT connection management
   - [x] MqttPublisherManager with connection lifecycle
   - [x] Reconnection logic with exponential backoff
   - [x] Configuration persistence (JSON file-based)
   - [x] Connection health monitoring
   - [x] Thread-safe operations
+- [x] **Phase 3**: Tag subscription system
+  - [x] Polling-based tag monitoring (100ms - 60s configurable)
+  - [x] Tag discovery from providers and folders
+  - [x] Recursive tag browsing
+  - [x] Deadband filtering
+  - [x] Quality change detection
+- [x] **Phase 4**: Topic mapping and payload generation
+  - [x] Automatic tag path to MQTT topic mapping
+  - [x] Topic sanitization (lowercase, underscore replacement)
+  - [x] Custom topic overrides
+  - [x] JSON payload builder with metadata
+  - [x] Configurable metadata inclusion
+- [x] **Phase 5**: Statistics & Health Monitoring
+  - [x] Real-time statistics tracking
+  - [x] Health status with HEALTHY/DEGRADED/UNHEALTHY levels
+  - [x] Publish success rate calculation
+  - [x] Tag read success rate calculation
+  - [x] Connection success rate calculation
+  - [x] Detailed statistics reporting
 
-### In Progress
-- [ ] Phase 3: Tag subscription system
-- [ ] Phase 4: Topic mapping and payload generation
-- [ ] Phase 5: Gateway web UI
-- [ ] Phase 6: Custom payload templates
-- [ ] Phases 7-8: Testing and documentation
+### Pending Features
+- [ ] **Phase 6**: Gateway web configuration UI
+  - [ ] REST API endpoints for config
+  - [ ] HTML/JavaScript configuration interface
+  - [ ] Real-time status dashboard
+- [ ] **Phase 7**: Advanced features
+  - [ ] Custom payload templates
+  - [ ] Sparkplug B protocol support
+  - [ ] TLS/SSL support for secure brokers
+  - [ ] Batch publishing for performance
+- [ ] **Phase 8**: Testing & optimization
+  - [ ] Unit tests
+  - [ ] Integration tests with real MQTT brokers
+  - [ ] Performance optimization
+  - [ ] Load testing
+
+### Known Limitations
+- No web UI yet (configuration via JSON file only)
+- No TLS/SSL support (plaintext MQTT only)
+- Poll-based rather than event-driven (acceptable for most use cases)
+- Not compatible with Ignition Maker Edition
 
 ## Project Structure
 
 ```
 ignition-mqtt/
-├── mqtt-common/              # Common scope (shared models)
-├── mqtt-gateway/             # Gateway scope (main implementation)
-├── build.gradle.kts          # Root build configuration
-├── settings.gradle.kts       # Gradle settings
-└── README.md                 # This file
+├── mqtt-common/                      # Common scope (shared models)
+│   └── src/main/java/.../common/
+│       ├── MqttModuleConstants.java
+│       └── model/
+│           ├── ConnectionState.java
+│           ├── MqttBrokerConfig.java
+│           ├── TagPublishConfig.java
+│           └── MqttModuleConfig.java
+├── mqtt-gateway/                     # Gateway scope (main implementation)
+│   └── src/main/java/.../gateway/
+│       ├── MqttGatewayHook.java         # Module entry point
+│       ├── MqttPublisherManager.java    # MQTT connection management
+│       ├── TagSubscriptionManager.java  # Tag polling & publishing
+│       ├── MqttTopicMapper.java         # Tag-to-topic mapping
+│       ├── JsonPayloadBuilder.java      # JSON payload generation
+│       ├── ModuleStatistics.java        # Runtime statistics
+│       ├── ModuleHealthStatus.java      # Health monitoring
+│       └── config/
+│           └── ConfigurationManager.java  # JSON config loader
+├── build.gradle.kts                  # Root build configuration
+├── settings.gradle.kts               # Gradle settings
+├── build.sh                          # Build script
+├── BUILD-AND-TEST-PLAN.md           # Testing guide
+├── MQTT-BROKER-SETUP.md             # Broker setup guide
+├── mqtt-uns-config-combined-example.json  # Config example
+└── README.md                        # This file
+```
+
+## Statistics & Health Monitoring
+
+The module tracks comprehensive runtime statistics accessible via the `MqttGatewayHook`:
+
+**Available Metrics:**
+- Messages published (total and failed)
+- Tag reads (successful and failed)
+- Connection attempts and failures
+- Publish success rate (%)
+- Tag read success rate (%)
+- Connection success rate (%)
+- Module uptime
+- Last publish timestamp
+- Last successful connection timestamp
+
+**Health Status Levels:**
+- `HEALTHY`: Connected and operating normally (≥95% success rate)
+- `DEGRADED`: Connected but experiencing issues (80-95% success rate or reconnecting)
+- `UNHEALTHY`: Disconnected, errors, or high failure rate (<80% success rate)
+
+Access health status in Gateway scripts:
+```python
+# Get module hook
+hook = system.util.getGatewayHook("com.inductiveautomation.mqtt.uns")
+
+# Get health status
+health = hook.getHealthStatus()
+print health.getHealthReport()
+
+# Get statistics
+stats = hook.getStatistics()
+print stats.getDetailedReport()
 ```
 
 ## Architecture
 
-See [docs/MQTT_MODULE_PLAN.md](.opencode/plans/mqtt-module-plan.md) for detailed architecture and implementation plan.
+The module uses a multi-manager architecture:
+
+1. **MqttGatewayHook**: Module lifecycle manager and coordinator
+2. **ConfigurationManager**: Loads/saves JSON configuration files
+3. **MqttPublisherManager**: MQTT broker connection and publishing
+4. **TagSubscriptionManager**: Tag polling and change detection
+5. **MqttTopicMapper**: Tag path to MQTT topic conversion
+6. **JsonPayloadBuilder**: JSON payload generation
+7. **ModuleStatistics**: Runtime metrics tracking
+8. **ModuleHealthStatus**: Health monitoring and diagnostics
+
+### MQTT Payload Format
+
+**Standard Payload** (with metadata):
+```json
+{
+  "timestamp": 1706140800000,
+  "value": 72.5,
+  "quality": "Good",
+  "qualityCode": 192,
+  "tagPath": "[default]TestTags/Temperature",
+  "metadata": {
+    "dataType": "Float8"
+  }
+}
+```
+
+**Simple Payload** (without metadata):
+```json
+{
+  "timestamp": 1706140800000,
+  "value": 72.5,
+  "quality": "Good",
+  "qualityCode": 192,
+  "tagPath": "[default]TestTags/Temperature"
+}
+```
+
+### Topic Mapping Examples
+
+| Tag Path | MQTT Topic |
+|----------|-----------|
+| `[default]TestTags/Temperature` | `default/testtags/temperature` |
+| `[Production]Line1/Motor/Speed` | `production/line1/motor/speed` |
+| `[Utilities]HVAC/Zone 2/Temp` | `utilities/hvac/zone_2/temp` |
+
+Custom overrides allow any tag to publish to a specific topic.
+
+## Testing
+
+See [BUILD-AND-TEST-PLAN.md](BUILD-AND-TEST-PLAN.md) for comprehensive testing instructions including:
+- Prerequisites and setup
+- 14 detailed test scenarios
+- Expected results
+- Troubleshooting guide
+
+**Quick Test:**
+1. Install module on Ignition (Standard Edition)
+2. Set up Mosquitto broker: `brew install mosquitto && brew services start mosquitto`
+3. Subscribe to all topics: `mosquitto_sub -h localhost -t '#' -v`
+4. Create JSON config file with test tags
+5. Restart Gateway
+6. Watch MQTT messages appear!
+
+## Documentation
+
+- **[BUILD-AND-TEST-PLAN.md](BUILD-AND-TEST-PLAN.md)** - Complete testing guide
+- **[MQTT-BROKER-SETUP.md](MQTT-BROKER-SETUP.md)** - MQTT broker setup for various platforms
+- **[mqtt-uns-config-combined-example.json](mqtt-uns-config-combined-example.json)** - Configuration example
+
+## Troubleshooting
+
+### Module Shows "Faulted" Status
+
+**Problem:** Module status shows "Faulted - Not eligible for use with Ignition Maker Edition"
+
+**Solution:** This module requires Ignition Standard or Enterprise Edition. Maker Edition does not support third-party modules. Download a trial of Standard Edition from Inductive Automation.
+
+### Module Won't Load - "Unsigned Module"
+
+**Problem:** Module rejected due to signature
+
+**Solution:** Add to `ignition.conf`:
+```
+wrapper.java.additional.X=-Dignition.allowunsignedmodules=true
+```
+(Replace X with next available index number)
+
+### Not Connecting to MQTT Broker
+
+**Problem:** Module loaded but not publishing
+
+**Solutions:**
+1. Check broker is running: `netstat -an | grep 1883`
+2. Verify configuration file exists at correct location
+3. Check Gateway logs: `tail -f logs/wrapper.log`
+4. Test broker with mosquitto_pub/sub
+5. Verify broker URL format: `tcp://hostname:port`
+
+### No Messages Publishing
+
+**Problem:** Connected but no MQTT messages
+
+**Solutions:**
+1. Verify tags exist in Ignition
+2. Check tag paths match configuration
+3. Verify deadband isn't filtering all changes
+4. Check module health: Use `getHealthStatus()` in Gateway scripts
+5. Review statistics: Look for failed tag reads
+
+### High CPU Usage
+
+**Problem:** Module consuming excessive CPU
+
+**Solutions:**
+1. Increase `pollRateMs` (e.g., from 1000ms to 5000ms)
+2. Reduce number of monitored tags
+3. Increase `valueDeadband` to filter noise
+
+## Performance Tuning
+
+**High-Frequency Publishing (100ms):**
+```json
+{
+  "tags": {
+    "pollRateMs": 100,
+    "valueDeadband": 0.01,
+    "includeMetadata": false
+  }
+}
+```
+
+**Low-Frequency Monitoring (5s):**
+```json
+{
+  "tags": {
+    "pollRateMs": 5000,
+    "valueDeadband": 1.0,
+    "includeMetadata": true
+  }
+}
+```
+
+**Quality-Based Only (no value changes):**
+```json
+{
+  "tags": {
+    "pollRateMs": 1000,
+    "valueDeadband": 999999999,
+    "publishOnQualityChange": true
+  }
+}
+```
+
+## Contributing
+
+This is a reference implementation for Ignition SDK 8.3 module development demonstrating:
+- Multi-module Gradle project structure
+- Gateway module lifecycle management
+- MQTT client integration (Eclipse Paho)
+- Tag system integration
+- Configuration management
+- Statistics and health monitoring
+- Thread-safe concurrent operations
+
+Feel free to use this as a template for your own Ignition modules!
+
+## References
+
+- [Ignition SDK Documentation](https://www.sdk-docs.inductiveautomation.com/docs/8.3/)
+- [Ignition SDK Examples](https://github.com/inductiveautomation/ignition-sdk-examples)
+- [Eclipse Paho MQTT Client](https://www.eclipse.org/paho/)
+- [MQTT Protocol](https://mqtt.org/)
+- [Unified Namespace (UNS)](https://www.unified-namespace.com/)
 
 ## License
 
 Copyright © 2026. All rights reserved.
-
-## Contributing
-
-This is a reference implementation for Ignition SDK module development.
