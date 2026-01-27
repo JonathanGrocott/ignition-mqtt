@@ -6,6 +6,8 @@ import com.inductiveautomation.ignition.common.model.values.QualifiedValue;
 import com.inductiveautomation.ignition.common.model.values.QualityCode;
 import com.inductiveautomation.ignition.common.tags.browsing.NodeDescription;
 import com.inductiveautomation.ignition.common.tags.model.TagPath;
+import com.inductiveautomation.ignition.common.tags.model.event.TagChangeEvent;
+import com.inductiveautomation.ignition.common.tags.model.event.TagChangeListener;
 import com.inductiveautomation.ignition.common.tags.paths.parser.TagPathParser;
 import com.inductiveautomation.ignition.examples.mqtt.common.model.TagPublishConfig;
 import com.inductiveautomation.ignition.gateway.model.GatewayContext;
@@ -18,17 +20,18 @@ import java.util.concurrent.*;
 import java.util.stream.Collectors;
 
 /**
- * Manages tag subscriptions and handles tag value polling.
+ * Manages tag subscriptions using event-driven tag change notifications.
  * 
- * Uses a polling mechanism to periodically read tag values and publish changes to MQTT.
- * This is simpler than event-driven subscriptions and works reliably with the Ignition 8.3 SDK.
+ * Uses the Ignition 8.3 SDK's TagChangeListener API to receive real-time tag value changes
+ * and publish them to MQTT brokers. Supports multi-broker architecture where each topic
+ * mapping can be assigned to a specific broker.
  */
 public class TagSubscriptionManager {
     
     private static final Logger logger = LoggerFactory.getLogger(TagSubscriptionManager.class);
     
     private final GatewayContext gatewayContext;
-    private final MqttPublisherManager publisherManager;
+    private final MultiBrokerManager multiBrokerManager;
     private final MqttTopicMapper topicMapper;
     private final JsonPayloadBuilder payloadBuilder;
     private final ModuleStatistics statistics;
@@ -37,19 +40,22 @@ public class TagSubscriptionManager {
     private final Map<TagPath, QualifiedValue> lastPublishedValues = new ConcurrentHashMap<>();
     private final List<TagPath> monitoredTags = Collections.synchronizedList(new ArrayList<>());
     
-    private ScheduledExecutorService pollExecutor;
-    private ScheduledFuture<?> pollTask;
+    // Tag change listener for event-driven subscriptions
+    private final MqttTagChangeListener tagChangeListener = new MqttTagChangeListener();
+    
+    // Track subscription futures for cleanup
+    private final List<CompletableFuture<Void>> subscriptionFutures = new ArrayList<>();
     
     /**
      * Creates a new tag subscription manager
      * 
      * @param context Gateway context
-     * @param publisherManager MQTT publisher manager
+     * @param multiBrokerManager Multi-broker manager
      * @param statistics Module statistics tracker
      */
-    public TagSubscriptionManager(GatewayContext context, MqttPublisherManager publisherManager, ModuleStatistics statistics) {
+    public TagSubscriptionManager(GatewayContext context, MultiBrokerManager multiBrokerManager, ModuleStatistics statistics) {
         this.gatewayContext = context;
-        this.publisherManager = publisherManager;
+        this.multiBrokerManager = multiBrokerManager;
         this.statistics = statistics;
         this.topicMapper = new MqttTopicMapper();
         this.payloadBuilder = new JsonPayloadBuilder();
@@ -68,8 +74,13 @@ public class TagSubscriptionManager {
             return;
         }
         
-        long pollRateMs = config.getPollRateMs();
-        logger.info("Starting tag subscription manager with poll rate: {}ms", pollRateMs);
+        logger.info("Starting event-driven tag subscription manager");
+        
+        // Set topic mappings on the mapper
+        if (config.getTopicMappings() != null && !config.getTopicMappings().isEmpty()) {
+            topicMapper.setTopicMappings(config.getTopicMappings());
+            logger.info("Loaded {} topic mappings", config.getTopicMappings().size());
+        }
         
         // Discover tags to monitor
         List<TagPath> tags = discoverTags();
@@ -80,103 +91,123 @@ public class TagSubscriptionManager {
         }
         
         monitoredTags.addAll(tags);
-        logger.info("Monitoring {} tags", monitoredTags.size());
+        logger.info("Discovered {} tags to monitor", monitoredTags.size());
         
-        // Start polling
-        startPolling();
+        // Subscribe to tag changes
+        subscribeToTags();
     }
     
     /**
-     * Starts the polling task
+     * Subscribes to tag changes using the event-driven API
      */
-    private void startPolling() {
-        if (pollExecutor != null) {
-            logger.warn("Poll executor already running");
+    private void subscribeToTags() {
+        if (monitoredTags.isEmpty()) {
+            logger.warn("No tags to subscribe to");
             return;
         }
         
-        pollExecutor = Executors.newSingleThreadScheduledExecutor(r -> {
-            Thread t = new Thread(r, "MQTT-Tag-Poller");
-            t.setDaemon(true);
-            return t;
-        });
-        
-        long pollRateMs = config.getPollRateMs();
-        pollTask = pollExecutor.scheduleAtFixedRate(
-            this::pollTags,
-            0,  // Initial delay
-            pollRateMs,
-            TimeUnit.MILLISECONDS
-        );
-        
-        logger.info("Tag polling started with interval: {}ms", pollRateMs);
-    }
-    
-    /**
-     * Polls all monitored tags and publishes changes
-     */
-    private void pollTags() {
         try {
             GatewayTagManager tagManager = gatewayContext.getTagManager();
             
-            // Read all tags at once
-            CompletableFuture<List<QualifiedValue>> future = tagManager.readAsync(monitoredTags);
-            List<QualifiedValue> values = future.get(5, TimeUnit.SECONDS);
+            // Create a list of listeners (one per tag)
+            List<TagChangeListener> listeners = new ArrayList<>();
+            for (int i = 0; i < monitoredTags.size(); i++) {
+                listeners.add(tagChangeListener);
+            }
             
-            statistics.incrementTagReadsSuccessful();
+            // Subscribe to all tags at once
+            logger.info("Subscribing to {} tags using event-driven API", monitoredTags.size());
+            CompletableFuture<Void> subscriptionFuture = tagManager.subscribeAsync(monitoredTags, listeners);
+            subscriptionFutures.add(subscriptionFuture);
             
-            // Process each tag value
-            for (int i = 0; i < monitoredTags.size() && i < values.size(); i++) {
-                TagPath tagPath = monitoredTags.get(i);
-                QualifiedValue newValue = values.get(i);
+            // Wait for subscription to complete
+            subscriptionFuture.get(30, TimeUnit.SECONDS);
+            
+            logger.info("Successfully subscribed to {} tags", monitoredTags.size());
+            
+        } catch (TimeoutException e) {
+            logger.error("Timeout subscribing to tags: {}", e.getMessage());
+        } catch (InterruptedException e) {
+            logger.warn("Tag subscription interrupted");
+            Thread.currentThread().interrupt();
+        } catch (Exception e) {
+            logger.error("Failed to subscribe to tags", e);
+        }
+    }
+    
+    /**
+     * Tag change listener that handles tag value change events
+     */
+    private class MqttTagChangeListener implements TagChangeListener {
+        
+        @Override
+        public void tagChanged(TagChangeEvent event) {
+            try {
+                TagPath tagPath = event.getTagPath();
+                QualifiedValue newValue = event.getValue();
                 
+                // Skip initial value callback if we've already published this tag
+                // (initial callbacks are sent when subscription is first created)
+                if (event.isInitial() && lastPublishedValues.containsKey(tagPath)) {
+                    logger.trace("Skipping initial value for already-published tag: {}", tagPath);
+                    return;
+                }
+                
+                // Increment tag read statistics
+                statistics.incrementTagReadsSuccessful();
+                
+                // Check if we should publish this change
                 if (shouldPublish(tagPath, newValue)) {
                     publishTagValue(tagPath, newValue);
                     lastPublishedValues.put(tagPath, newValue);
                 }
+                
+            } catch (Exception e) {
+                logger.error("Error handling tag change event: {}", e.getMessage(), e);
+                statistics.incrementTagReadsFailed();
             }
-            
-        } catch (TimeoutException e) {
-            logger.warn("Timeout reading tags: {}", e.getMessage());
-            statistics.incrementTagReadsFailed();
-        } catch (InterruptedException e) {
-            logger.debug("Tag polling interrupted");
-            Thread.currentThread().interrupt();
-        } catch (Exception e) {
-            logger.error("Error polling tags", e);
-            statistics.incrementTagReadsFailed();
+        }
+        
+        @Override
+        public boolean isLightweight() {
+            // Return true to avoid leasing tags
+            // This is more efficient for read-only subscriptions
+            return true;
         }
     }
     
     /**
-     * Discovers tags to monitor based on configuration
+     * Discovers tags to monitor based on topic mappings configuration
      */
     private List<TagPath> discoverTags() {
         List<TagPath> tagPaths = new ArrayList<>();
         
-        // Browse entire providers
-        for (String providerName : config.getTagProviders()) {
-            try {
-                List<TagPath> providerTags = browseTagsRecursive(providerName, "");
-                tagPaths.addAll(providerTags);
-                logger.info("Found {} tags in provider '{}'", providerTags.size(), providerName);
-            } catch (Exception e) {
-                logger.error("Error browsing provider '{}': {}", providerName, e.getMessage(), e);
-            }
-        }
-        
-        // Browse specific folders
-        for (String folderPath : config.getTagFolders()) {
-            try {
-                TagPath parsedPath = TagPathParser.parse(folderPath);
-                List<TagPath> folderTags = browseTagsRecursive(
-                    parsedPath.getSource(), 
-                    parsedPath.toStringPartial()
-                );
-                tagPaths.addAll(folderTags);
-                logger.info("Found {} tags in folder '{}'", folderTags.size(), folderPath);
-            } catch (Exception e) {
-                logger.error("Error browsing folder '{}': {}", folderPath, e.getMessage(), e);
+        // Browse tags based on enabled topic mappings
+        if (config.getTopicMappings() != null) {
+            for (com.inductiveautomation.ignition.examples.mqtt.common.model.TopicMapping mapping : config.getTopicMappings()) {
+                if (!mapping.isEnabled()) {
+                    logger.debug("Skipping disabled mapping: {}", mapping.getSourcePattern());
+                    continue;
+                }
+                
+                try {
+                    // Parse the source pattern to extract provider and path
+                    String sourcePattern = mapping.getSourcePattern();
+                    TagPath parsedPath = TagPathParser.parse(sourcePattern);
+                    
+                    List<TagPath> mappingTags = browseTagsRecursive(
+                        parsedPath.getSource(), 
+                        parsedPath.toStringPartial()
+                    );
+                    tagPaths.addAll(mappingTags);
+                    logger.info("Found {} tags for mapping '{}' -> '{}'", 
+                        mappingTags.size(), 
+                        mapping.getSourcePattern(), 
+                        mapping.getTopicPrefix());
+                } catch (Exception e) {
+                    logger.error("Error browsing tags for mapping '{}': {}", 
+                        mapping.getSourcePattern(), e.getMessage(), e);
+                }
             }
         }
         
@@ -294,23 +325,54 @@ public class TagSubscriptionManager {
      */
     private void publishTagValue(TagPath tagPath, QualifiedValue value) {
         try {
-            // Map tag to topic
-            String topic = topicMapper.mapTagToTopic(tagPath);
+            String fullPath = tagPath.toStringFull();
             
-            // Check for custom topic override
-            Map<String, String> topicOverrides = config.getTopicOverrides();
-            if (topicOverrides != null && topicOverrides.containsKey(tagPath.toStringFull())) {
-                String customTopic = topicOverrides.get(tagPath.toStringFull());
-                topic = topicMapper.applyTopicOverride(tagPath, customTopic);
+            // Find matching enabled topic mapping with longest source pattern (most specific)
+            com.inductiveautomation.ignition.examples.mqtt.common.model.TopicMapping matchedMapping = null;
+            if (config.getTopicMappings() != null) {
+                matchedMapping = config.getTopicMappings().stream()
+                    .filter(com.inductiveautomation.ignition.examples.mqtt.common.model.TopicMapping::isEnabled)
+                    .filter(mapping -> mapping.matches(fullPath))
+                    .max((m1, m2) -> Integer.compare(
+                        m1.getSourcePattern().length(), 
+                        m2.getSourcePattern().length()
+                    ))
+                    .orElse(null);
             }
+            
+            // Only publish if tag matches an enabled mapping
+            if (matchedMapping == null) {
+                logger.debug("Skipping tag {} - no enabled mapping matches (fullPath: {})", tagPath, fullPath);
+                return;
+            }
+            
+            // Get the broker ID from the mapping
+            Long brokerId = matchedMapping.getBrokerId();
+            if (brokerId == null) {
+                logger.warn("Skipping tag {} - mapping has no broker assigned", tagPath);
+                return;
+            }
+            
+            logger.info("Matched tag {} to mapping: source={}, topicPrefix={}, brokerId={}", 
+                fullPath, matchedMapping.getSourcePattern(), matchedMapping.getTopicPrefix(), brokerId);
+            
+            // Map tag to topic using the matched mapping (not searching again)
+            String topic = topicMapper.mapTagToTopicWithMapping(tagPath, matchedMapping);
             
             // Build payload
             String payload = payloadBuilder.buildPayload(tagPath, value, config.isIncludeMetadata());
             
-            // Publish to MQTT
-            publisherManager.publish(topic, payload);
+            logger.info("Publishing to broker {}: topic={}, payload={}", brokerId, topic, payload);
             
-            logger.trace("Published {}: {} to {}", tagPath, value.getValue(), topic);
+            // Publish to the SPECIFIC broker assigned to this mapping
+            boolean published = multiBrokerManager.publish(brokerId, topic, payload);
+            
+            if (published) {
+                logger.info("Published {}: {} to {} on broker {}", 
+                    tagPath, value.getValue(), topic, brokerId);
+            } else {
+                logger.warn("Failed to publish {} to broker {}", tagPath, brokerId);
+            }
             
         } catch (Exception e) {
             logger.error("Error publishing tag {}: {}", tagPath, e.getMessage());
@@ -323,21 +385,41 @@ public class TagSubscriptionManager {
     public void shutdown() {
         logger.info("Shutting down tag subscription manager");
         
-        if (pollTask != null) {
-            pollTask.cancel(false);
-        }
-        
-        if (pollExecutor != null) {
-            pollExecutor.shutdown();
+        // Unsubscribe from all tags
+        if (!monitoredTags.isEmpty()) {
             try {
-                if (!pollExecutor.awaitTermination(5, TimeUnit.SECONDS)) {
-                    pollExecutor.shutdownNow();
+                GatewayTagManager tagManager = gatewayContext.getTagManager();
+                
+                // Create list of listeners for unsubscribe (same listener for all tags)
+                List<TagChangeListener> listeners = new ArrayList<>();
+                for (int i = 0; i < monitoredTags.size(); i++) {
+                    listeners.add(tagChangeListener);
                 }
+                
+                logger.info("Unsubscribing from {} tags", monitoredTags.size());
+                CompletableFuture<Void> unsubscribeFuture = tagManager.unsubscribeAsync(monitoredTags, listeners);
+                
+                // Wait for unsubscribe to complete
+                unsubscribeFuture.get(10, TimeUnit.SECONDS);
+                logger.info("Successfully unsubscribed from all tags");
+                
+            } catch (TimeoutException e) {
+                logger.warn("Timeout unsubscribing from tags: {}", e.getMessage());
             } catch (InterruptedException e) {
-                pollExecutor.shutdownNow();
+                logger.warn("Tag unsubscribe interrupted");
                 Thread.currentThread().interrupt();
+            } catch (Exception e) {
+                logger.error("Error unsubscribing from tags", e);
             }
         }
+        
+        // Cancel any pending subscription futures
+        for (CompletableFuture<Void> future : subscriptionFutures) {
+            if (!future.isDone()) {
+                future.cancel(true);
+            }
+        }
+        subscriptionFutures.clear();
         
         monitoredTags.clear();
         lastPublishedValues.clear();

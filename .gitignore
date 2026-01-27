@@ -1,7 +1,6 @@
 # Gradle
 .gradle/
 build/
-!gradle/wrapper/gradle-wrapper.jar
 !**/src/main/**/build/
 !**/src/test/**/build/
 
@@ -43,8 +42,7 @@ gateway-backup/
 # Compiled class files
 *.class
 
-# Package files
-*.jar
+# Package files (exclude gradle wrapper jar)
 *.war
 *.nar
 *.ear
@@ -52,8 +50,20 @@ gateway-backup/
 *.tar.gz
 *.rar
 
+# Include gradle wrapper jar
+!gradle/wrapper/gradle-wrapper.jar
+
+# Signing certificates and keystores
+*.jks
+*.keystore
+*.p12
+!certs/*.pem
+gradle.properties
+
 #Docs
 docs/*
 BUILD-AND-TEST-PLAN.md
 PHASE2-TESTING.md
 
+#examples
+examples/*

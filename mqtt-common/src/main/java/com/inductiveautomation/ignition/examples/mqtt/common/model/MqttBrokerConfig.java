@@ -13,6 +13,12 @@ import static com.inductiveautomation.ignition.examples.mqtt.common.MqttModuleCo
  */
 public class MqttBrokerConfig {
     
+    @SerializedName("id")
+    private Long id;
+    
+    @SerializedName("name")
+    private String name;
+    
     @SerializedName("brokerUrl")
     private String brokerUrl;
     
@@ -47,6 +53,8 @@ public class MqttBrokerConfig {
      * Default constructor with sensible defaults
      */
     public MqttBrokerConfig() {
+        this.id = null;
+        this.name = "MQTT Broker";
         this.brokerUrl = DEFAULT_BROKER_URL;
         this.clientId = DEFAULT_CLIENT_ID_PREFIX + UUID.randomUUID().toString().substring(0, 8);
         this.username = "";
@@ -78,6 +86,22 @@ public class MqttBrokerConfig {
     }
     
     // Getters and Setters
+    
+    public Long getId() {
+        return id;
+    }
+    
+    public void setId(Long id) {
+        this.id = id;
+    }
+    
+    public String getName() {
+        return name;
+    }
+    
+    public void setName(String name) {
+        this.name = name;
+    }
     
     public String getBrokerUrl() {
         return brokerUrl;
@@ -199,6 +223,8 @@ public class MqttBrokerConfig {
                keepAlive == that.keepAlive &&
                connectionTimeout == that.connectionTimeout &&
                cleanSession == that.cleanSession &&
+               Objects.equals(id, that.id) &&
+               Objects.equals(name, that.name) &&
                Objects.equals(brokerUrl, that.brokerUrl) &&
                Objects.equals(clientId, that.clientId) &&
                Objects.equals(username, that.username);
@@ -206,14 +232,16 @@ public class MqttBrokerConfig {
     
     @Override
     public int hashCode() {
-        return Objects.hash(brokerUrl, clientId, username, useTls, qos, retained, 
+        return Objects.hash(id, name, brokerUrl, clientId, username, useTls, qos, retained, 
                           keepAlive, connectionTimeout, cleanSession);
     }
     
     @Override
     public String toString() {
         return "MqttBrokerConfig{" +
-               "brokerUrl='" + brokerUrl + '\'' +
+               "id=" + id +
+               ", name='" + name + '\'' +
+               ", brokerUrl='" + brokerUrl + '\'' +
                ", clientId='" + clientId + '\'' +
                ", username='" + username + '\'' +
                ", useTls=" + useTls +
@@ -229,10 +257,19 @@ public class MqttBrokerConfig {
      * Creates a copy of this configuration
      */
     public MqttBrokerConfig copy() {
-        return new MqttBrokerConfig(
-            brokerUrl, clientId, username, password,
-            useTls, qos, retained, keepAlive,
-            connectionTimeout, cleanSession
-        );
+        MqttBrokerConfig copy = new MqttBrokerConfig();
+        copy.id = this.id;
+        copy.name = this.name;
+        copy.brokerUrl = this.brokerUrl;
+        copy.clientId = this.clientId;
+        copy.username = this.username;
+        copy.password = this.password;
+        copy.useTls = this.useTls;
+        copy.qos = this.qos;
+        copy.retained = this.retained;
+        copy.keepAlive = this.keepAlive;
+        copy.connectionTimeout = this.connectionTimeout;
+        copy.cleanSession = this.cleanSession;
+        return copy;
     }
 }

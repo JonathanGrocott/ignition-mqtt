@@ -3,7 +3,7 @@ plugins {
 }
 
 group = "com.inductiveautomation.ignition.examples"
-version = "1.0.0-SNAPSHOT"
+version = "1.0.2"
 
 ignitionModule {
     name.set("MQTT UNS Publisher")
@@ -28,6 +28,25 @@ ignitionModule {
     )
     
     skipModlSigning.set(true)
+}
+
+// NOTE: Module signing with self-signed certificates is not supported by Ignition.
+// Vendor names only appear for modules signed with certificates from recognized Certificate Authorities.
+// For development, use unsigned modules. For production with vendor name display, obtain a proper code signing certificate.
+
+// Add vendor information to module.xml
+tasks.named("writeModuleXml") {
+    doLast {
+        val moduleXmlFile = file("build/moduleContent/module.xml")
+        if (moduleXmlFile.exists()) {
+            val content = moduleXmlFile.readText()
+            val updatedContent = content.replace(
+                "</requiredIgnitionVersion>",
+                "</requiredIgnitionVersion>\n\t\t<vendor>J.Grocott</vendor>"
+            )
+            moduleXmlFile.writeText(updatedContent)
+        }
+    }
 }
 
 allprojects {

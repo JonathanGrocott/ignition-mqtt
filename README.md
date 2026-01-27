@@ -5,13 +5,13 @@ An Ignition module that publishes tag data to an external MQTT broker in a Unifi
 ## Features
 
 - **MQTT Integration**: Connect to external MQTT brokers (Mosquitto, HiveMQ, EMQX, etc.)
-- **Tag Monitoring**: Poll-based tag monitoring with configurable intervals (100ms - 60s)
+- **Tag Monitoring**: Event-driven tag subscriptions with real-time change notifications
 - **Flexible Topic Mapping**: Direct tag path to MQTT topic conversion with custom overrides
 - **Customizable Payloads**: JSON structure with value, quality, timestamp, and optional metadata
 - **Statistics & Health Monitoring**: Real-time performance metrics and health status
 - **Robust Connection Handling**: Automatic reconnection with exponential backoff
 - **Change Detection**: Configurable deadband filtering and quality change detection
-- **Thread-Safe Operations**: Concurrent tag polling and MQTT publishing
+- **Thread-Safe Operations**: Concurrent tag change handling and MQTT publishing
 
 ## Requirements
 
@@ -44,8 +44,10 @@ The compiled `.modl` file will be located at `build/MQTT-UNS-Publisher.unsigned.
 2. Navigate to your Ignition Gateway web interface (typically `http://localhost:8088`)
 3. Go to **Config > Modules**
 4. Scroll down and click **Install or Upgrade a Module**
-5. Select the `MQTT-UNS-Publisher.modl` file
+5. Select the `MQTT-UNS-Publisher.unsigned.modl` file from the `build/` directory
 6. Click **Install**
+7. Wait for the module to load (should show "Running" status)
+8. Navigate to **Config > Connections > MQTT UNS Publisher** to access the web configuration UI
 
 ### Development Mode
 
@@ -59,7 +61,32 @@ Replace `[index]` with the next available index number.
 
 ## Configuration
 
-The module is configured via a JSON file located in your Ignition data directory:
+The module can be configured in two ways:
+
+### Option 1: Web UI (Recommended)
+
+Navigate to **Config > Connections > MQTT UNS Publisher** in the Gateway web interface. The web UI provides three tabs:
+
+1. **Broker Settings**: Configure MQTT broker connection parameters
+   - Broker URL, client ID, credentials
+   - QoS, retained messages, connection timeout
+   - Test connection functionality
+
+2. **Tag Publishing**: Select tags and configure publishing behavior
+   - Choose tag providers or specific folders
+   - Set deadband filtering and quality change detection
+   - Configure topic overrides
+   - Enable/disable metadata publishing
+
+3. **Status & Statistics**: Monitor real-time module performance
+   - Connection status and uptime
+   - Publish statistics (success/failure rates)
+   - Tag read statistics
+   - Health monitoring with auto-refresh
+
+### Option 2: JSON File (Legacy)
+
+The module can also be configured via a JSON file located in your Ignition data directory:
 
 ```
 <ignition-data>/mqtt-uns-config.json
@@ -85,7 +112,6 @@ The module is configured via a JSON file located in your Ignition data directory
     "tagProviders": ["default"],
     "tagFolders": ["[default]TestTags"],
     "valueDeadband": 0.1,
-    "pollRateMs": 1000,
     "publishOnQualityChange": true,
     "includeMetadata": true,
     "topicOverrides": {
@@ -112,7 +138,6 @@ See `mqtt-uns-config-combined-example.json` for a complete example.
 - `tagProviders`: List of tag providers to monitor (or use tagFolders)
 - `tagFolders`: Specific tag folders to monitor (format: `[provider]Path/To/Folder`)
 - `valueDeadband`: Minimum value change to trigger publish
-- `pollRateMs`: Tag polling interval in milliseconds (100-60000)
 - `publishOnQualityChange`: Publish when quality changes (true/false)
 - `includeMetadata`: Include tag metadata in payload (true/false)
 - `topicOverrides`: Map specific tag paths to custom MQTT topics
@@ -128,7 +153,7 @@ See [MQTT-BROKER-SETUP.md](MQTT-BROKER-SETUP.md) for detailed broker setup instr
 
 ## Development Status
 
-This module is **functionally complete** for core features. Current phase: **Phase 5 - Production Ready** ✅
+This module is **production-ready** with full web UI configuration. Current phase: **Phase 6 Complete** ✅
 
 ### Completed Features
 - [x] **Phase 1**: Project structure and module skeleton
@@ -139,7 +164,7 @@ This module is **functionally complete** for core features. Current phase: **Pha
   - [x] Connection health monitoring
   - [x] Thread-safe operations
 - [x] **Phase 3**: Tag subscription system
-  - [x] Polling-based tag monitoring (100ms - 60s configurable)
+  - [x] Event-driven tag monitoring using TagChangeListener API
   - [x] Tag discovery from providers and folders
   - [x] Recursive tag browsing
   - [x] Deadband filtering
@@ -157,12 +182,15 @@ This module is **functionally complete** for core features. Current phase: **Pha
   - [x] Tag read success rate calculation
   - [x] Connection success rate calculation
   - [x] Detailed statistics reporting
+- [x] **Phase 6**: Gateway web configuration UI ✅
+  - [x] React-based configuration interface
+  - [x] REST API endpoints for configuration CRUD
+  - [x] Database-backed configuration storage (PersistentRecord)
+  - [x] Real-time status dashboard with auto-refresh
+  - [x] Test MQTT connection functionality
+  - [x] Three-tab interface (Broker Settings, Tag Publishing, Status Dashboard)
 
 ### Pending Features
-- [ ] **Phase 6**: Gateway web configuration UI
-  - [ ] REST API endpoints for config
-  - [ ] HTML/JavaScript configuration interface
-  - [ ] Real-time status dashboard
 - [ ] **Phase 7**: Advanced features
   - [ ] Custom payload templates
   - [ ] Sparkplug B protocol support
@@ -175,9 +203,8 @@ This module is **functionally complete** for core features. Current phase: **Pha
   - [ ] Load testing
 
 ### Known Limitations
-- No web UI yet (configuration via JSON file only)
-- No TLS/SSL support (plaintext MQTT only)
-- Poll-based rather than event-driven (acceptable for most use cases)
+- No TLS/SSL support yet (plaintext MQTT only)
+- No Sparkplug B protocol support yet
 - Not compatible with Ignition Maker Edition
 
 ## Project Structure
@@ -193,16 +220,38 @@ ignition-mqtt/
 │           ├── TagPublishConfig.java
 │           └── MqttModuleConfig.java
 ├── mqtt-gateway/                     # Gateway scope (main implementation)
-│   └── src/main/java/.../gateway/
-│       ├── MqttGatewayHook.java         # Module entry point
-│       ├── MqttPublisherManager.java    # MQTT connection management
-│       ├── TagSubscriptionManager.java  # Tag polling & publishing
-│       ├── MqttTopicMapper.java         # Tag-to-topic mapping
-│       ├── JsonPayloadBuilder.java      # JSON payload generation
-│       ├── ModuleStatistics.java        # Runtime statistics
-│       ├── ModuleHealthStatus.java      # Health monitoring
-│       └── config/
-│           └── ConfigurationManager.java  # JSON config loader
+│   ├── src/main/java/.../gateway/
+│   │   ├── MqttGatewayHook.java         # Module entry point
+│   │   ├── MqttPublisherManager.java    # MQTT connection management
+│   │   ├── TagSubscriptionManager.java  # Tag change monitoring & publishing
+│   │   ├── MqttTopicMapper.java         # Tag-to-topic mapping
+│   │   ├── JsonPayloadBuilder.java      # JSON payload generation
+│   │   ├── ModuleStatistics.java        # Runtime statistics
+│   │   ├── ModuleHealthStatus.java      # Health monitoring
+│   │   ├── config/
+│   │   │   └── ConfigurationManager.java  # JSON config loader
+│   │   ├── records/                     # Database persistence
+│   │   │   ├── MqttBrokerSettings.java
+│   │   │   ├── MqttTagSettings.java
+│   │   │   └── MqttConfigRecordListener.java
+│   │   └── web/                         # REST API
+│   │       ├── MqttConfigRoute.java
+│   │       ├── MqttStatusRoute.java
+│   │       └── TestConnectionRoute.java
+│   ├── web-ui/                          # React web interface
+│   │   ├── src/
+│   │   │   ├── components/
+│   │   │   │   ├── Configuration.tsx    # Main container
+│   │   │   │   ├── BrokerSettings.tsx   # Broker config tab
+│   │   │   │   ├── TagSelection.tsx     # Tag selection tab
+│   │   │   │   └── StatusDashboard.tsx  # Status monitoring tab
+│   │   │   ├── index.tsx                # Entry point
+│   │   │   └── styles.css               # Global styles
+│   │   ├── package.json
+│   │   └── webpack.config.js
+│   └── src/main/resources/
+│       └── mounted/                     # Webpack output
+│           └── mqtt-config.js           # Bundled React app
 ├── build.gradle.kts                  # Root build configuration
 ├── settings.gradle.kts               # Gradle settings
 ├── build.sh                          # Build script
@@ -253,7 +302,7 @@ The module uses a multi-manager architecture:
 1. **MqttGatewayHook**: Module lifecycle manager and coordinator
 2. **ConfigurationManager**: Loads/saves JSON configuration files
 3. **MqttPublisherManager**: MQTT broker connection and publishing
-4. **TagSubscriptionManager**: Tag polling and change detection
+4. **TagSubscriptionManager**: Event-driven tag change detection and publishing
 5. **MqttTopicMapper**: Tag path to MQTT topic conversion
 6. **JsonPayloadBuilder**: JSON payload generation
 7. **ModuleStatistics**: Runtime metrics tracking
@@ -363,28 +412,25 @@ wrapper.java.additional.X=-Dignition.allowunsignedmodules=true
 **Problem:** Module consuming excessive CPU
 
 **Solutions:**
-1. Increase `pollRateMs` (e.g., from 1000ms to 5000ms)
-2. Reduce number of monitored tags
-3. Increase `valueDeadband` to filter noise
+1. Reduce number of monitored tags
+2. Increase `valueDeadband` to filter noise and reduce unnecessary publishes
 
 ## Performance Tuning
 
-**High-Frequency Publishing (100ms):**
+**High Sensitivity (Low Deadband):**
 ```json
 {
   "tags": {
-    "pollRateMs": 100,
     "valueDeadband": 0.01,
     "includeMetadata": false
   }
 }
 ```
 
-**Low-Frequency Monitoring (5s):**
+**Low Sensitivity (High Deadband):**
 ```json
 {
   "tags": {
-    "pollRateMs": 5000,
     "valueDeadband": 1.0,
     "includeMetadata": true
   }
@@ -395,7 +441,6 @@ wrapper.java.additional.X=-Dignition.allowunsignedmodules=true
 ```json
 {
   "tags": {
-    "pollRateMs": 1000,
     "valueDeadband": 999999999,
     "publishOnQualityChange": true
   }
