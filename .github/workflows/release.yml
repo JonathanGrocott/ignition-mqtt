@@ -6,6 +6,9 @@ on:
       - 'v*'
   workflow_dispatch:
 
+permissions:
+  contents: write
+
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -42,17 +45,15 @@ jobs:
       id: find_modl
       run: |
         MODL_FILE=$(find build -name "*.modl" -type f | head -1)
+        MODL_FILENAME=$(basename "$MODL_FILE")
         echo "MODL_FILE=$MODL_FILE" >> $GITHUB_ENV
+        echo "MODL_FILENAME=$MODL_FILENAME" >> $GITHUB_ENV
         echo "Found module file: $MODL_FILE"
     
     - name: Create Release
-      id: create_release
-      uses: actions/create-release@v1
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      uses: softprops/action-gh-release@v1
       with:
-        tag_name: ${{ github.ref_name }}
-        release_name: Release ${{ github.ref_name }}
+        name: Release ${{ github.ref_name }}
         draft: false
         prerelease: ${{ contains(github.ref_name, 'alpha') || contains(github.ref_name, 'beta') || contains(github.ref_name, 'SNAPSHOT') }}
         body: |
@@ -65,13 +66,6 @@ jobs:
           
           ### Changes
           See the commit history for details on changes in this release.
-    
-    - name: Upload Release Asset
-      uses: actions/upload-release-asset@v1
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      with:
-        upload_url: ${{ steps.create_release.outputs.upload_url }}
-        asset_path: ${{ env.MODL_FILE }}
-        asset_name: MQTT-UNS-Publisher-${{ env.VERSION }}.modl
-        asset_content_type: application/octet-stream
+        files: |
+          ${{ env.MODL_FILE }}
+
