@@ -161,7 +161,7 @@ uns/ignition/default/TestTags/Humidity {"value":50,"timestamp":1706213457123,"qu
    - **Monitored Tag Count:** Number of tags being watched
 
 ### Expected Behavior:
-- Status updates automatically (polling every few seconds)
+- Status updates automatically (auto-refresh every few seconds)
 - Statistics reflect actual publishing activity
 - Connection state matches actual broker connection
 

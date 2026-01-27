@@ -399,13 +399,12 @@ INFO  [TagSubscriptionManager] Monitoring 15 tags
 
 ## Common Configuration Patterns
 
-### High-Frequency Data (100ms polling)
+### High Sensitivity (Low Deadband)
 
 ```json
 {
   "tags": {
     "enabled": true,
-    "pollRateMs": 100,
     "valueDeadband": 0.01,
     "publishOnQualityChange": true,
     "includeMetadata": false
@@ -413,13 +412,12 @@ INFO  [TagSubscriptionManager] Monitoring 15 tags
 }
 ```
 
-### Low-Frequency Monitoring (5 seconds)
+### Low Sensitivity (High Deadband)
 
 ```json
 {
   "tags": {
     "enabled": true,
-    "pollRateMs": 5000,
     "valueDeadband": 1.0,
     "publishOnQualityChange": true,
     "includeMetadata": true
@@ -433,7 +431,6 @@ INFO  [TagSubscriptionManager] Monitoring 15 tags
 {
   "tags": {
     "enabled": true,
-    "pollRateMs": 1000,
     "valueDeadband": 999999999,
     "publishOnQualityChange": true,
     "includeMetadata": true
@@ -481,10 +478,9 @@ INFO  [TagSubscriptionManager] Monitoring 15 tags
 **Problem:** Module consuming excessive CPU
 
 **Solutions:**
-1. Increase `pollRateMs` (default: 1000ms)
-2. Reduce number of monitored tags
-3. Increase `valueDeadband` to filter noise
-4. Check for tag read errors in logs
+1. Reduce number of monitored tags
+2. Increase `valueDeadband` to filter noise
+3. Check for tag read errors in logs
 
 ---
 
@@ -496,7 +492,6 @@ INFO  [TagSubscriptionManager] Monitoring 15 tags
 4. **Topic Structure:** Follow UNS patterns like `enterprise/site/area/line/device/metric`
 5. **Monitor Statistics:** Regularly check module statistics for health
 6. **Deadband Tuning:** Set appropriate deadband to reduce unnecessary publishes
-7. **Poll Rate Optimization:** Balance between latency and system load
 
 ---
 

@@ -5,13 +5,13 @@ An Ignition module that publishes tag data to an external MQTT broker in a Unifi
 ## Features
 
 - **MQTT Integration**: Connect to external MQTT brokers (Mosquitto, HiveMQ, EMQX, etc.)
-- **Tag Monitoring**: Poll-based tag monitoring with configurable intervals (100ms - 60s)
+- **Tag Monitoring**: Event-driven tag subscriptions with real-time change notifications
 - **Flexible Topic Mapping**: Direct tag path to MQTT topic conversion with custom overrides
 - **Customizable Payloads**: JSON structure with value, quality, timestamp, and optional metadata
 - **Statistics & Health Monitoring**: Real-time performance metrics and health status
 - **Robust Connection Handling**: Automatic reconnection with exponential backoff
 - **Change Detection**: Configurable deadband filtering and quality change detection
-- **Thread-Safe Operations**: Concurrent tag polling and MQTT publishing
+- **Thread-Safe Operations**: Concurrent tag change handling and MQTT publishing
 
 ## Requirements
 
@@ -74,7 +74,7 @@ Navigate to **Config > Connections > MQTT UNS Publisher** in the Gateway web int
 
 2. **Tag Publishing**: Select tags and configure publishing behavior
    - Choose tag providers or specific folders
-   - Set polling rate and deadband filtering
+   - Set deadband filtering and quality change detection
    - Configure topic overrides
    - Enable/disable metadata publishing
 
@@ -112,7 +112,6 @@ The module can also be configured via a JSON file located in your Ignition data 
     "tagProviders": ["default"],
     "tagFolders": ["[default]TestTags"],
     "valueDeadband": 0.1,
-    "pollRateMs": 1000,
     "publishOnQualityChange": true,
     "includeMetadata": true,
     "topicOverrides": {
@@ -139,7 +138,6 @@ See `mqtt-uns-config-combined-example.json` for a complete example.
 - `tagProviders`: List of tag providers to monitor (or use tagFolders)
 - `tagFolders`: Specific tag folders to monitor (format: `[provider]Path/To/Folder`)
 - `valueDeadband`: Minimum value change to trigger publish
-- `pollRateMs`: Tag polling interval in milliseconds (100-60000)
 - `publishOnQualityChange`: Publish when quality changes (true/false)
 - `includeMetadata`: Include tag metadata in payload (true/false)
 - `topicOverrides`: Map specific tag paths to custom MQTT topics
@@ -166,7 +164,7 @@ This module is **production-ready** with full web UI configuration. Current phas
   - [x] Connection health monitoring
   - [x] Thread-safe operations
 - [x] **Phase 3**: Tag subscription system
-  - [x] Polling-based tag monitoring (100ms - 60s configurable)
+  - [x] Event-driven tag monitoring using TagChangeListener API
   - [x] Tag discovery from providers and folders
   - [x] Recursive tag browsing
   - [x] Deadband filtering
@@ -205,7 +203,6 @@ This module is **production-ready** with full web UI configuration. Current phas
   - [ ] Load testing
 
 ### Known Limitations
-- Poll-based rather than event-driven tag monitoring (acceptable for most use cases)
 - No TLS/SSL support yet (plaintext MQTT only)
 - No Sparkplug B protocol support yet
 - Not compatible with Ignition Maker Edition
@@ -226,7 +223,7 @@ ignition-mqtt/
 │   ├── src/main/java/.../gateway/
 │   │   ├── MqttGatewayHook.java         # Module entry point
 │   │   ├── MqttPublisherManager.java    # MQTT connection management
-│   │   ├── TagSubscriptionManager.java  # Tag polling & publishing
+│   │   ├── TagSubscriptionManager.java  # Tag change monitoring & publishing
 │   │   ├── MqttTopicMapper.java         # Tag-to-topic mapping
 │   │   ├── JsonPayloadBuilder.java      # JSON payload generation
 │   │   ├── ModuleStatistics.java        # Runtime statistics
@@ -305,7 +302,7 @@ The module uses a multi-manager architecture:
 1. **MqttGatewayHook**: Module lifecycle manager and coordinator
 2. **ConfigurationManager**: Loads/saves JSON configuration files
 3. **MqttPublisherManager**: MQTT broker connection and publishing
-4. **TagSubscriptionManager**: Tag polling and change detection
+4. **TagSubscriptionManager**: Event-driven tag change detection and publishing
 5. **MqttTopicMapper**: Tag path to MQTT topic conversion
 6. **JsonPayloadBuilder**: JSON payload generation
 7. **ModuleStatistics**: Runtime metrics tracking
@@ -415,28 +412,25 @@ wrapper.java.additional.X=-Dignition.allowunsignedmodules=true
 **Problem:** Module consuming excessive CPU
 
 **Solutions:**
-1. Increase `pollRateMs` (e.g., from 1000ms to 5000ms)
-2. Reduce number of monitored tags
-3. Increase `valueDeadband` to filter noise
+1. Reduce number of monitored tags
+2. Increase `valueDeadband` to filter noise and reduce unnecessary publishes
 
 ## Performance Tuning
 
-**High-Frequency Publishing (100ms):**
+**High Sensitivity (Low Deadband):**
 ```json
 {
   "tags": {
-    "pollRateMs": 100,
     "valueDeadband": 0.01,
     "includeMetadata": false
   }
 }
 ```
 
-**Low-Frequency Monitoring (5s):**
+**Low Sensitivity (High Deadband):**
 ```json
 {
   "tags": {
-    "pollRateMs": 5000,
     "valueDeadband": 1.0,
     "includeMetadata": true
   }
@@ -447,7 +441,6 @@ wrapper.java.additional.X=-Dignition.allowunsignedmodules=true
 ```json
 {
   "tags": {
-    "pollRateMs": 1000,
     "valueDeadband": 999999999,
     "publishOnQualityChange": true
   }
