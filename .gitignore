@@ -53,6 +53,13 @@ gateway-backup/
 # Include gradle wrapper jar
 !gradle/wrapper/gradle-wrapper.jar
 
+# Signing certificates and keystores
+*.jks
+*.keystore
+*.p12
+!certs/*.pem
+gradle.properties
+
 #Docs
 docs/*
 BUILD-AND-TEST-PLAN.md

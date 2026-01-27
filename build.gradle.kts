@@ -3,7 +3,7 @@ plugins {
 }
 
 group = "com.inductiveautomation.ignition.examples"
-version = "1.0.0"
+version = "1.0.1"
 
 ignitionModule {
     name.set("MQTT UNS Publisher")
@@ -27,8 +27,11 @@ ignitionModule {
         )
     )
     
-    skipModlSigning.set(true)
+    skipModlSigning.set(false)
 }
+
+// Configure module signing - use command line args or gradle.properties
+// Example: gradlew signModule --keystoreFile=certs/module-keystore.jks --keystorePassword=ignition --certAlias=module-signer --certPassword=ignition
 
 // Add vendor information to module.xml
 tasks.named("writeModuleXml") {

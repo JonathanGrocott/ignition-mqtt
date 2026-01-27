@@ -31,6 +31,20 @@ jobs:
     - name: Make gradlew executable
       run: chmod +x ./gradlew
     
+    - name: Decode keystore
+      run: |
+        echo "${{ secrets.SIGNING_KEYSTORE_BASE64 }}" | base64 -d > certs/module-keystore.jks
+    
+    - name: Create gradle.properties
+      run: |
+        cat > gradle.properties << EOF
+        ignition.signing.keystoreFile=certs/module-keystore.jks
+        ignition.signing.keystorePassword=${{ secrets.SIGNING_KEYSTORE_PASSWORD }}
+        ignition.signing.certAlias=${{ secrets.SIGNING_CERT_ALIAS }}
+        ignition.signing.certPassword=${{ secrets.SIGNING_CERT_PASSWORD }}
+        ignition.signing.certFile=certs/module-cert.pem
+        EOF
+    
     - name: Build module
       run: ./gradlew clean build
     
@@ -44,7 +58,7 @@ jobs:
     - name: Find .modl file
       id: find_modl
       run: |
-        MODL_FILE=$(find build -name "*.modl" -type f | head -1)
+        MODL_FILE=$(find build -name "*.modl" -type f ! -name "*.unsigned.modl" | head -1)
         MODL_FILENAME=$(basename "$MODL_FILE")
         echo "MODL_FILE=$MODL_FILE" >> $GITHUB_ENV
         echo "MODL_FILENAME=$MODL_FILENAME" >> $GITHUB_ENV
