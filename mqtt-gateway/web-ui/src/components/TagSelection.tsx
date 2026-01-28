@@ -177,7 +177,7 @@ const TagSelection: React.FC<Props> = ({ config, onConfigSaved }) => {
 
                     {brokers.length === 0 ? (
                         <div className="warning-message">
-                            <strong>No brokers configured.</strong> Please configure at least one MQTT broker in the Broker Settings tab before creating topic mappings.
+                            <strong>No brokers configured.</strong> Please configure at least one MQTT broker in the Broker Configuration tab before creating topic mappings.
                             <button type="button" onClick={loadBrokers} className="btn-secondary" style={{marginLeft: '10px'}}>
                                 Refresh
                             </button>

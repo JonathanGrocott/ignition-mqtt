@@ -92,7 +92,7 @@ const Configuration: React.FC = () => {
                     className={`tab ${activeTab === 'broker' ? 'active' : ''}`}
                     onClick={() => setActiveTab('broker')}
                 >
-                    Broker Settings
+                    Broker Configuration
                 </button>
                 <button
                     className={`tab ${activeTab === 'tags' ? 'active' : ''}`}
