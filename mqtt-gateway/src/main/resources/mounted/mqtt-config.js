@@ -1,13 +1,13 @@
 (function webpackUniversalModuleDefinition(root, factory) {
 	if(typeof exports === 'object' && typeof module === 'object')
-		module.exports = factory(require("http://localhost:8088/res/sys/js/react.js"), require("http://localhost:8088/res/sys/js/react-dom.js"));
+		module.exports = factory(require("/res/sys/js/react.js"), require("/res/sys/js/react-dom.js"));
 	else if(typeof define === 'function' && define.amd)
-		define("com.inductiveautomation.mqtt.uns.gateway", ["http://localhost:8088/res/sys/js/react.js", "http://localhost:8088/res/sys/js/react-dom.js"], factory);
+		define("com.inductiveautomation.mqtt.uns.gateway", ["/res/sys/js/react.js", "/res/sys/js/react-dom.js"], factory);
 	else if(typeof exports === 'object')
-		exports["com.inductiveautomation.mqtt.uns.gateway"] = factory(require("http://localhost:8088/res/sys/js/react.js"), require("http://localhost:8088/res/sys/js/react-dom.js"));
+		exports["com.inductiveautomation.mqtt.uns.gateway"] = factory(require("/res/sys/js/react.js"), require("/res/sys/js/react-dom.js"));
 	else
-		root["com.inductiveautomation.mqtt.uns.gateway"] = factory(root["http://localhost:8088/res/sys/js/react.js"], root["http://localhost:8088/res/sys/js/react-dom.js"]);
-})(this, (__WEBPACK_EXTERNAL_MODULE__341__, __WEBPACK_EXTERNAL_MODULE__554__) => {
+		root["com.inductiveautomation.mqtt.uns.gateway"] = factory(root["/res/sys/js/react.js"], root["/res/sys/js/react-dom.js"]);
+})(this, (__WEBPACK_EXTERNAL_MODULE__704__, __WEBPACK_EXTERNAL_MODULE__739__) => {
 return /******/ (() => { // webpackBootstrap
 /******/ 	"use strict";
 /******/ 	var __webpack_modules__ = ({
@@ -226,13 +226,6 @@ module.exports = function (cssWithMappingToString) {
   };
   return list;
 };
-
-/***/ },
-
-/***/ 341
-(module) {
-
-module.exports = __WEBPACK_EXTERNAL_MODULE__341__;
 
 /***/ },
 
@@ -1254,13 +1247,6 @@ module.exports = insertStyleElement;
 
 /***/ },
 
-/***/ 554
-(module) {
-
-module.exports = __WEBPACK_EXTERNAL_MODULE__554__;
-
-/***/ },
-
 /***/ 659
 (module) {
 
@@ -1298,6 +1284,20 @@ function insertBySelector(insert, style) {
   target.appendChild(style);
 }
 module.exports = insertBySelector;
+
+/***/ },
+
+/***/ 704
+(module) {
+
+module.exports = __WEBPACK_EXTERNAL_MODULE__704__;
+
+/***/ },
+
+/***/ 739
+(module) {
+
+module.exports = __WEBPACK_EXTERNAL_MODULE__739__;
 
 /***/ },
 
@@ -1437,11 +1437,11 @@ __webpack_require__.d(__webpack_exports__, {
   "default": () => (/* binding */ src)
 });
 
-// EXTERNAL MODULE: external "http://localhost:8088/res/sys/js/react.js"
-var react_js_ = __webpack_require__(341);
+// EXTERNAL MODULE: external "/res/sys/js/react.js"
+var react_js_ = __webpack_require__(704);
 var react_js_default = /*#__PURE__*/__webpack_require__.n(react_js_);
-// EXTERNAL MODULE: external "http://localhost:8088/res/sys/js/react-dom.js"
-var react_dom_js_ = __webpack_require__(554);
+// EXTERNAL MODULE: external "/res/sys/js/react-dom.js"
+var react_dom_js_ = __webpack_require__(739);
 var react_dom_js_default = /*#__PURE__*/__webpack_require__.n(react_dom_js_);
 ;// ./src/api.ts
 /**

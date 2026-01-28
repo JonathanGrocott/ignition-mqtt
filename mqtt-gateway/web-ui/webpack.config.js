@@ -39,10 +39,11 @@ module.exports = {
         extensions: ['.tsx', '.ts', '.js', '.jsx']
     },
     // Use Ignition's React/ReactDOM from SystemJS
-    // The URLs we saw in System.entries()
+    // Use relative URLs so the module works on any hostname/IP address
+    // These resolve to the current gateway's hostname automatically
     externals: {
-        'react': 'http://localhost:8088/res/sys/js/react.js',
-        'react-dom': 'http://localhost:8088/res/sys/js/react-dom.js'
+        'react': '/res/sys/js/react.js',
+        'react-dom': '/res/sys/js/react-dom.js'
     },
     devtool: 'source-map',
     optimization: {
