@@ -4,23 +4,24 @@ An Ignition module that publishes tag data to an external MQTT broker in a Unifi
 
 ## Features
 
-- **MQTT Integration**: Connect to external MQTT brokers (Mosquitto, HiveMQ, EMQX, etc.)
+- **Multi-Broker Support**: Connect to multiple MQTT brokers simultaneously
+- **Advanced Topic Mapping**: Map different tag folders to different brokers with custom topic prefixes
+- **MQTT Integration**: Works with any MQTT 3.1.1 broker (Mosquitto, HiveMQ, EMQX, etc.)
 - **Tag Monitoring**: Event-driven tag subscriptions with real-time change notifications
-- **Flexible Topic Mapping**: Direct tag path to MQTT topic conversion with custom overrides
+- **Web-Based Configuration**: Modern React UI for easy setup and monitoring
 - **Customizable Payloads**: JSON structure with value, quality, timestamp, and optional metadata
-- **Statistics & Health Monitoring**: Real-time performance metrics and health status
+- **Statistics & Health Monitoring**: Real-time performance metrics and health status dashboard
 - **Robust Connection Handling**: Automatic reconnection with exponential backoff
 - **Change Detection**: Configurable deadband filtering and quality change detection
 - **Thread-Safe Operations**: Concurrent tag change handling and MQTT publishing
 
 ## Requirements
 
-- **Ignition**: 8.3.0 or later (Standard or Enterprise Edition - NOT Maker Edition)
-- **Java**: 17
-- **Gradle**: 7.6 or later
-- **MQTT Broker**: Mosquitto, HiveMQ, EMQX, or any MQTT 3.1.1 compatible broker
-
-**Important:** This module will NOT work on Ignition Maker Edition, as Maker Edition does not support third-party modules.
+- **Ignition**: 8.3.0 or later (Standard or Enterprise Edition)
+  - **NOT compatible with Maker Edition** - Third-party modules are not supported on Maker Edition
+- **Java**: 17 (for building from source)
+- **Node.js**: 16+ and npm (for building the web UI from source)
+- **MQTT Broker**: Any MQTT 3.1.1 compatible broker
 
 ## Building
 
@@ -40,14 +41,27 @@ The compiled `.modl` file will be located at `build/MQTT-UNS-Publisher.unsigned.
 
 ## Installation
 
-1. Build the module (see above)
-2. Navigate to your Ignition Gateway web interface (typically `http://localhost:8088`)
-3. Go to **Config > Modules**
-4. Scroll down and click **Install or Upgrade a Module**
-5. Select the `MQTT-UNS-Publisher.unsigned.modl` file from the `build/` directory
-6. Click **Install**
-7. Wait for the module to load (should show "Running" status)
-8. Navigate to **Config > Connections > MQTT UNS Publisher** to access the web configuration UI
+### Download Pre-built Module
+
+Download the latest `.modl` file from the [Releases page](https://github.com/JonathanGrocott/ignition-mqtt/releases).
+
+### Or Build from Source
+
+```bash
+./gradlew clean build
+```
+
+The compiled `.modl` file will be located at `build/MQTT-UNS-Publisher.unsigned.modl`.
+
+### Install in Ignition
+1. Navigate to your Ignition Gateway web interface (typically `http://localhost:8088`)
+2. Go to **Config > Modules**
+2. Go to **Config > Modules**
+3. Scroll down and click **Install or Upgrade a Module**
+4. Select the `.modl` file
+5. Click **Install**
+6. Wait for the module to load (should show "Running" status)
+7. Navigate to **Config > MQTT UNS Publisher** to access the web configuration UI
 
 ### Development Mode
 
@@ -61,36 +75,32 @@ Replace `[index]` with the next available index number.
 
 ## Configuration
 
-The module can be configured in two ways:
+### Web UI (Recommended)
 
-### Option 1: Web UI (Recommended)
+The module provides a modern web interface for all configuration needs. See the "Web-Based Configuration" section above for details on the three main sections:
+- Broker Configuration
+- Tag Publishing Configuration  
+- Status Dashboard
 
-Navigate to **Config > Connections > MQTT UNS Publisher** in the Gateway web interface. The web UI provides three tabs:
+### Multi-Broker Setup Example
 
-1. **Broker Settings**: Configure MQTT broker connection parameters
-   - Broker URL, client ID, credentials
-   - QoS, retained messages, connection timeout
-   - Test connection functionality
+1. **Add Brokers**: Create multiple broker connections (e.g., one for local Mosquitto, one for cloud HiveMQ)
+2. **Create Topic Mappings**: Map different tag folders to different brokers
+   - Map `[default]Site1/Production` → Broker 1, Topic: `enterprise/site1/production`
+   - Map `[default]Site2/Quality` → Broker 2, Topic: `enterprise/site2/quality`
+3. **Enable and Monitor**: Enable the mappings and watch the Status Dashboard
 
-2. **Tag Publishing**: Select tags and configure publishing behavior
-   - Choose tag providers or specific folders
-   - Set deadband filtering and quality change detection
-   - Configure topic overrides
-   - Enable/disable metadata publishing
+Brokers only connect when they have enabled topic mappings, avoiding unnecessary connections.
 
-3. **Status & Statistics**: Monitor real-time module performance
-   - Connection status and uptime
-   - Publish statistics (success/failure rates)
-   - Tag read statistics
-   - Health monitoring with auto-refresh
+### Legacy JSON Configuration
 
-### Option 2: JSON File (Legacy)
-
-The module can also be configured via a JSON file located in your Ignition data directory:
+For backwards compatibility, JSON file configuration is still supported at:
 
 ```
 <ignition-data>/mqtt-uns-config.json
 ```
+
+**Note**: The web UI is the recommended configuration method. JSON configuration is provided for backwards compatibility and advanced use cases only.
 
 ### Example Configuration
 
@@ -121,7 +131,7 @@ The module can also be configured via a JSON file located in your Ignition data 
 }
 ```
 
-See `mqtt-uns-config-combined-example.json` for a complete example.
+See `mqtt-uns-config-combined-example.json` in the repository for a complete configuration example.
 
 ### Configuration Options
 
@@ -135,77 +145,78 @@ See `mqtt-uns-config-combined-example.json` for a complete example.
 
 **Tag Settings:**
 - `enabled`: Enable/disable tag publishing
-- `tagProviders`: List of tag providers to monitor (or use tagFolders)
+- `tagProviders`: List of tag providers to monitor
 - `tagFolders`: Specific tag folders to monitor (format: `[provider]Path/To/Folder`)
 - `valueDeadband`: Minimum value change to trigger publish
-- `publishOnQualityChange`: Publish when quality changes (true/false)
-- `includeMetadata`: Include tag metadata in payload (true/false)
-- `topicOverrides`: Map specific tag paths to custom MQTT topics
+- `publishOnQualityChange`: Publish when quality changes
+- `includeMetadata`: Include tag metadata in payload
+- `topicMappings`: Array of topic mapping objects with:
+  - `sourcePattern`: Tag path pattern (e.g., `[default]Site1/Area2`)
+  - `topicPrefix`: MQTT topic prefix (e.g., `enterprise/site1/area2`)
+  - `brokerId`: ID of the broker to publish to
+  - `enabled`: Enable/disable this mapping
 
-### MQTT Broker Setup
+## Quick Start
 
-See [MQTT-BROKER-SETUP.md](MQTT-BROKER-SETUP.md) for detailed broker setup instructions including:
-- Mosquitto (open source)
-- HiveMQ Community Edition
-- EMQX
+1. **Download and Install**: Get the latest `.modl` file from [Releases](https://github.com/JonathanGrocott/ignition-mqtt/releases) and install via Config > Modules
+2. **Setup Broker**: Navigate to Config > MQTT UNS Publisher > Broker Configuration and add your MQTT broker
+3. **Configure Publishing**: Go to Tag Publishing Configuration and create topic mappings for your tags
+4. **Monitor**: Check the Status Dashboard to verify brokers are connected and tags are publishing
+
+## MQTT Broker Setup
+
+The module works with any MQTT 3.1.1 compatible broker. Popular options:
+
+**Local Development (Mosquitto)**:
+```bash
+# macOS
+brew install mosquitto
+brew services start mosquitto
+
+# Test with:
+mosquitto_sub -h localhost -t '#' -v
+```
+
+**Cloud Services**:
+- HiveMQ Cloud (free tier available)
 - AWS IoT Core
 - Azure IoT Hub
+- EMQX Cloud
+
+For detailed setup instructions for various brokers, see the [MQTT documentation](https://mqtt.org/).
 
 ## Development Status
 
-This module is **production-ready** with full web UI configuration. Current phase: **Phase 6 Complete** ✅
+**Current Version**: 1.0.5 - Production Ready ✅
+
+This module is production-ready with full multi-broker support and web UI configuration.
+
+### Recent Updates (v1.0.5)
+- ✅ Fixed broker connection when saving tag configuration
+- ✅ Enhanced debug logging for troubleshooting
+- ✅ Improved broker lifecycle management
 
 ### Completed Features
-- [x] **Phase 1**: Project structure and module skeleton
-- [x] **Phase 2**: MQTT connection management
-  - [x] MqttPublisherManager with connection lifecycle
-  - [x] Reconnection logic with exponential backoff
-  - [x] Configuration persistence (JSON file-based)
-  - [x] Connection health monitoring
-  - [x] Thread-safe operations
-- [x] **Phase 3**: Tag subscription system
-  - [x] Event-driven tag monitoring using TagChangeListener API
-  - [x] Tag discovery from providers and folders
-  - [x] Recursive tag browsing
-  - [x] Deadband filtering
-  - [x] Quality change detection
-- [x] **Phase 4**: Topic mapping and payload generation
-  - [x] Automatic tag path to MQTT topic mapping
-  - [x] Topic sanitization (lowercase, underscore replacement)
-  - [x] Custom topic overrides
-  - [x] JSON payload builder with metadata
-  - [x] Configurable metadata inclusion
-- [x] **Phase 5**: Statistics & Health Monitoring
-  - [x] Real-time statistics tracking
-  - [x] Health status with HEALTHY/DEGRADED/UNHEALTHY levels
-  - [x] Publish success rate calculation
-  - [x] Tag read success rate calculation
-  - [x] Connection success rate calculation
-  - [x] Detailed statistics reporting
-- [x] **Phase 6**: Gateway web configuration UI ✅
-  - [x] React-based configuration interface
-  - [x] REST API endpoints for configuration CRUD
-  - [x] Database-backed configuration storage (PersistentRecord)
-  - [x] Real-time status dashboard with auto-refresh
-  - [x] Test MQTT connection functionality
-  - [x] Three-tab interface (Broker Settings, Tag Publishing, Status Dashboard)
+- ✅ Multi-broker support with dynamic connection management
+- ✅ Web-based configuration UI (React + REST API)
+- ✅ Database-backed configuration storage
+- ✅ Advanced topic mapping with per-broker routing
+- ✅ Real-time statistics and health monitoring
+- ✅ Event-driven tag monitoring
+- ✅ Automatic broker connection/disconnection based on topic mappings
+- ✅ Test connection functionality
 
-### Pending Features
-- [ ] **Phase 7**: Advanced features
-  - [ ] Custom payload templates
-  - [ ] Sparkplug B protocol support
-  - [ ] TLS/SSL support for secure brokers
-  - [ ] Batch publishing for performance
-- [ ] **Phase 8**: Testing & optimization
-  - [ ] Unit tests
-  - [ ] Integration tests with real MQTT brokers
-  - [ ] Performance optimization
-  - [ ] Load testing
+### Future Enhancements
+- [ ] TLS/SSL support for secure MQTT connections
+- [ ] Sparkplug B protocol support
+- [ ] Custom payload templates
+- [ ] Batch publishing for high-volume scenarios
+- [ ] Comprehensive unit and integration tests
 
 ### Known Limitations
-- No TLS/SSL support yet (plaintext MQTT only)
-- No Sparkplug B protocol support yet
-- Not compatible with Ignition Maker Edition
+- TLS/SSL connections not yet supported (plaintext MQTT only)
+- Sparkplug B protocol not yet supported
+- Not compatible with Ignition Maker Edition (third-party modules not supported)
 
 ## Project Structure
 
@@ -218,47 +229,48 @@ ignition-mqtt/
 │           ├── ConnectionState.java
 │           ├── MqttBrokerConfig.java
 │           ├── TagPublishConfig.java
+│           ├── TopicMapping.java
 │           └── MqttModuleConfig.java
 ├── mqtt-gateway/                     # Gateway scope (main implementation)
 │   ├── src/main/java/.../gateway/
-│   │   ├── MqttGatewayHook.java         # Module entry point
-│   │   ├── MqttPublisherManager.java    # MQTT connection management
-│   │   ├── TagSubscriptionManager.java  # Tag change monitoring & publishing
-│   │   ├── MqttTopicMapper.java         # Tag-to-topic mapping
+│   │   ├── MqttGatewayHook.java         # Module entry point & lifecycle
+│   │   ├── MultiBrokerManager.java      # Multi-broker connection management
+│   │   ├── TagSubscriptionManager.java  # Tag monitoring & publishing
+│   │   ├── MqttTopicMapper.java         # Topic mapping logic
 │   │   ├── JsonPayloadBuilder.java      # JSON payload generation
-│   │   ├── ModuleStatistics.java        # Runtime statistics
+│   │   ├── ModuleStatistics.java        # Performance metrics
 │   │   ├── ModuleHealthStatus.java      # Health monitoring
 │   │   ├── config/
-│   │   │   └── ConfigurationManager.java  # JSON config loader
+│   │   │   └── ConfigurationManager.java  # Database config management
 │   │   ├── records/                     # Database persistence
-│   │   │   ├── MqttBrokerSettings.java
-│   │   │   ├── MqttTagSettings.java
-│   │   │   └── MqttConfigRecordListener.java
+│   │   │   ├── MqttBrokerConfigRecord.java
+│   │   │   ├── MqttTagConfigRecord.java
+│   │   │   └── RecordMapper.java
 │   │   └── web/                         # REST API
-│   │       ├── MqttConfigRoute.java
-│   │       ├── MqttStatusRoute.java
-│   │       └── TestConnectionRoute.java
+│   │       ├── MqttDataRoutes.java      # Config CRUD endpoints
+│   │       └── MqttStatusRoute.java     # Status/statistics endpoint
 │   ├── web-ui/                          # React web interface
 │   │   ├── src/
 │   │   │   ├── components/
 │   │   │   │   ├── Configuration.tsx    # Main container
-│   │   │   │   ├── BrokerSettings.tsx   # Broker config tab
-│   │   │   │   ├── TagSelection.tsx     # Tag selection tab
-│   │   │   │   └── StatusDashboard.tsx  # Status monitoring tab
+│   │   │   │   ├── BrokerManagement.tsx # Broker config UI
+│   │   │   │   ├── TagConfiguration.tsx # Topic mapping UI
+│   │   │   │   └── StatusDashboard.tsx  # Real-time monitoring
+│   │   │   ├── api.ts                   # REST API client
 │   │   │   ├── index.tsx                # Entry point
-│   │   │   └── styles.css               # Global styles
+│   │   │   └── styles.css               # Styles
 │   │   ├── package.json
 │   │   └── webpack.config.js
 │   └── src/main/resources/
-│       └── mounted/                     # Webpack output
+│       └── mounted/                     # Webpack build output
 │           └── mqtt-config.js           # Bundled React app
+├── .github/workflows/                # CI/CD
+│   ├── build.yml                     # Build on push
+│   └── release.yml                   # Create releases on tags
 ├── build.gradle.kts                  # Root build configuration
-├── settings.gradle.kts               # Gradle settings
-├── build.sh                          # Build script
-├── BUILD-AND-TEST-PLAN.md           # Testing guide
-├── MQTT-BROKER-SETUP.md             # Broker setup guide
-├── mqtt-uns-config-combined-example.json  # Config example
-└── README.md                        # This file
+├── settings.gradle.kts               # Gradle project settings
+├── mqtt-uns-config-combined-example.json  # Example configuration
+└── README.md                         # This file
 ```
 
 ## Statistics & Health Monitoring
@@ -297,16 +309,17 @@ print stats.getDetailedReport()
 
 ## Architecture
 
-The module uses a multi-manager architecture:
+The module uses a manager-based architecture with multi-broker support:
 
-1. **MqttGatewayHook**: Module lifecycle manager and coordinator
-2. **ConfigurationManager**: Loads/saves JSON configuration files
-3. **MqttPublisherManager**: MQTT broker connection and publishing
-4. **TagSubscriptionManager**: Event-driven tag change detection and publishing
-5. **MqttTopicMapper**: Tag path to MQTT topic conversion
-6. **JsonPayloadBuilder**: JSON payload generation
-7. **ModuleStatistics**: Runtime metrics tracking
+1. **MqttGatewayHook**: Module lifecycle management and coordination
+2. **ConfigurationManager**: Database configuration storage and retrieval
+3. **MultiBrokerManager**: Manages multiple MQTT broker connections simultaneously
+4. **TagSubscriptionManager**: Event-driven tag change detection and publishing to appropriate brokers
+5. **MqttTopicMapper**: Tag path to MQTT topic conversion with custom mappings
+6. **JsonPayloadBuilder**: Configurable JSON payload generation
+7. **ModuleStatistics**: Real-time performance metrics tracking
 8. **ModuleHealthStatus**: Health monitoring and diagnostics
+9. **REST API Routes**: Web UI backend (broker config, tag config, status, test connection)
 
 ### MQTT Payload Format
 
@@ -347,25 +360,18 @@ Custom overrides allow any tag to publish to a specific topic.
 
 ## Testing
 
-See [BUILD-AND-TEST-PLAN.md](BUILD-AND-TEST-PLAN.md) for comprehensive testing instructions including:
-- Prerequisites and setup
-- 14 detailed test scenarios
-- Expected results
-- Troubleshooting guide
-
 **Quick Test:**
-1. Install module on Ignition (Standard Edition)
+1. Install module from [Releases](https://github.com/JonathanGrocott/ignition-mqtt/releases)
 2. Set up Mosquitto broker: `brew install mosquitto && brew services start mosquitto`
 3. Subscribe to all topics: `mosquitto_sub -h localhost -t '#' -v`
-4. Create JSON config file with test tags
-5. Restart Gateway
-6. Watch MQTT messages appear!
+4. Configure broker and topic mappings via web UI
+5. Watch MQTT messages appear in real-time!
 
-## Documentation
-
-- **[BUILD-AND-TEST-PLAN.md](BUILD-AND-TEST-PLAN.md)** - Complete testing guide
-- **[MQTT-BROKER-SETUP.md](MQTT-BROKER-SETUP.md)** - MQTT broker setup for various platforms
-- **[mqtt-uns-config-combined-example.json](mqtt-uns-config-combined-example.json)** - Configuration example
+**Verify Installation:**
+- Module shows "Running" status in Config > Modules
+- Web UI accessible at Config > MQTT UNS Publisher
+- Check Gateway logs for startup messages
+- Status Dashboard shows broker connection status
 
 ## Troubleshooting
 
@@ -449,13 +455,14 @@ wrapper.java.additional.X=-Dignition.allowunsignedmodules=true
 
 ## Contributing
 
-This is a reference implementation for Ignition SDK 8.3 module development demonstrating:
-- Multi-module Gradle project structure
+This is a reference implementation for Ignition SDK 8.3+ module development demonstrating:
+- Multi-module Gradle project structure with Kotlin DSL
 - Gateway module lifecycle management
-- MQTT client integration (Eclipse Paho)
-- Tag system integration
-- Configuration management
-- Statistics and health monitoring
+- Multi-broker MQTT client integration (Eclipse Paho)
+- Tag system integration with event-driven monitoring
+- Database-backed configuration using PersistentRecords
+- React-based web UI with REST API backend
+- Real-time statistics and health monitoring
 - Thread-safe concurrent operations
 
 Feel free to use this as a template for your own Ignition modules!
