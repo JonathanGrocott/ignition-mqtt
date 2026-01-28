@@ -655,15 +655,63 @@ public final class MqttDataRoutes {
         
         logger.info("Saved tag configuration: {}", record.getName());
         
-        // Apply the new configuration immediately (start/restart tag subscriptions)
+        // Apply the new configuration immediately (connect brokers and start/restart tag subscriptions)
         if (hook != null) {
             try {
                 TagPublishConfig config = com.inductiveautomation.ignition.examples.mqtt.gateway.records.RecordMapper.toModel(record);
                 if (config != null && config.isEnabled()) {
                     config.validate();
-                    logger.info("Applying tag configuration: {} providers, {} folders", 
+                    logger.info("Applying tag configuration: {} providers, {} folders, {} mappings", 
                         config.getTagProviders().size(),
-                        config.getTagFolders().size());
+                        config.getTagFolders().size(),
+                        config.getTopicMappings() != null ? config.getTopicMappings().size() : 0);
+                    
+                    // Determine which brokers are needed based on enabled topic mappings
+                    java.util.Set<Long> brokersNeeded = new java.util.HashSet<>();
+                    if (config.getTopicMappings() != null) {
+                        for (com.inductiveautomation.ignition.examples.mqtt.common.model.TopicMapping mapping : config.getTopicMappings()) {
+                            if (mapping.isEnabled() && mapping.getBrokerId() != null) {
+                                brokersNeeded.add(mapping.getBrokerId());
+                                logger.info("Topic mapping requires broker ID: {}", mapping.getBrokerId());
+                            }
+                        }
+                    }
+                    
+                    logger.info("Tag config requires {} broker(s): {}", brokersNeeded.size(), brokersNeeded);
+                    
+                    // Disconnect brokers that are no longer needed
+                    java.util.Set<Long> currentBrokers = hook.getMultiBrokerManager().getActiveBrokerIds();
+                    logger.info("Currently active brokers: {}", currentBrokers);
+                    for (Long brokerId : currentBrokers) {
+                        if (!brokersNeeded.contains(brokerId)) {
+                            logger.info("Disconnecting broker {} (no longer needed)", brokerId);
+                            hook.getMultiBrokerManager().disconnectBroker(brokerId);
+                        }
+                    }
+                    
+                    // Connect brokers that are now needed
+                    for (Long brokerId : brokersNeeded) {
+                        if (!hook.getMultiBrokerManager().isConnected(brokerId)) {
+                            // Load broker config from database
+                            try {
+                                logger.info("Loading broker config for ID {} from database...", brokerId);
+                                MqttBrokerConfigRecord brokerRecord = db.find(MqttBrokerConfigRecord.META, brokerId);
+                                
+                                if (brokerRecord != null && brokerRecord.isEnabled()) {
+                                    MqttBrokerConfig brokerConfig = com.inductiveautomation.ignition.examples.mqtt.gateway.records.RecordMapper.toModel(brokerRecord);
+                                    brokerConfig.validate();
+                                    logger.info("Connecting broker {} (ID: {}) for tag publishing", brokerConfig.getName(), brokerId);
+                                    hook.getMultiBrokerManager().connectBroker(brokerId, brokerConfig);
+                                } else {
+                                    logger.warn("Broker {} not found or disabled, cannot connect", brokerId);
+                                }
+                            } catch (Exception e) {
+                                logger.error("Error loading/connecting broker {}: {}", brokerId, e.getMessage(), e);
+                            }
+                        } else {
+                            logger.info("Broker {} already connected", brokerId);
+                        }
+                    }
                     
                     // Get tag subscription manager and restart with new config
                     if (hook.getTagSubscriptionManager() != null) {
@@ -674,9 +722,12 @@ public final class MqttDataRoutes {
                         logger.warn("Tag subscription manager not available");
                     }
                 } else {
-                    logger.info("Tag publishing disabled or invalid, stopping subscriptions");
+                    logger.info("Tag publishing disabled or invalid, stopping subscriptions and disconnecting brokers");
                     if (hook.getTagSubscriptionManager() != null) {
                         hook.getTagSubscriptionManager().shutdown();
+                    }
+                    if (hook.getMultiBrokerManager() != null) {
+                        hook.getMultiBrokerManager().disconnectAll();
                     }
                 }
             } catch (Exception e) {

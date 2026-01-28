@@ -494,19 +494,25 @@ public class MqttGatewayHook extends AbstractGatewayModuleHook {
         tagConfigListener = new RecordListenerAdapter<MqttTagConfigRecord>() {
             @Override
             public void recordAdded(MqttTagConfigRecord record) {
-                logger.info("Tag configuration added: {}", record.getName());
+                logger.info(">>> Tag configuration ADDED: {}", record.getName());
                 applyTagConfig(record);
             }
             
             @Override
             public void recordUpdated(MqttTagConfigRecord record) {
-                logger.info("Tag configuration updated: {}", record.getName());
+                logger.info(">>> Tag configuration UPDATED event received for: {}", record.getName());
+                // Check if record is deleted before accessing it
+                if (record.isDeleted()) {
+                    logger.info(">>> Tag configuration marked for deletion, skipping update");
+                    return;
+                }
+                logger.info(">>> Tag configuration is valid, applying...");
                 applyTagConfig(record);
             }
             
             @Override
             public void recordDeleted(KeyValue key) {
-                logger.info("Tag configuration deleted");
+                logger.info(">>> Tag configuration DELETED");
                 tagSubscriptionManager.shutdown();
             }
         };
@@ -563,6 +569,8 @@ public class MqttGatewayHook extends AbstractGatewayModuleHook {
      */
     private void applyTagConfig(MqttTagConfigRecord record) {
         try {
+            logger.info("=== Starting applyTagConfig for: {} ===", record.getName());
+            
             if (!record.isEnabled()) {
                 logger.info("Tag configuration is disabled, stopping tag subscriptions and disconnecting all brokers");
                 tagSubscriptionManager.shutdown();
@@ -571,22 +579,31 @@ public class MqttGatewayHook extends AbstractGatewayModuleHook {
             }
             
             TagPublishConfig config = RecordMapper.toModel(record);
+            logger.info("Converted record to model, validating...");
             config.validate();
+            logger.info("Validation passed");
             
             // Determine which brokers are needed based on enabled topic mappings
             java.util.Set<Long> brokersNeeded = new java.util.HashSet<>();
             if (config.getTopicMappings() != null) {
+                logger.info("Processing {} topic mappings", config.getTopicMappings().size());
                 for (com.inductiveautomation.ignition.examples.mqtt.common.model.TopicMapping mapping : config.getTopicMappings()) {
+                    logger.info("  Mapping: enabled={}, brokerId={}, topicPrefix={}", 
+                        mapping.isEnabled(), mapping.getBrokerId(), mapping.getTopicPrefix());
                     if (mapping.isEnabled() && mapping.getBrokerId() != null) {
                         brokersNeeded.add(mapping.getBrokerId());
+                        logger.info("    -> Added broker {} to needed list", mapping.getBrokerId());
                     }
                 }
+            } else {
+                logger.warn("Config has null topic mappings!");
             }
             
-            logger.info("Tag config requires {} broker(s)", brokersNeeded.size());
+            logger.info("Tag config requires {} broker(s): {}", brokersNeeded.size(), brokersNeeded);
             
             // Disconnect brokers that are no longer needed
             java.util.Set<Long> currentBrokers = multiBrokerManager.getActiveBrokerIds();
+            logger.info("Currently active brokers: {}", currentBrokers);
             for (Long brokerId : currentBrokers) {
                 if (!brokersNeeded.contains(brokerId)) {
                     logger.info("Disconnecting broker {} (no longer needed)", brokerId);
@@ -595,36 +612,50 @@ public class MqttGatewayHook extends AbstractGatewayModuleHook {
             }
             
             // Connect brokers that are now needed
+            logger.info("Attempting to connect {} needed broker(s)", brokersNeeded.size());
             for (Long brokerId : brokersNeeded) {
+                logger.info("Checking broker {}: isConnected={}", brokerId, multiBrokerManager.isConnected(brokerId));
                 if (!multiBrokerManager.isConnected(brokerId)) {
                     // Load broker config from database
                     try {
+                        logger.info("Loading broker config for ID {} from database...", brokerId);
                         MqttBrokerConfigRecord brokerRecord = gatewayContext
                             .getPersistenceInterface()
                             .find(MqttBrokerConfigRecord.META, brokerId);
                         
-                        if (brokerRecord != null && brokerRecord.isEnabled()) {
-                            MqttBrokerConfig brokerConfig = RecordMapper.toModel(brokerRecord);
-                            brokerConfig.validate();
-                            logger.info("Connecting broker {} for tag publishing", brokerConfig.getName());
-                            multiBrokerManager.connectBroker(brokerId, brokerConfig);
+                        if (brokerRecord != null) {
+                            logger.info("Found broker record: name={}, enabled={}", 
+                                brokerRecord.getName(), brokerRecord.isEnabled());
+                            if (brokerRecord.isEnabled()) {
+                                MqttBrokerConfig brokerConfig = RecordMapper.toModel(brokerRecord);
+                                brokerConfig.validate();
+                                logger.info("Calling multiBrokerManager.connectBroker({}, {})", brokerId, brokerConfig.getName());
+                                multiBrokerManager.connectBroker(brokerId, brokerConfig);
+                                logger.info("Successfully initiated connection for broker {}", brokerId);
+                            } else {
+                                logger.warn("Broker {} is disabled, cannot connect", brokerId);
+                            }
                         } else {
-                            logger.warn("Broker {} not found or disabled, cannot connect", brokerId);
+                            logger.warn("Broker {} not found in database!", brokerId);
                         }
                     } catch (Exception e) {
-                        logger.error("Error loading/connecting broker {}: {}", brokerId, e.getMessage());
+                        logger.error("Error loading/connecting broker {}: {}", brokerId, e.getMessage(), e);
                     }
+                } else {
+                    logger.info("Broker {} already connected, skipping", brokerId);
                 }
             }
             
             // Stop old subscriptions and start new ones
+            logger.info("Shutting down old tag subscriptions...");
             tagSubscriptionManager.shutdown();
+            logger.info("Starting new tag subscriptions with config...");
             tagSubscriptionManager.start(config);
             
-            logger.info("Applied new tag configuration: {}", record.getName());
+            logger.info("=== Successfully applied tag configuration: {} ===", record.getName());
             
         } catch (IllegalArgumentException e) {
-            logger.error("Cannot apply invalid tag configuration: {}", e.getMessage());
+            logger.error("Cannot apply invalid tag configuration: {}", e.getMessage(), e);
         } catch (Exception e) {
             logger.error("Error applying tag configuration", e);
         }
