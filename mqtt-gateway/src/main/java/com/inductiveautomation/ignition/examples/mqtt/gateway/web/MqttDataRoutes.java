@@ -399,7 +399,7 @@ public final class MqttDataRoutes {
                                     if (brokerIdElement != null && !brokerIdElement.isJsonNull()) {
                                         long brokerId = brokerIdElement.getAsLong();
                                         if (brokerId == id) {
-                                            return errorJson("Cannot delete broker: topic mappings still reference it");
+                                            return errorJson("Cannot delete broker: It is being used by topic mappings. Please remove all topic mappings that reference this broker before deleting it.");
                                         }
                                     }
                                 }
@@ -418,11 +418,22 @@ public final class MqttDataRoutes {
             return errorJson("Broker not found with ID: " + id);
         }
         
-        record.deleteRecord();
-        logger.info("Deleted broker configuration: {} (ID: {})", record.getName(), id);
+        String brokerName = record.getName();
         
-        // Remove broker from MultiBrokerManager
-        hook.getMultiBrokerManager().removeBroker(id);
+        try {
+            // Remove broker from MultiBrokerManager first (disconnect if connected)
+            logger.info("Removing broker from MultiBrokerManager: {} (ID: {})", brokerName, id);
+            hook.getMultiBrokerManager().removeBroker(id);
+            
+            // Then delete the database record
+            logger.info("Deleting broker record from database: {} (ID: {})", brokerName, id);
+            record.deleteRecord();
+            
+            logger.info("Successfully deleted broker: {} (ID: {})", brokerName, id);
+        } catch (Exception e) {
+            logger.error("Error deleting broker: {} (ID: {})", brokerName, id, e);
+            return errorJson("Failed to delete broker: " + e.getMessage());
+        }
         
         JsonObject response = new JsonObject();
         response.addProperty("success", true);

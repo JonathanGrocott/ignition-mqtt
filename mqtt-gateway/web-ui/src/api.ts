@@ -36,6 +36,22 @@ async function apiFetch<T>(url: string, options?: RequestInit): Promise<ApiRespo
         console.log('[API] Raw response text:', text);
         console.log('[API] Response text length:', text.length);
         
+        // Handle empty response (e.g., 204 No Content or empty body)
+        if (!text || text.trim().length === 0) {
+            console.warn('[API] Empty response body received');
+            if (!response.ok) {
+                return {
+                    success: false,
+                    error: `HTTP ${response.status}: ${response.statusText} (empty response body)`
+                };
+            }
+            // Empty response but status OK - return generic success
+            return {
+                success: true,
+                data: undefined as any
+            };
+        }
+        
         // Try to parse it
         let data;
         try {
@@ -44,7 +60,10 @@ async function apiFetch<T>(url: string, options?: RequestInit): Promise<ApiRespo
         } catch (parseError) {
             console.error('[API] JSON parse error:', parseError);
             console.error('[API] Failed to parse text:', text);
-            throw parseError;
+            return {
+                success: false,
+                error: `Invalid JSON response: ${parseError instanceof Error ? parseError.message : 'Parse error'}`
+            };
         }
 
         if (!response.ok) {
@@ -76,7 +95,7 @@ export async function getBrokerConfig(): Promise<ApiResponse<MqttBrokerConfig[]>
  * Get a specific broker configuration by ID
  */
 export async function getBrokerById(id: number): Promise<ApiResponse<MqttBrokerConfig>> {
-    return apiFetch<MqttBrokerConfig>(`${API_BASE}/config/broker?id=${id}`);
+    return apiFetch<MqttBrokerConfig>(`${API_BASE}/config/broker/${id}`);
 }
 
 /**
@@ -93,7 +112,7 @@ export async function saveBrokerConfig(config: MqttBrokerConfig): Promise<ApiRes
  * Delete a broker by ID
  */
 export async function deleteBroker(id: number): Promise<ApiResponse<void>> {
-    return apiFetch<void>(`${API_BASE}/config/broker?id=${id}`, {
+    return apiFetch<void>(`${API_BASE}/config/broker/${id}`, {
         method: 'DELETE'
     });
 }

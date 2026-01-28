@@ -1468,6 +1468,21 @@ async function apiFetch(url, options) {
         const text = await response.text();
         console.log('[API] Raw response text:', text);
         console.log('[API] Response text length:', text.length);
+        // Handle empty response (e.g., 204 No Content or empty body)
+        if (!text || text.trim().length === 0) {
+            console.warn('[API] Empty response body received');
+            if (!response.ok) {
+                return {
+                    success: false,
+                    error: `HTTP ${response.status}: ${response.statusText} (empty response body)`
+                };
+            }
+            // Empty response but status OK - return generic success
+            return {
+                success: true,
+                data: undefined
+            };
+        }
         // Try to parse it
         let data;
         try {
@@ -1477,7 +1492,10 @@ async function apiFetch(url, options) {
         catch (parseError) {
             console.error('[API] JSON parse error:', parseError);
             console.error('[API] Failed to parse text:', text);
-            throw parseError;
+            return {
+                success: false,
+                error: `Invalid JSON response: ${parseError instanceof Error ? parseError.message : 'Parse error'}`
+            };
         }
         if (!response.ok) {
             return {
@@ -1505,7 +1523,7 @@ async function getBrokerConfig() {
  * Get a specific broker configuration by ID
  */
 async function getBrokerById(id) {
-    return apiFetch(`${API_BASE}/config/broker?id=${id}`);
+    return apiFetch(`${API_BASE}/config/broker/${id}`);
 }
 /**
  * Save broker configuration (create new or update existing)
@@ -1520,7 +1538,7 @@ async function saveBrokerConfig(config) {
  * Delete a broker by ID
  */
 async function deleteBroker(id) {
-    return apiFetch(`${API_BASE}/config/broker?id=${id}`, {
+    return apiFetch(`${API_BASE}/config/broker/${id}`, {
         method: 'DELETE'
     });
 }
