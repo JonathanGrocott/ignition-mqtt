@@ -471,6 +471,11 @@ public class MqttGatewayHook extends AbstractGatewayModuleHook {
             
             @Override
             public void recordUpdated(MqttBrokerConfigRecord record) {
+                // Check if record is deleted before accessing it
+                if (record.isDeleted()) {
+                    logger.info("Broker configuration marked for deletion, skipping update");
+                    return;
+                }
                 logger.info("Broker configuration updated: {} (ID: {})", record.getName(), record.getId());
                 applyBrokerConfig(record);
             }

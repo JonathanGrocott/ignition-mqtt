@@ -95,7 +95,7 @@ export async function getBrokerConfig(): Promise<ApiResponse<MqttBrokerConfig[]>
  * Get a specific broker configuration by ID
  */
 export async function getBrokerById(id: number): Promise<ApiResponse<MqttBrokerConfig>> {
-    return apiFetch<MqttBrokerConfig>(`${API_BASE}/config/broker/${id}`);
+    return apiFetch<MqttBrokerConfig>(`${API_BASE}/config/broker?id=${id}`);
 }
 
 /**
@@ -112,7 +112,7 @@ export async function saveBrokerConfig(config: MqttBrokerConfig): Promise<ApiRes
  * Delete a broker by ID
  */
 export async function deleteBroker(id: number): Promise<ApiResponse<void>> {
-    return apiFetch<void>(`${API_BASE}/config/broker/${id}`, {
+    return apiFetch<void>(`${API_BASE}/config/broker?id=${id}`, {
         method: 'DELETE'
     });
 }

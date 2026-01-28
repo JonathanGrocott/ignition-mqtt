@@ -46,41 +46,34 @@ public final class MqttDataRoutes {
         logger.info("Mounting REST API routes for MQTT UNS Publisher");
         logger.info("RouteGroup instance: {}", routes.getClass().getName());
         
-        // Configuration routes - need both GET and POST
+        // Configuration routes
+        // GET with optional ?id param - gets all brokers or specific broker
         logger.info("Mounting route: /config/broker (GET)");
         routes.newRoute("/config/broker")
             .type(RouteGroup.TYPE_JSON)
-            .handler(MqttDataRoutes::handleBrokerConfig)
+            .handler(MqttDataRoutes::handleBrokerGetOrDelete)
             .method(HttpMethod.GET)
             .accessControl(AccessControlStrategy.OPEN_ROUTE)
             .mount();
         
+        // POST to create/update broker
         logger.info("Mounting route: /config/broker (POST)");
         routes.newRoute("/config/broker")
             .type(RouteGroup.TYPE_JSON)
-            .handler(MqttDataRoutes::handleBrokerConfig)
+            .handler(MqttDataRoutes::handleBrokerPost)
             .method(HttpMethod.POST)
             .accessControl(AccessControlStrategy.OPEN_ROUTE)
             .mount();
-        logger.info("Successfully mounted: /config/broker");
         
-        logger.info("Mounting route: /config/broker/{id} (GET)");
-        routes.newRoute("/config/broker/{id}")
+        // DELETE with ?id param to delete broker
+        logger.info("Mounting route: /config/broker (DELETE)");
+        routes.newRoute("/config/broker")
             .type(RouteGroup.TYPE_JSON)
-            .handler(MqttDataRoutes::handleBrokerById)
-            .method(HttpMethod.GET)
-            .accessControl(AccessControlStrategy.OPEN_ROUTE)
-            .mount();
-        logger.info("Successfully mounted: /config/broker/{id} (GET)");
-        
-        logger.info("Mounting route: /config/broker/{id} (DELETE)");
-        routes.newRoute("/config/broker/{id}")
-            .type(RouteGroup.TYPE_JSON)
-            .handler(MqttDataRoutes::handleBrokerById)
+            .handler(MqttDataRoutes::handleBrokerGetOrDelete)
             .method(HttpMethod.DELETE)
             .accessControl(AccessControlStrategy.OPEN_ROUTE)
             .mount();
-        logger.info("Successfully mounted: /config/broker/{id} (DELETE)");
+        logger.info("Successfully mounted: /config/broker (GET/POST/DELETE)");
         
         logger.info("Mounting route: /config/tags (GET)");
         routes.newRoute("/config/tags")
@@ -122,42 +115,46 @@ public final class MqttDataRoutes {
     }
     
     /**
-     * Handle GET/POST for broker configuration
+     * Handle POST for broker configuration
      */
-    private static Object handleBrokerConfig(RequestContext req, HttpServletResponse res) {
-        logger.info("handleBrokerConfig called! Method: {}, Path: {}", req.getMethod().name(), req.getPath());
+    private static Object handleBrokerPost(RequestContext req, HttpServletResponse res) {
+        logger.info("handleBrokerPost called! Method: {}, Path: {}", req.getMethod().name(), req.getPath());
         
         try {
             res.setContentType("application/json");
-            
-            if ("GET".equals(req.getMethod().name())) {
-                logger.info("Processing GET request for broker config (all brokers)");
-                return getAllBrokerConfigs(req);
-            } else if ("POST".equals(req.getMethod().name())) {
-                logger.info("Processing POST request for broker config");
-                return saveBrokerConfig(req);
-            } else {
-                logger.warn("Unsupported method: {}", req.getMethod().name());
-                return errorJson("Unsupported method: " + req.getMethod().name());
-            }
+            return saveBrokerConfig(req);
         } catch (Exception e) {
-            logger.error("Error handling broker config request", e);
+            logger.error("Error handling broker POST request", e);
             return errorJson("Error: " + e.getMessage());
         }
     }
     
     /**
-     * Handle GET/DELETE for specific broker by ID
+     * Handle GET/DELETE for broker - with optional id query parameter
+     * GET with id = get specific broker
+     * GET without id = get all brokers  
+     * DELETE with id = delete broker
      */
-    private static Object handleBrokerById(RequestContext req, HttpServletResponse res) {
-        logger.info("handleBrokerById called! Method: {}, Path: {}", req.getMethod().name(), req.getPath());
+    private static Object handleBrokerGetOrDelete(RequestContext req, HttpServletResponse res) {
+        logger.info("=== handleBrokerGetOrDelete called ===");
+        logger.info("Method: {}", req.getMethod().name());
+        logger.info("Path: {}", req.getPath());
+        logger.info("Query String: {}", req.getRequest().getQueryString());
         
         try {
             res.setContentType("application/json");
             
+            String idParam = req.getParameter("id");
+            logger.info("ID parameter: {}", idParam);
+            
             if ("GET".equals(req.getMethod().name())) {
-                logger.info("Processing GET request for specific broker");
-                return getBrokerById(req);
+                if (idParam != null && !idParam.isEmpty()) {
+                    logger.info("Processing GET request for specific broker with ID: {}", idParam);
+                    return getBrokerById(req);
+                } else {
+                    logger.info("Processing GET request for all brokers");
+                    return getAllBrokerConfigs(req);
+                }
             } else if ("DELETE".equals(req.getMethod().name())) {
                 logger.info("Processing DELETE request for broker");
                 return deleteBroker(req);
@@ -313,8 +310,9 @@ public final class MqttDataRoutes {
             return errorJson("Module not initialized");
         }
         
-        // Get ID from query parameter instead of path parameter
+        // Get ID from query parameter
         String idParam = req.getParameter("id");
+        logger.info("getBrokerById - ID parameter: {}", idParam);
         
         if (idParam == null || idParam.isEmpty()) {
             return errorJson("Broker ID is required");
@@ -366,6 +364,7 @@ public final class MqttDataRoutes {
         
         // Get ID from query parameter
         String idParam = req.getParameter("id");
+        logger.info("deleteBroker - ID parameter: {}", idParam);
         
         if (idParam == null || idParam.isEmpty()) {
             return errorJson("Broker ID is required");
@@ -425,9 +424,12 @@ public final class MqttDataRoutes {
             logger.info("Removing broker from MultiBrokerManager: {} (ID: {})", brokerName, id);
             hook.getMultiBrokerManager().removeBroker(id);
             
-            // Then delete the database record
+            // Delete the record
             logger.info("Deleting broker record from database: {} (ID: {})", brokerName, id);
             record.deleteRecord();
+            
+            // Force commit by calling save with the deleted record
+            db.save(record);
             
             logger.info("Successfully deleted broker: {} (ID: {})", brokerName, id);
         } catch (Exception e) {

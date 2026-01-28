@@ -1523,7 +1523,7 @@ async function getBrokerConfig() {
  * Get a specific broker configuration by ID
  */
 async function getBrokerById(id) {
-    return apiFetch(`${API_BASE}/config/broker/${id}`);
+    return apiFetch(`${API_BASE}/config/broker?id=${id}`);
 }
 /**
  * Save broker configuration (create new or update existing)
@@ -1538,7 +1538,7 @@ async function saveBrokerConfig(config) {
  * Delete a broker by ID
  */
 async function deleteBroker(id) {
-    return apiFetch(`${API_BASE}/config/broker/${id}`, {
+    return apiFetch(`${API_BASE}/config/broker?id=${id}`, {
         method: 'DELETE'
     });
 }
