@@ -26,10 +26,17 @@ export interface MqttTagConfig {
     tagFolders: string[];
     topicMappings: TopicMapping[];  // New: Custom topic prefix mappings
     topicOverrides: Record<string, string>;
-    payloadTemplate?: string;
+    payloadFields?: PayloadFieldConfig;
     includeMetadata: boolean;
     valueDeadband: number;
     publishOnQualityChange: boolean;
+}
+
+export interface PayloadFieldConfig {
+    includeQuality: boolean;
+    includeQualityCode: boolean;
+    includeTagPath: boolean;
+    properties: Record<string, boolean>;
 }
 
 export interface TopicMapping {

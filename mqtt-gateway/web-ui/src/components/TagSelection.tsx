@@ -1,6 +1,78 @@
 import React, { useState, useEffect } from 'react';
 import { saveTagConfig, getBrokerConfig } from '../api';
-import { MqttTagConfig, TopicMapping, MqttBrokerConfig } from '../types';
+import { MqttTagConfig, TopicMapping, MqttBrokerConfig, PayloadFieldConfig } from '../types';
+
+const payloadPropertyGroups = [
+    {
+        id: 'basic',
+        label: 'Basic Properties',
+        fields: [
+            { key: 'name', label: 'Name' },
+            { key: 'tagGroup', label: 'Tag Group' },
+            { key: 'enabled', label: 'Enabled' }
+        ]
+    },
+    {
+        id: 'value',
+        label: 'Value Properties',
+        fields: [
+            { key: 'tagType', label: 'Tag Type' },
+            { key: 'typeId', label: 'Type ID' },
+            { key: 'valueSource', label: 'Value Source' },
+            { key: 'dataType', label: 'Data Type' },
+            { key: 'defaultValue', label: 'Default Value' },
+            { key: 'value', label: 'Value (Property)' },
+            { key: 'valuePersistence', label: 'Value Persistence' },
+            { key: 'opcServer', label: 'OPC Server' },
+            { key: 'opcItemPath', label: 'OPC Item Path' },
+            { key: 'sourceTagPath', label: 'Source Tag Path' },
+            { key: 'executionMode', label: 'Execution Mode' },
+            { key: 'expression', label: 'Expression' },
+            { key: 'deriveExpressionGetter', label: 'Read Expression' },
+            { key: 'deriveExpressionSetter', label: 'Write Expression' },
+            { key: 'query', label: 'Query' },
+            { key: 'datasource', label: 'Datasource' },
+            { key: 'queryType', label: 'Query Type' },
+            { key: 'preserveSourceTimestamp', label: 'Preserve Source Timestamp' }
+        ]
+    },
+    {
+        id: 'numeric',
+        label: 'Numeric Properties',
+        fields: [
+            { key: 'deadband', label: 'Deadband' },
+            { key: 'deadbandMode', label: 'Deadband Mode' },
+            { key: 'scaleMode', label: 'Scale Mode' },
+            { key: 'rawLow', label: 'Raw Low' },
+            { key: 'rawHigh', label: 'Raw High' },
+            { key: 'scaledLow', label: 'Scaled Low' },
+            { key: 'scaledHigh', label: 'Scaled High' },
+            { key: 'clampMode', label: 'Clamp Mode' },
+            { key: 'scaleFactor', label: 'Scale Factor' },
+            { key: 'engUnit', label: 'Engineering Units' },
+            { key: 'engLow', label: 'Engineering Low' },
+            { key: 'engHigh', label: 'Engineering High' },
+            { key: 'engLimitMode', label: 'Engineering Limit Mode' },
+            { key: 'formatString', label: 'Format String' }
+        ]
+    },
+    {
+        id: 'meta',
+        label: 'Meta Properties',
+        fields: [
+            { key: 'tooltip', label: 'Tooltip' },
+            { key: 'documentation', label: 'Documentation' }
+        ]
+    },
+    {
+        id: 'alarms',
+        label: 'Alarm Properties',
+        fields: [
+            { key: 'alarms', label: 'Alarms' },
+            { key: 'alarmEvalEnabled', label: 'Alarm Evaluation Enabled' }
+        ]
+    }
+];
 
 interface Props {
     config: MqttTagConfig | null;
@@ -15,7 +87,12 @@ const TagSelection: React.FC<Props> = ({ config, onConfigSaved }) => {
         tagFolders: [],
         topicMappings: [],
         topicOverrides: {},
-        payloadTemplate: '',
+        payloadFields: {
+            includeQuality: true,
+            includeQualityCode: true,
+            includeTagPath: true,
+            properties: {}
+        },
         includeMetadata: true,
         valueDeadband: 0.1,
         publishOnQualityChange: true
@@ -29,9 +106,21 @@ const TagSelection: React.FC<Props> = ({ config, onConfigSaved }) => {
     const [newMappingTopic, setNewMappingTopic] = useState('');
     const [newMappingBrokerId, setNewMappingBrokerId] = useState<number | null>(null);
 
+    const normalizePayloadFields = (fields?: PayloadFieldConfig): PayloadFieldConfig => {
+        return {
+            includeQuality: fields?.includeQuality ?? true,
+            includeQualityCode: fields?.includeQualityCode ?? true,
+            includeTagPath: fields?.includeTagPath ?? true,
+            properties: fields?.properties ?? {}
+        };
+    };
+
     useEffect(() => {
         if (config) {
-            setFormData(config);
+            setFormData({
+                ...config,
+                payloadFields: normalizePayloadFields(config.payloadFields)
+            });
         }
         // Always reload brokers when component mounts or config changes
         loadBrokers();
@@ -80,6 +169,29 @@ const TagSelection: React.FC<Props> = ({ config, onConfigSaved }) => {
                 [name]: value
             }));
         }
+    };
+
+    const updatePayloadField = (key: string, enabled: boolean) => {
+        setFormData(prev => ({
+            ...prev,
+            payloadFields: {
+                ...normalizePayloadFields(prev.payloadFields),
+                properties: {
+                    ...normalizePayloadFields(prev.payloadFields).properties,
+                    [key]: enabled
+                }
+            }
+        }));
+    };
+
+    const updatePayloadCoreField = (key: 'includeQuality' | 'includeQualityCode' | 'includeTagPath', enabled: boolean) => {
+        setFormData(prev => ({
+            ...prev,
+            payloadFields: {
+                ...normalizePayloadFields(prev.payloadFields),
+                [key]: enabled
+            }
+        }));
     };
 
     const addTopicMapping = () => {
@@ -163,6 +275,8 @@ const TagSelection: React.FC<Props> = ({ config, onConfigSaved }) => {
         const broker = brokers.find(b => b.id === brokerId);
         return broker ? broker.name : `Broker ${brokerId}`;
     };
+
+    const payloadFields = normalizePayloadFields(formData.payloadFields);
 
     return (
         <div className="tag-selection">
@@ -374,28 +488,117 @@ const TagSelection: React.FC<Props> = ({ config, onConfigSaved }) => {
                     </div>
 
                     <div className="form-group">
-                        <label htmlFor="payloadTemplate">Payload Template (optional)</label>
-                        <textarea
-                            id="payloadTemplate"
-                            name="payloadTemplate"
-                            value={formData.payloadTemplate || ''}
-                            onChange={handleChange}
-                            placeholder="Leave empty for default JSON format"
-                            rows={4}
-                        />
-                        <small>Custom JSON template for message payload (advanced users only)</small>
-                    </div>
+                        <label>Payload Fields</label>
+                        <small>Value and timestamp are always included in the payload.</small>
+                        <div className="payload-core">
+                            <div className="payload-core-row">
+                                <span>Quality</span>
+                                <div className="payload-radio-group">
+                                    <label>
+                                        <input
+                                            type="radio"
+                                            name="includeQuality"
+                                            checked={payloadFields.includeQuality}
+                                            onChange={() => updatePayloadCoreField('includeQuality', true)}
+                                        />
+                                        Include
+                                    </label>
+                                    <label>
+                                        <input
+                                            type="radio"
+                                            name="includeQuality"
+                                            checked={!payloadFields.includeQuality}
+                                            onChange={() => updatePayloadCoreField('includeQuality', false)}
+                                        />
+                                        Exclude
+                                    </label>
+                                </div>
+                            </div>
+                            <div className="payload-core-row">
+                                <span>Quality Code</span>
+                                <div className="payload-radio-group">
+                                    <label>
+                                        <input
+                                            type="radio"
+                                            name="includeQualityCode"
+                                            checked={payloadFields.includeQualityCode}
+                                            onChange={() => updatePayloadCoreField('includeQualityCode', true)}
+                                        />
+                                        Include
+                                    </label>
+                                    <label>
+                                        <input
+                                            type="radio"
+                                            name="includeQualityCode"
+                                            checked={!payloadFields.includeQualityCode}
+                                            onChange={() => updatePayloadCoreField('includeQualityCode', false)}
+                                        />
+                                        Exclude
+                                    </label>
+                                </div>
+                            </div>
+                            <div className="payload-core-row">
+                                <span>Tag Path</span>
+                                <div className="payload-radio-group">
+                                    <label>
+                                        <input
+                                            type="radio"
+                                            name="includeTagPath"
+                                            checked={payloadFields.includeTagPath}
+                                            onChange={() => updatePayloadCoreField('includeTagPath', true)}
+                                        />
+                                        Include
+                                    </label>
+                                    <label>
+                                        <input
+                                            type="radio"
+                                            name="includeTagPath"
+                                            checked={!payloadFields.includeTagPath}
+                                            onChange={() => updatePayloadCoreField('includeTagPath', false)}
+                                        />
+                                        Exclude
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
 
-                    <div className="form-group checkbox">
-                        <label>
-                            <input
-                                type="checkbox"
-                                name="includeMetadata"
-                                checked={formData.includeMetadata}
-                                onChange={handleChange}
-                            />
-                            Include metadata (timestamp, quality, datatype)
-                        </label>
+                        <div className="payload-properties">
+                            {payloadPropertyGroups.map(group => (
+                                <div key={group.id} className="payload-group">
+                                    <h3>{group.label}</h3>
+                                    <div className="payload-group-fields">
+                                        {group.fields.map(field => {
+                                            const enabled = payloadFields.properties[field.key] === true;
+                                            return (
+                                                <div key={field.key} className="payload-property-row">
+                                                    <span>{field.label}</span>
+                                                    <div className="payload-radio-group">
+                                                        <label>
+                                                            <input
+                                                                type="radio"
+                                                                name={`payload-${field.key}`}
+                                                                checked={enabled}
+                                                                onChange={() => updatePayloadField(field.key, true)}
+                                                            />
+                                                            Include
+                                                        </label>
+                                                        <label>
+                                                            <input
+                                                                type="radio"
+                                                                name={`payload-${field.key}`}
+                                                                checked={!enabled}
+                                                                onChange={() => updatePayloadField(field.key, false)}
+                                                            />
+                                                            Exclude
+                                                        </label>
+                                                    </div>
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
                     </div>
 
                     <div className="form-group checkbox">

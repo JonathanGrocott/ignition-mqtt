@@ -3,6 +3,7 @@ package com.inductiveautomation.ignition.examples.mqtt.gateway.records;
 import com.google.gson.*;
 import com.google.gson.reflect.TypeToken;
 import com.inductiveautomation.ignition.examples.mqtt.common.model.MqttBrokerConfig;
+import com.inductiveautomation.ignition.examples.mqtt.common.model.PayloadFieldConfig;
 import com.inductiveautomation.ignition.examples.mqtt.common.model.TagPublishConfig;
 import com.inductiveautomation.ignition.examples.mqtt.common.model.TopicMapping;
 
@@ -119,6 +120,7 @@ public class RecordMapper {
         Type listType = new TypeToken<List<String>>(){}.getType();
         Type mapType = new TypeToken<Map<String, String>>(){}.getType();
         Type topicMappingsType = new TypeToken<List<TopicMapping>>(){}.getType();
+        Type payloadFieldsType = new TypeToken<PayloadFieldConfig>(){}.getType();
         
         List<String> providers = gson.fromJson(record.getTagProvidersJson(), listType);
         List<String> folders = gson.fromJson(record.getTagFoldersJson(), listType);
@@ -126,12 +128,19 @@ public class RecordMapper {
         
         String mappingsJson = record.getTopicMappingsJson();
         List<TopicMapping> mappings = gson.fromJson(mappingsJson, topicMappingsType);
+
+        PayloadFieldConfig payloadFields = null;
+        String payloadFieldsJson = record.getPayloadFieldsJson();
+        if (payloadFieldsJson != null && !payloadFieldsJson.isEmpty() && !payloadFieldsJson.equals("null")) {
+            payloadFields = gson.fromJson(payloadFieldsJson, payloadFieldsType);
+        }
         
         config.setTagProviders(providers);
         config.setTagFolders(folders);
         config.setTopicOverrides(overrides);
         config.setTopicMappings(mappings);
         config.setPayloadTemplate(record.getPayloadTemplate());
+        config.setPayloadFields(payloadFields);
         config.setIncludeMetadata(record.isIncludeMetadata());
         config.setValueDeadband(record.getValueDeadband());
         config.setPublishOnQualityChange(record.isPublishOnQualityChange());
@@ -154,8 +163,9 @@ public class RecordMapper {
         record.setTagFoldersJson(gson.toJson(model.getTagFolders()));
         record.setTopicOverridesJson(gson.toJson(model.getTopicOverrides()));
         record.setTopicMappingsJson(gson.toJson(model.getTopicMappings()));
-        
+
         record.setPayloadTemplate(model.getPayloadTemplate());
+        record.setPayloadFieldsJson(gson.toJson(model.getPayloadFields()));
         record.setIncludeMetadata(model.isIncludeMetadata());
         record.setValueDeadband(model.getValueDeadband());
         record.setPublishOnQualityChange(model.isPublishOnQualityChange());

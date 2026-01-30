@@ -570,6 +570,14 @@ public final class MqttDataRoutes {
                 if (mappings.isJsonArray()) {
                     data.add("topicMappings", mappings.getAsJsonArray());
                 }
+
+                String payloadFieldsJson = record.getPayloadFieldsJson();
+                if (payloadFieldsJson != null && !payloadFieldsJson.isEmpty()) {
+                    JsonElement payloadFields = JsonParser.parseString(payloadFieldsJson);
+                    if (payloadFields.isJsonObject()) {
+                        data.add("payloadFields", payloadFields.getAsJsonObject());
+                    }
+                }
             } catch (Exception e) {
                 logger.warn("Error parsing JSON fields in tag config", e);
             }
@@ -640,6 +648,9 @@ public final class MqttDataRoutes {
         }
         if (data.containsKey("payloadTemplate")) {
             record.setPayloadTemplate((String) data.get("payloadTemplate"));
+        }
+        if (data.containsKey("payloadFields")) {
+            record.setPayloadFieldsJson(gson.toJson(data.get("payloadFields")));
         }
         if (data.containsKey("includeMetadata")) {
             record.setIncludeMetadata(toBoolean(data.get("includeMetadata")));
@@ -767,6 +778,14 @@ public final class MqttDataRoutes {
             JsonElement mappings = JsonParser.parseString(record.getTopicMappingsJson());
             if (mappings.isJsonArray()) {
                 savedData.add("topicMappings", mappings.getAsJsonArray());
+            }
+
+            String payloadFieldsJson = record.getPayloadFieldsJson();
+            if (payloadFieldsJson != null && !payloadFieldsJson.isEmpty()) {
+                JsonElement payloadFields = JsonParser.parseString(payloadFieldsJson);
+                if (payloadFields.isJsonObject()) {
+                    savedData.add("payloadFields", payloadFields.getAsJsonObject());
+                }
             }
         } catch (Exception e) {
             logger.warn("Error parsing JSON fields in tag config response", e);
