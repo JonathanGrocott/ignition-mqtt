@@ -564,8 +564,12 @@ const TagSelection: React.FC<Props> = ({ config, onConfigSaved }) => {
 
                         <div className="payload-properties">
                             {payloadPropertyGroups.map(group => (
-                                <div key={group.id} className="payload-group">
-                                    <h3>{group.label}</h3>
+                                <details
+                                    key={group.id}
+                                    className="payload-group"
+                                    open={group.id === 'basic'}
+                                >
+                                    <summary className="payload-group-summary">{group.label}</summary>
                                     <div className="payload-group-fields">
                                         {group.fields.map(field => {
                                             const enabled = payloadFields.properties[field.key] === true;
@@ -596,7 +600,7 @@ const TagSelection: React.FC<Props> = ({ config, onConfigSaved }) => {
                                             );
                                         })}
                                     </div>
-                                </div>
+                                </details>
                             ))}
                         </div>
                     </div>

@@ -197,19 +197,39 @@
 .payload-group {
     border: 1px solid #eee;
     border-radius: 6px;
-    padding: 12px;
+    padding: 0;
     background: #fff;
 }
 
-.payload-group h3 {
-    margin: 0 0 10px 0;
+.payload-group-summary {
+    margin: 0;
+    padding: 12px;
     font-size: 14px;
     color: #333;
+    cursor: pointer;
+    font-weight: 600;
+    list-style: none;
+}
+
+.payload-group-summary::-webkit-details-marker {
+    display: none;
+}
+
+.payload-group-summary::before {
+    content: '▸';
+    display: inline-block;
+    margin-right: 8px;
+    transition: transform 0.2s ease;
+}
+
+.payload-group[open] .payload-group-summary::before {
+    transform: rotate(90deg);
 }
 
 .payload-group-fields {
     display: grid;
     gap: 8px;
+    padding: 0 12px 12px 12px;
 }
 
 .payload-property-row {
