@@ -57,7 +57,7 @@ public class MqttTopicMapper {
         // Add provider (without brackets)
         String provider = tagPath.getSource();
         if (provider != null && !provider.isEmpty()) {
-            topic.append(sanitizeTopicSegment(provider));
+            topic.append(sanitizeTopicSegment(provider, false));
         } else {
             topic.append("default");
         }
@@ -69,7 +69,7 @@ public class MqttTopicMapper {
             for (String part : pathParts) {
                 if (!part.isEmpty()) {
                     topic.append("/");
-                    topic.append(sanitizeTopicSegment(part));
+                    topic.append(sanitizeTopicSegment(part, false));
                 }
             }
         }
@@ -103,6 +103,10 @@ public class MqttTopicMapper {
         }
         
         String fullPath = tagPath.toStringFull();
+
+        if (mapping.getPublishMode() == com.inductiveautomation.ignition.examples.mqtt.common.model.TopicPublishMode.SINGLE_TOPIC) {
+            return sanitizeTopicSegment(mapping.getTopicPrefix(), true);
+        }
         
         // Apply the mapping transformation
         String remainder = fullPath.substring(mapping.getSourcePattern().length());
@@ -113,7 +117,7 @@ public class MqttTopicMapper {
         String topic = mapping.getTopicPrefix();
         if (!remainder.isEmpty()) {
             // Sanitize the remainder portion
-            topic = topic + "/" + sanitizeTopicSegment(remainder);
+            topic = topic + "/" + sanitizeTopicSegment(remainder, mapping.isPreserveTopicCase());
         }
         
         return topic;
@@ -169,18 +173,28 @@ public class MqttTopicMapper {
      * @return Sanitized segment
      */
     public String sanitizeTopicSegment(String segment) {
+        return sanitizeTopicSegment(segment, false);
+    }
+
+    public String sanitizeTopicSegment(String segment, boolean preserveCase) {
         if (segment == null || segment.isEmpty()) {
             return "";
         }
-        
-        return segment
-            .toLowerCase()
+
+        String sanitized = segment
             .replace(" ", "_")  // Spaces to underscores
             .replace("[", "")   // Remove brackets
             .replace("]", "")
             .replace("#", "")   // Remove MQTT wildcards
-            .replace("+", "")
-            .replaceAll("[^a-z0-9_/\\-]", "_"); // Replace other invalid chars
+            .replace("+", "");
+
+        if (!preserveCase) {
+            sanitized = sanitized.toLowerCase();
+        }
+
+        return preserveCase
+            ? sanitized.replaceAll("[^A-Za-z0-9_/\\-]", "_")
+            : sanitized.replaceAll("[^a-z0-9_/\\-]", "_");
     }
     
     /**

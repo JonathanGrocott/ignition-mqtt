@@ -30,6 +30,18 @@ public class TopicMapping {
     @SerializedName("enabled")
     private boolean enabled;
 
+    @SerializedName("preserveTopicCase")
+    private boolean preserveTopicCase;
+
+    @SerializedName("publishMode")
+    private TopicPublishMode publishMode;
+
+    @SerializedName("batchWindowMs")
+    private int batchWindowMs;
+
+    @SerializedName("maxBatchSize")
+    private int maxBatchSize;
+
     @SerializedName("useDefaultPayloadFields")
     private boolean useDefaultPayloadFields;
 
@@ -47,6 +59,10 @@ public class TopicMapping {
         this.sourcePattern = "";
         this.topicPrefix = "";
         this.enabled = true;
+        this.preserveTopicCase = false;
+        this.publishMode = TopicPublishMode.PER_TAG_TOPIC;
+        this.batchWindowMs = 100;
+        this.maxBatchSize = 10;
         this.useDefaultPayloadFields = true;
         this.payloadFields = null;
         this.brokerId = null;
@@ -60,6 +76,10 @@ public class TopicMapping {
         this.sourcePattern = sourcePattern;
         this.topicPrefix = topicPrefix;
         this.enabled = enabled;
+        this.preserveTopicCase = false;
+        this.publishMode = TopicPublishMode.PER_TAG_TOPIC;
+        this.batchWindowMs = 100;
+        this.maxBatchSize = 10;
         this.useDefaultPayloadFields = true;
         this.payloadFields = null;
         this.brokerId = brokerId;
@@ -113,6 +133,38 @@ public class TopicMapping {
         this.enabled = enabled;
     }
 
+    public boolean isPreserveTopicCase() {
+        return preserveTopicCase;
+    }
+
+    public void setPreserveTopicCase(boolean preserveTopicCase) {
+        this.preserveTopicCase = preserveTopicCase;
+    }
+
+    public TopicPublishMode getPublishMode() {
+        return publishMode;
+    }
+
+    public void setPublishMode(TopicPublishMode publishMode) {
+        this.publishMode = publishMode;
+    }
+
+    public int getBatchWindowMs() {
+        return batchWindowMs;
+    }
+
+    public void setBatchWindowMs(int batchWindowMs) {
+        this.batchWindowMs = batchWindowMs;
+    }
+
+    public int getMaxBatchSize() {
+        return maxBatchSize;
+    }
+
+    public void setMaxBatchSize(int maxBatchSize) {
+        this.maxBatchSize = maxBatchSize;
+    }
+
     public boolean isUseDefaultPayloadFields() {
         return useDefaultPayloadFields;
     }
@@ -151,6 +203,12 @@ public class TopicMapping {
         }
         if (topicPrefix == null || topicPrefix.trim().isEmpty()) {
             throw new IllegalArgumentException("Topic prefix cannot be empty");
+        }
+        if (batchWindowMs < 0) {
+            throw new IllegalArgumentException("Batch window cannot be negative");
+        }
+        if (maxBatchSize < 1) {
+            throw new IllegalArgumentException("Max batch size must be at least 1");
         }
         // Check that source pattern looks like a valid tag path
         if (!sourcePattern.contains("[") || !sourcePattern.contains("]")) {
@@ -201,17 +259,33 @@ public class TopicMapping {
         if (o == null || getClass() != o.getClass()) return false;
         TopicMapping that = (TopicMapping) o;
         return enabled == that.enabled &&
+               preserveTopicCase == that.preserveTopicCase &&
+               batchWindowMs == that.batchWindowMs &&
+               maxBatchSize == that.maxBatchSize &&
                useDefaultPayloadFields == that.useDefaultPayloadFields &&
                Objects.equals(id, that.id) &&
                Objects.equals(sourcePattern, that.sourcePattern) &&
                Objects.equals(topicPrefix, that.topicPrefix) &&
+               publishMode == that.publishMode &&
                Objects.equals(payloadFields, that.payloadFields) &&
                Objects.equals(brokerId, that.brokerId);
     }
     
     @Override
     public int hashCode() {
-        return Objects.hash(id, sourcePattern, topicPrefix, enabled, useDefaultPayloadFields, payloadFields, brokerId);
+        return Objects.hash(
+            id,
+            sourcePattern,
+            topicPrefix,
+            enabled,
+            preserveTopicCase,
+            publishMode,
+            batchWindowMs,
+            maxBatchSize,
+            useDefaultPayloadFields,
+            payloadFields,
+            brokerId
+        );
     }
     
     @Override
@@ -221,6 +295,10 @@ public class TopicMapping {
                ", sourcePattern='" + sourcePattern + '\'' +
                ", topicPrefix='" + topicPrefix + '\'' +
                ", enabled=" + enabled +
+               ", preserveTopicCase=" + preserveTopicCase +
+               ", publishMode=" + publishMode +
+               ", batchWindowMs=" + batchWindowMs +
+               ", maxBatchSize=" + maxBatchSize +
                ", useDefaultPayloadFields=" + useDefaultPayloadFields +
                ", payloadFields=" + payloadFields +
                ", brokerId=" + brokerId +
@@ -232,6 +310,10 @@ public class TopicMapping {
      */
     public TopicMapping copy() {
         TopicMapping copy = new TopicMapping(id, sourcePattern, topicPrefix, enabled, brokerId);
+        copy.preserveTopicCase = this.preserveTopicCase;
+        copy.publishMode = this.publishMode;
+        copy.batchWindowMs = this.batchWindowMs;
+        copy.maxBatchSize = this.maxBatchSize;
         copy.useDefaultPayloadFields = this.useDefaultPayloadFields;
         copy.payloadFields = this.payloadFields != null ? this.payloadFields.copy() : null;
         return copy;

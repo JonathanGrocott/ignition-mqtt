@@ -120,6 +120,10 @@ const TagSelection: React.FC<Props> = ({ config, onConfigSaved }) => {
         return {
             ...mapping,
             id: mapping.id ?? fallbackId,
+            preserveTopicCase: mapping.preserveTopicCase ?? false,
+            publishMode: mapping.publishMode ?? 'PER_TAG_TOPIC',
+            batchWindowMs: mapping.batchWindowMs ?? 100,
+            maxBatchSize: mapping.maxBatchSize ?? 10,
             useDefaultPayloadFields: mapping.useDefaultPayloadFields ?? true,
             payloadFields: mapping.payloadFields ? normalizePayloadFields(mapping.payloadFields) : undefined
         };
@@ -271,6 +275,42 @@ const TagSelection: React.FC<Props> = ({ config, onConfigSaved }) => {
         }));
     };
 
+    const updateMappingPublishMode = (id: string, publishMode: 'PER_TAG_TOPIC' | 'SINGLE_TOPIC') => {
+        setFormData(prev => ({
+            ...prev,
+            topicMappings: prev.topicMappings.map(mapping => (
+                mapping.id === id ? { ...mapping, publishMode } : mapping
+            ))
+        }));
+    };
+
+    const updateMappingPreserveCase = (id: string, preserveTopicCase: boolean) => {
+        setFormData(prev => ({
+            ...prev,
+            topicMappings: prev.topicMappings.map(mapping => (
+                mapping.id === id ? { ...mapping, preserveTopicCase } : mapping
+            ))
+        }));
+    };
+
+    const updateMappingBatchWindow = (id: string, batchWindowMs: number | undefined) => {
+        setFormData(prev => ({
+            ...prev,
+            topicMappings: prev.topicMappings.map(mapping => (
+                mapping.id === id ? { ...mapping, batchWindowMs } : mapping
+            ))
+        }));
+    };
+
+    const updateMappingMaxBatchSize = (id: string, maxBatchSize: number | undefined) => {
+        setFormData(prev => ({
+            ...prev,
+            topicMappings: prev.topicMappings.map(mapping => (
+                mapping.id === id ? { ...mapping, maxBatchSize } : mapping
+            ))
+        }));
+    };
+
     const addTopicMapping = () => {
         if (newMappingSource && newMappingTopic && newMappingBrokerId) {
             const newMapping: TopicMapping = {
@@ -279,6 +319,10 @@ const TagSelection: React.FC<Props> = ({ config, onConfigSaved }) => {
                 sourcePattern: newMappingSource,
                 topicPrefix: newMappingTopic,
                 enabled: true,
+                preserveTopicCase: false,
+                publishMode: 'PER_TAG_TOPIC',
+                batchWindowMs: 100,
+                maxBatchSize: 10,
                 useDefaultPayloadFields: true
             };
             setFormData(prev => ({
@@ -316,6 +360,31 @@ const TagSelection: React.FC<Props> = ({ config, onConfigSaved }) => {
         e.preventDefault();
         setSaving(true);
         setMessage(null);
+
+        const invalidBatchMappings = formData.topicMappings.filter(mapping => {
+            if ((mapping.publishMode ?? 'PER_TAG_TOPIC') !== 'SINGLE_TOPIC') {
+                return false;
+            }
+            const batchWindow = mapping.batchWindowMs;
+            const maxBatch = mapping.maxBatchSize;
+            return (
+                batchWindow === undefined ||
+                maxBatch === undefined ||
+                Number.isNaN(batchWindow) ||
+                Number.isNaN(maxBatch) ||
+                batchWindow < 0 ||
+                maxBatch < 1
+            );
+        });
+
+        if (invalidBatchMappings.length > 0) {
+            setMessage({
+                type: 'error',
+                text: 'Batch window and max batch size must be valid numbers for single topic mappings.'
+            });
+            setSaving(false);
+            return;
+        }
 
         try {
             const response = await saveTagConfig(formData);
@@ -484,6 +553,10 @@ const TagSelection: React.FC<Props> = ({ config, onConfigSaved }) => {
         const mappingId = mapping.id ?? `${mapping.brokerId}-${mapping.sourcePattern}`;
         const useDefaultPayload = mapping.useDefaultPayloadFields ?? true;
         const mappingFields = normalizePayloadFields(mapping.payloadFields ?? formData.payloadFields);
+        const publishMode = mapping.publishMode ?? 'PER_TAG_TOPIC';
+        const batchWindowMs = mapping.batchWindowMs;
+        const maxBatchSize = mapping.maxBatchSize;
+        const preserveTopicCase = mapping.preserveTopicCase ?? false;
 
         return (
             <div key={mappingId} className={`mapping-item ${!mapping.enabled ? 'disabled' : ''}`}>
@@ -510,6 +583,85 @@ const TagSelection: React.FC<Props> = ({ config, onConfigSaved }) => {
                     </button>
                 </div>
                 <div className="mapping-payload">
+                    <div className="mapping-topic-options">
+                        <div className="mapping-option-row">
+                            <span>Topic Mode</span>
+                            <div className="payload-radio-group">
+                                <label>
+                                    <input
+                                        type="radio"
+                                        name={`publish-mode-${mappingId}`}
+                                        checked={publishMode === 'PER_TAG_TOPIC'}
+                                        onChange={() => updateMappingPublishMode(mapping.id!, 'PER_TAG_TOPIC')}
+                                    />
+                                    Per tag topic
+                                </label>
+                                <label>
+                                    <input
+                                        type="radio"
+                                        name={`publish-mode-${mappingId}`}
+                                        checked={publishMode === 'SINGLE_TOPIC'}
+                                        onChange={() => updateMappingPublishMode(mapping.id!, 'SINGLE_TOPIC')}
+                                    />
+                                    Single topic
+                                </label>
+                            </div>
+                        </div>
+                        <label className="mapping-checkbox">
+                            <input
+                                type="checkbox"
+                                checked={preserveTopicCase}
+                                onChange={(e) => updateMappingPreserveCase(mapping.id!, e.target.checked)}
+                            />
+                            Preserve tag case in topic segments
+                        </label>
+                        {publishMode === 'SINGLE_TOPIC' && (
+                            <div className="mapping-batch-settings">
+                                <small>Publishes all matching tags to the topic prefix.</small>
+                                <div className="mapping-option-row">
+                                    <label htmlFor={`batch-window-${mappingId}`}>Batch window (ms)</label>
+                                    <input
+                                        id={`batch-window-${mappingId}`}
+                                        type="number"
+                                        min={0}
+                                        step={10}
+                                        value={batchWindowMs ?? ''}
+                                        placeholder="100"
+                                        onChange={(e) => {
+                                            const raw = e.target.value;
+                                            if (raw === '') {
+                                                updateMappingBatchWindow(mapping.id!, undefined);
+                                                return;
+                                            }
+                                            const next = Number(raw);
+                                            updateMappingBatchWindow(mapping.id!, Number.isFinite(next) ? next : undefined);
+                                        }}
+                                    />
+                                </div>
+                                <div className="mapping-option-row">
+                                    <label htmlFor={`batch-size-${mappingId}`}>Max batch size</label>
+                                    <input
+                                        id={`batch-size-${mappingId}`}
+                                        type="number"
+                                        min={1}
+                                        step={1}
+                                        value={maxBatchSize ?? ''}
+                                        placeholder="10"
+                                        onChange={(e) => {
+                                            const raw = e.target.value;
+                                            if (raw === '') {
+                                                updateMappingMaxBatchSize(mapping.id!, undefined);
+                                                return;
+                                            }
+                                            const next = Number(raw);
+                                            updateMappingMaxBatchSize(mapping.id!, Number.isFinite(next) ? next : undefined);
+                                        }}
+                                    />
+                                </div>
+                                <small>0 ms disables batching (publishes immediately).</small>
+                            </div>
+                        )}
+                    </div>
                     <div className="mapping-payload-header">
                         <span>Payload Fields</span>
                         <div className="payload-radio-group">

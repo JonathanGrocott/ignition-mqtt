@@ -45,6 +45,10 @@ export interface TopicMapping {
     sourcePattern: string;  // Tag pattern like "[default]TestTags" or "[default]"
     topicPrefix: string;    // UNS topic prefix like "enterprise/site1/area2"
     enabled: boolean;
+    preserveTopicCase?: boolean;
+    publishMode?: 'PER_TAG_TOPIC' | 'SINGLE_TOPIC';
+    batchWindowMs?: number;
+    maxBatchSize?: number;
     useDefaultPayloadFields?: boolean;
     payloadFields?: PayloadFieldConfig;
 }
@@ -70,6 +74,10 @@ export interface ModuleStatistics {
     tagReadSuccessRate: number;
     uptimeMs: number;
     uptimeDisplay: string;
+    batchMessagesPublished?: number;
+    batchMetricsPublished?: number;
+    batchFlushes?: number;
+    batchMaxSize?: number;
 }
 
 export interface ApiResponse<T> {

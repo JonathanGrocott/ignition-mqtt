@@ -39,6 +39,23 @@ public class RecordMapper {
             if (obj.has("enabled")) {
                 mapping.setEnabled(obj.get("enabled").getAsBoolean());
             }
+            if (obj.has("preserveTopicCase")) {
+                mapping.setPreserveTopicCase(obj.get("preserveTopicCase").getAsBoolean());
+            }
+            if (obj.has("publishMode") && obj.get("publishMode").isJsonPrimitive()) {
+                try {
+                    String mode = obj.get("publishMode").getAsString();
+                    mapping.setPublishMode(com.inductiveautomation.ignition.examples.mqtt.common.model.TopicPublishMode.valueOf(mode));
+                } catch (Exception ignored) {
+                    mapping.setPublishMode(com.inductiveautomation.ignition.examples.mqtt.common.model.TopicPublishMode.PER_TAG_TOPIC);
+                }
+            }
+            if (obj.has("batchWindowMs")) {
+                mapping.setBatchWindowMs(obj.get("batchWindowMs").getAsInt());
+            }
+            if (obj.has("maxBatchSize")) {
+                mapping.setMaxBatchSize(obj.get("maxBatchSize").getAsInt());
+            }
             if (obj.has("useDefaultPayloadFields")) {
                 mapping.setUseDefaultPayloadFields(obj.get("useDefaultPayloadFields").getAsBoolean());
             }
