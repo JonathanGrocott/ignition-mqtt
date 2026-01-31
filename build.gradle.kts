@@ -3,7 +3,7 @@ plugins {
 }
 
 group = "com.inductiveautomation.ignition.examples"
-version = "1.0.5"
+version = "1.0.6"
 
 ignitionModule {
     name.set("MQTT UNS Publisher")

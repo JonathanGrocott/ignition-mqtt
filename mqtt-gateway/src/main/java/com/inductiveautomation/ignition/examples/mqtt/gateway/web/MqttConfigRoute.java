@@ -364,6 +364,9 @@ public class MqttConfigRoute implements RouteHandler {
         if (data.containsKey("payloadTemplate")) {
             record.setPayloadTemplate((String) data.get("payloadTemplate"));
         }
+        if (data.containsKey("payloadFields")) {
+            record.setPayloadFieldsJson(gson.toJson(data.get("payloadFields")));
+        }
         if (data.containsKey("includeMetadata")) {
             record.setIncludeMetadata((Boolean) data.get("includeMetadata"));
         }
@@ -418,6 +421,11 @@ public class MqttConfigRoute implements RouteHandler {
             map.put("topicOverrides", gson.fromJson(overridesJson, Map.class));
         } else {
             map.put("topicOverrides", new HashMap<>());
+        }
+
+        String payloadFieldsJson = record.getPayloadFieldsJson();
+        if (payloadFieldsJson != null && !payloadFieldsJson.isEmpty() && !payloadFieldsJson.equals("null")) {
+            map.put("payloadFields", gson.fromJson(payloadFieldsJson, Map.class));
         }
         
         map.put("payloadTemplate", record.getPayloadTemplate());

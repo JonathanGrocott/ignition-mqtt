@@ -96,6 +96,10 @@ public class MqttStatusRoute implements RouteHandler {
                 stats.put("tagReadSuccessRate", statistics.getTagReadSuccessRate());
                 stats.put("uptimeMs", statistics.getUptimeMs());
                 stats.put("uptimeDisplay", statistics.getUptimeDisplay());
+                stats.put("batchMessagesPublished", statistics.getBatchMessagesPublished());
+                stats.put("batchMetricsPublished", statistics.getBatchMetricsPublished());
+                stats.put("batchFlushes", statistics.getBatchFlushes());
+                stats.put("batchMaxSize", statistics.getBatchMaxSize());
             }
             status.put("statistics", stats);
             

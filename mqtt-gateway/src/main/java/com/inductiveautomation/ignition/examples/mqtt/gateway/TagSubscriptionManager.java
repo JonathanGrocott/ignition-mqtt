@@ -5,7 +5,9 @@ import com.inductiveautomation.ignition.common.browsing.Results;
 import com.inductiveautomation.ignition.common.model.values.QualifiedValue;
 import com.inductiveautomation.ignition.common.model.values.QualityCode;
 import com.inductiveautomation.ignition.common.tags.browsing.NodeDescription;
+import com.inductiveautomation.ignition.common.tags.config.TagConfigurationModel;
 import com.inductiveautomation.ignition.common.tags.model.TagPath;
+import com.inductiveautomation.ignition.common.tags.model.TagProvider;
 import com.inductiveautomation.ignition.common.tags.model.event.TagChangeEvent;
 import com.inductiveautomation.ignition.common.tags.model.event.TagChangeListener;
 import com.inductiveautomation.ignition.common.tags.paths.parser.TagPathParser;
@@ -17,6 +19,7 @@ import org.slf4j.LoggerFactory;
 
 import java.util.*;
 import java.util.concurrent.*;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Collectors;
 
 /**
@@ -35,9 +38,13 @@ public class TagSubscriptionManager {
     private final MqttTopicMapper topicMapper;
     private final JsonPayloadBuilder payloadBuilder;
     private final ModuleStatistics statistics;
+
+    private volatile ScheduledExecutorService batchScheduler;
+    private final Map<String, BatchAccumulator> batchAccumulators = new ConcurrentHashMap<>();
     
     private TagPublishConfig config;
     private final Map<TagPath, QualifiedValue> lastPublishedValues = new ConcurrentHashMap<>();
+    private final Map<TagPath, Map<String, Object>> tagPropertyCache = new ConcurrentHashMap<>();
     private final List<TagPath> monitoredTags = Collections.synchronizedList(new ArrayList<>());
     
     // Tag change listener for event-driven subscriptions
@@ -59,6 +66,7 @@ public class TagSubscriptionManager {
         this.statistics = statistics;
         this.topicMapper = new MqttTopicMapper();
         this.payloadBuilder = new JsonPayloadBuilder();
+        this.batchScheduler = createBatchScheduler();
     }
     
     /**
@@ -75,6 +83,8 @@ public class TagSubscriptionManager {
         }
         
         logger.info("Starting event-driven tag subscription manager");
+
+        ensureBatchScheduler();
         
         // Set topic mappings on the mapper
         if (config.getTopicMappings() != null && !config.getTopicMappings().isEmpty()) {
@@ -92,6 +102,8 @@ public class TagSubscriptionManager {
         
         monitoredTags.addAll(tags);
         logger.info("Discovered {} tags to monitor", monitoredTags.size());
+
+        loadTagProperties(tags, buildCombinedPayloadFields(config));
         
         // Subscribe to tag changes
         subscribeToTags();
@@ -265,6 +277,222 @@ public class TagSubscriptionManager {
         
         return tags;
     }
+
+    private void loadTagProperties(List<TagPath> tags, com.inductiveautomation.ignition.examples.mqtt.common.model.PayloadFieldConfig fields) {
+        tagPropertyCache.clear();
+        if (tags == null || tags.isEmpty()) {
+            return;
+        }
+        if (fields == null || fields.getProperties() == null || fields.getProperties().isEmpty()) {
+            return;
+        }
+        logger.info("Loading tag properties for {} tags", tags.size());
+
+        Map<String, List<TagPath>> tagsByProvider = tags.stream()
+            .collect(Collectors.groupingBy(TagPath::getSource));
+
+        for (Map.Entry<String, List<TagPath>> entry : tagsByProvider.entrySet()) {
+            String providerName = entry.getKey();
+            List<TagPath> providerTags = entry.getValue();
+            TagProvider provider = gatewayContext.getTagManager().getTagProvider(providerName);
+            if (provider == null) {
+                logger.warn("Tag provider not found: {}", providerName);
+                continue;
+            }
+            try {
+                CompletableFuture<List<TagConfigurationModel>> future = provider.getTagConfigsAsync(providerTags, false, true);
+                List<TagConfigurationModel> configs = future.get(10, TimeUnit.SECONDS);
+                for (TagConfigurationModel configModel : configs) {
+                    TagPath tagPath = configModel.getPath();
+                    Map<String, Object> properties = readTagProperties(configModel, fields);
+                    if (properties != null && !properties.isEmpty()) {
+                        tagPropertyCache.put(tagPath, properties);
+                    }
+                }
+            } catch (Exception e) {
+                logger.warn("Failed to load tag properties for provider {}: {}", providerName, e.getMessage());
+            }
+        }
+    }
+
+    private Map<String, Object> readTagProperties(TagConfigurationModel configModel, com.inductiveautomation.ignition.examples.mqtt.common.model.PayloadFieldConfig fields) {
+        if (fields == null || fields.getProperties() == null || fields.getProperties().isEmpty()) {
+            return Collections.emptyMap();
+        }
+        try {
+            java.util.Set<com.inductiveautomation.ignition.common.config.Property<?>> tagProps = TagPropertyResolver.getSelectedTagProps(fields);
+            if (tagProps.isEmpty()) {
+                return Collections.emptyMap();
+            }
+            Map<String, Object> result = new HashMap<>();
+            for (Map.Entry<String, Boolean> entry : fields.getProperties().entrySet()) {
+                if (!Boolean.TRUE.equals(entry.getValue())) {
+                    continue;
+                }
+                com.inductiveautomation.ignition.common.config.Property<?> prop = TagPropertyResolver.getPropertyMap().get(entry.getKey());
+                if (prop == null) {
+                    continue;
+                }
+                Object propValue = configModel.getTagProperties().get(prop);
+                result.put(entry.getKey(), propValue);
+            }
+            return result;
+        } catch (Exception e) {
+            logger.warn("Failed to read properties for tag {}: {}", configModel.getPath(), e.getMessage());
+            return Collections.emptyMap();
+        }
+    }
+
+    private com.inductiveautomation.ignition.examples.mqtt.common.model.PayloadFieldConfig buildCombinedPayloadFields(
+        TagPublishConfig config
+    ) {
+        com.inductiveautomation.ignition.examples.mqtt.common.model.PayloadFieldConfig combined =
+            config.getPayloadFieldsOrDefault().copy();
+        if (config.getTopicMappings() == null) {
+            return combined;
+        }
+        for (com.inductiveautomation.ignition.examples.mqtt.common.model.TopicMapping mapping : config.getTopicMappings()) {
+            if (mapping == null || mapping.isUseDefaultPayloadFields()) {
+                continue;
+            }
+            com.inductiveautomation.ignition.examples.mqtt.common.model.PayloadFieldConfig fields = mapping.getPayloadFields();
+            if (fields == null || fields.getProperties() == null) {
+                continue;
+            }
+            for (Map.Entry<String, Boolean> entry : fields.getProperties().entrySet()) {
+                if (Boolean.TRUE.equals(entry.getValue())) {
+                    combined.getProperties().put(entry.getKey(), true);
+                }
+            }
+        }
+        return combined;
+    }
+
+    private void enqueueBatchMetric(
+        com.inductiveautomation.ignition.examples.mqtt.common.model.TopicMapping mapping,
+        Long brokerId,
+        String topic,
+        TagPath tagPath,
+        QualifiedValue value,
+        Map<String, Object> properties,
+        com.inductiveautomation.ignition.examples.mqtt.common.model.PayloadFieldConfig payloadFields
+    ) {
+        int batchWindowMs = mapping.getBatchWindowMs();
+        if (batchWindowMs <= 0) {
+            List<JsonPayloadBuilder.MetricPayload> metrics = Collections.singletonList(
+                new JsonPayloadBuilder.MetricPayload(tagPath, value, properties)
+            );
+            String payload = payloadBuilder.buildBatchPayload(metrics, payloadFields);
+            boolean published = multiBrokerManager.publish(brokerId, topic, payload);
+            if (published) {
+                statistics.incrementBatchPublished(1);
+                logger.info("Published batch payload (1 metric) to {} on broker {}", topic, brokerId);
+            } else {
+                logger.warn("Failed to publish batch payload to broker {}", brokerId);
+            }
+            return;
+        }
+
+        BatchAccumulator accumulator = getBatchAccumulator(mapping, brokerId, topic);
+        accumulator.setPayloadFields(payloadFields);
+        int size = accumulator.addMetric(tagPath, value, properties);
+        int maxBatchSize = Math.max(1, mapping.getMaxBatchSize());
+        if (size >= maxBatchSize) {
+            accumulator.flush();
+            return;
+        }
+        accumulator.scheduleFlush(batchWindowMs);
+    }
+
+    private BatchAccumulator getBatchAccumulator(
+        com.inductiveautomation.ignition.examples.mqtt.common.model.TopicMapping mapping,
+        Long brokerId,
+        String topic
+    ) {
+        String mappingId = mapping.getId();
+        String key = mappingId != null ? mappingId : mapping.getSourcePattern() + "::" + mapping.getTopicPrefix();
+        return batchAccumulators.computeIfAbsent(
+            key,
+            ignored -> new BatchAccumulator(mapping, brokerId, topic)
+        );
+    }
+
+    private class BatchAccumulator {
+        private final com.inductiveautomation.ignition.examples.mqtt.common.model.TopicMapping mapping;
+        private final Long brokerId;
+        private final String topic;
+        private final Map<TagPath, JsonPayloadBuilder.MetricPayload> metrics = new ConcurrentHashMap<>();
+        private final AtomicBoolean flushScheduled = new AtomicBoolean(false);
+        private volatile ScheduledFuture<?> scheduledFlush;
+        private volatile com.inductiveautomation.ignition.examples.mqtt.common.model.PayloadFieldConfig payloadFields;
+
+        private BatchAccumulator(
+            com.inductiveautomation.ignition.examples.mqtt.common.model.TopicMapping mapping,
+            Long brokerId,
+            String topic
+        ) {
+            this.mapping = mapping;
+            this.brokerId = brokerId;
+            this.topic = topic;
+        }
+
+        private void setPayloadFields(com.inductiveautomation.ignition.examples.mqtt.common.model.PayloadFieldConfig payloadFields) {
+            this.payloadFields = payloadFields;
+        }
+
+        private int addMetric(TagPath tagPath, QualifiedValue value, Map<String, Object> properties) {
+            metrics.put(tagPath, new JsonPayloadBuilder.MetricPayload(tagPath, value, properties));
+            return metrics.size();
+        }
+
+        private void scheduleFlush(int batchWindowMs) {
+            if (!flushScheduled.compareAndSet(false, true)) {
+                return;
+            }
+            try {
+                ScheduledExecutorService scheduler = ensureBatchScheduler();
+                scheduledFlush = scheduler.schedule(() -> {
+                    try {
+                        flush();
+                    } catch (Exception e) {
+                        logger.warn("Batch flush failed for mapping {}: {}", mapping.getSourcePattern(), e.getMessage());
+                    }
+                }, batchWindowMs, TimeUnit.MILLISECONDS);
+            } catch (RuntimeException e) {
+                flushScheduled.set(false);
+                logger.warn("Failed to schedule batch flush for mapping {}: {}", mapping.getSourcePattern(), e.getMessage());
+            }
+        }
+
+        private void flush() {
+            List<JsonPayloadBuilder.MetricPayload> batch;
+            synchronized (this) {
+                if (metrics.isEmpty()) {
+                    flushScheduled.set(false);
+                    return;
+                }
+                batch = new ArrayList<>(metrics.values());
+                metrics.clear();
+                flushScheduled.set(false);
+                scheduledFlush = null;
+            }
+
+            com.inductiveautomation.ignition.examples.mqtt.common.model.PayloadFieldConfig fields =
+                payloadFields != null ? payloadFields : config.getPayloadFieldsForMapping(mapping);
+            try {
+                String payload = payloadBuilder.buildBatchPayload(batch, fields);
+                boolean published = multiBrokerManager.publish(brokerId, topic, payload);
+                if (published) {
+                    statistics.incrementBatchPublished(batch.size());
+                    logger.info("Published batch payload ({} metrics) to {} on broker {}", batch.size(), topic, brokerId);
+                } else {
+                    logger.warn("Failed to publish batch payload to broker {}", brokerId);
+                }
+            } catch (Exception e) {
+                logger.warn("Failed to publish batch payload for mapping {}: {}", mapping.getSourcePattern(), e.getMessage());
+            }
+        }
+    }
     
     /**
      * Determines if a tag value should be published
@@ -358,15 +586,24 @@ public class TagSubscriptionManager {
             
             // Map tag to topic using the matched mapping (not searching again)
             String topic = topicMapper.mapTagToTopicWithMapping(tagPath, matchedMapping);
-            
+
             // Build payload
-            String payload = payloadBuilder.buildPayload(tagPath, value, config.isIncludeMetadata());
-            
+            Map<String, Object> properties = tagPropertyCache.get(tagPath);
+            com.inductiveautomation.ignition.examples.mqtt.common.model.PayloadFieldConfig payloadFields =
+                config.getPayloadFieldsForMapping(matchedMapping);
+
+            if (matchedMapping.getPublishMode() == com.inductiveautomation.ignition.examples.mqtt.common.model.TopicPublishMode.SINGLE_TOPIC) {
+                enqueueBatchMetric(matchedMapping, brokerId, topic, tagPath, value, properties, payloadFields);
+                return;
+            }
+
+            String payload = payloadBuilder.buildPayload(tagPath, value, payloadFields, properties);
+
             logger.info("Publishing to broker {}: topic={}, payload={}", brokerId, topic, payload);
-            
+
             // Publish to the SPECIFIC broker assigned to this mapping
             boolean published = multiBrokerManager.publish(brokerId, topic, payload);
-            
+
             if (published) {
                 logger.info("Published {}: {} to {} on broker {}", 
                     tagPath, value.getValue(), topic, brokerId);
@@ -420,11 +657,35 @@ public class TagSubscriptionManager {
             }
         }
         subscriptionFutures.clear();
+
+        try {
+            batchScheduler.shutdownNow();
+        } catch (Exception e) {
+            logger.debug("Failed to shutdown batch scheduler", e);
+        }
+        batchScheduler = null;
+        batchAccumulators.clear();
         
         monitoredTags.clear();
         lastPublishedValues.clear();
+        tagPropertyCache.clear();
         
         logger.info("Tag subscription manager shut down");
+    }
+
+    private ScheduledExecutorService createBatchScheduler() {
+        return Executors.newSingleThreadScheduledExecutor(runnable -> {
+            Thread thread = new Thread(runnable, "mqtt-uns-batch-publisher");
+            thread.setDaemon(true);
+            return thread;
+        });
+    }
+
+    private synchronized ScheduledExecutorService ensureBatchScheduler() {
+        if (batchScheduler == null || batchScheduler.isShutdown() || batchScheduler.isTerminated()) {
+            batchScheduler = createBatchScheduler();
+        }
+        return batchScheduler;
     }
     
     /**

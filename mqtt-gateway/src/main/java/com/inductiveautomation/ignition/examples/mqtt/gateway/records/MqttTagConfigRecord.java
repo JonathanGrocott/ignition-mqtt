@@ -48,6 +48,10 @@ public class MqttTagConfigRecord extends PersistentRecord {
     
     // Custom payload template (Mustache/Handlebars template, null = use default)
     public static final StringField PayloadTemplate = new StringField(META, "PayloadTemplate", 4000);
+
+    // Payload field selection (stored as JSON object)
+    public static final StringField PayloadFields = new StringField(META, "PayloadFields", 8000)
+        .setDefault("{}");
     
     // Whether to include metadata (quality, timestamp) in MQTT payload
     public static final BooleanField IncludeMetadata = new BooleanField(META, "IncludeMetadata")
@@ -134,6 +138,14 @@ public class MqttTagConfigRecord extends PersistentRecord {
     
     public void setPayloadTemplate(String template) {
         setString(PayloadTemplate, template);
+    }
+
+    public String getPayloadFieldsJson() {
+        return getString(PayloadFields);
+    }
+
+    public void setPayloadFieldsJson(String json) {
+        setString(PayloadFields, json);
     }
     
     public boolean isIncludeMetadata() {

@@ -14,6 +14,10 @@ public class ModuleStatistics {
     private final AtomicLong tagReadsFailed = new AtomicLong(0);
     private final AtomicLong connectionAttempts = new AtomicLong(0);
     private final AtomicLong connectionFailures = new AtomicLong(0);
+    private final AtomicLong batchMessagesPublished = new AtomicLong(0);
+    private final AtomicLong batchMetricsPublished = new AtomicLong(0);
+    private final AtomicLong batchFlushes = new AtomicLong(0);
+    private final AtomicLong batchMaxSize = new AtomicLong(0);
     private final long startTimeMs;
     private volatile long lastPublishTimeMs;
     private volatile long lastSuccessfulConnectionMs;
@@ -54,6 +58,16 @@ public class ModuleStatistics {
     public void recordSuccessfulConnection() {
         lastSuccessfulConnectionMs = System.currentTimeMillis();
     }
+
+    public void incrementBatchPublished(int metricCount) {
+        if (metricCount <= 0) {
+            return;
+        }
+        batchMessagesPublished.incrementAndGet();
+        batchMetricsPublished.addAndGet(metricCount);
+        batchFlushes.incrementAndGet();
+        updateBatchMaxSize(metricCount);
+    }
     
     // Getters
     
@@ -79,6 +93,22 @@ public class ModuleStatistics {
     
     public long getConnectionFailures() {
         return connectionFailures.get();
+    }
+
+    public long getBatchMessagesPublished() {
+        return batchMessagesPublished.get();
+    }
+
+    public long getBatchMetricsPublished() {
+        return batchMetricsPublished.get();
+    }
+
+    public long getBatchFlushes() {
+        return batchFlushes.get();
+    }
+
+    public long getBatchMaxSize() {
+        return batchMaxSize.get();
     }
     
     public long getStartTimeMs() {
@@ -169,6 +199,10 @@ public class ModuleStatistics {
         tagReadsFailed.set(0);
         connectionAttempts.set(0);
         connectionFailures.set(0);
+        batchMessagesPublished.set(0);
+        batchMetricsPublished.set(0);
+        batchFlushes.set(0);
+        batchMaxSize.set(0);
         lastPublishTimeMs = 0;
         lastSuccessfulConnectionMs = 0;
     }
@@ -230,7 +264,25 @@ public class ModuleStatistics {
             sb.append(String.format("  Last Successful Connection: %tF %<tT\n", 
                 lastSuccessfulConnectionMs));
         }
+
+        if (batchMessagesPublished.get() > 0) {
+            sb.append("\nBatch Publishing:\n");
+            sb.append(String.format("  Batch Messages Published: %d\n", batchMessagesPublished.get()));
+            sb.append(String.format("  Metrics Published: %d\n", batchMetricsPublished.get()));
+            sb.append(String.format("  Batch Flushes: %d\n", batchFlushes.get()));
+            sb.append(String.format("  Max Batch Size: %d\n", batchMaxSize.get()));
+        }
         
         return sb.toString();
+    }
+
+    private void updateBatchMaxSize(int metricCount) {
+        long current;
+        do {
+            current = batchMaxSize.get();
+            if (metricCount <= current) {
+                return;
+            }
+        } while (!batchMaxSize.compareAndSet(current, metricCount));
     }
 }

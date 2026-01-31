@@ -1,6 +1,78 @@
 import React, { useState, useEffect } from 'react';
 import { saveTagConfig, getBrokerConfig } from '../api';
-import { MqttTagConfig, TopicMapping, MqttBrokerConfig } from '../types';
+import { MqttTagConfig, TopicMapping, MqttBrokerConfig, PayloadFieldConfig } from '../types';
+
+const payloadPropertyGroups = [
+    {
+        id: 'basic',
+        label: 'Basic Properties',
+        fields: [
+            { key: 'name', label: 'Name' },
+            { key: 'tagGroup', label: 'Tag Group' },
+            { key: 'enabled', label: 'Enabled' }
+        ]
+    },
+    {
+        id: 'value',
+        label: 'Value Properties',
+        fields: [
+            { key: 'tagType', label: 'Tag Type' },
+            { key: 'typeId', label: 'Type ID' },
+            { key: 'valueSource', label: 'Value Source' },
+            { key: 'dataType', label: 'Data Type' },
+            { key: 'defaultValue', label: 'Default Value' },
+            { key: 'value', label: 'Value (Property)' },
+            { key: 'valuePersistence', label: 'Value Persistence' },
+            { key: 'opcServer', label: 'OPC Server' },
+            { key: 'opcItemPath', label: 'OPC Item Path' },
+            { key: 'sourceTagPath', label: 'Source Tag Path' },
+            { key: 'executionMode', label: 'Execution Mode' },
+            { key: 'expression', label: 'Expression' },
+            { key: 'deriveExpressionGetter', label: 'Read Expression' },
+            { key: 'deriveExpressionSetter', label: 'Write Expression' },
+            { key: 'query', label: 'Query' },
+            { key: 'datasource', label: 'Datasource' },
+            { key: 'queryType', label: 'Query Type' },
+            { key: 'preserveSourceTimestamp', label: 'Preserve Source Timestamp' }
+        ]
+    },
+    {
+        id: 'numeric',
+        label: 'Numeric Properties',
+        fields: [
+            { key: 'deadband', label: 'Deadband' },
+            { key: 'deadbandMode', label: 'Deadband Mode' },
+            { key: 'scaleMode', label: 'Scale Mode' },
+            { key: 'rawLow', label: 'Raw Low' },
+            { key: 'rawHigh', label: 'Raw High' },
+            { key: 'scaledLow', label: 'Scaled Low' },
+            { key: 'scaledHigh', label: 'Scaled High' },
+            { key: 'clampMode', label: 'Clamp Mode' },
+            { key: 'scaleFactor', label: 'Scale Factor' },
+            { key: 'engUnit', label: 'Engineering Units' },
+            { key: 'engLow', label: 'Engineering Low' },
+            { key: 'engHigh', label: 'Engineering High' },
+            { key: 'engLimitMode', label: 'Engineering Limit Mode' },
+            { key: 'formatString', label: 'Format String' }
+        ]
+    },
+    {
+        id: 'meta',
+        label: 'Meta Properties',
+        fields: [
+            { key: 'tooltip', label: 'Tooltip' },
+            { key: 'documentation', label: 'Documentation' }
+        ]
+    },
+    {
+        id: 'alarms',
+        label: 'Alarm Properties',
+        fields: [
+            { key: 'alarms', label: 'Alarms' },
+            { key: 'alarmEvalEnabled', label: 'Alarm Evaluation Enabled' }
+        ]
+    }
+];
 
 interface Props {
     config: MqttTagConfig | null;
@@ -15,7 +87,12 @@ const TagSelection: React.FC<Props> = ({ config, onConfigSaved }) => {
         tagFolders: [],
         topicMappings: [],
         topicOverrides: {},
-        payloadTemplate: '',
+        payloadFields: {
+            includeQuality: true,
+            includeQualityCode: true,
+            includeTagPath: true,
+            properties: {}
+        },
         includeMetadata: true,
         valueDeadband: 0.1,
         publishOnQualityChange: true
@@ -29,9 +106,36 @@ const TagSelection: React.FC<Props> = ({ config, onConfigSaved }) => {
     const [newMappingTopic, setNewMappingTopic] = useState('');
     const [newMappingBrokerId, setNewMappingBrokerId] = useState<number | null>(null);
 
+    const normalizePayloadFields = (fields?: PayloadFieldConfig): PayloadFieldConfig => {
+        return {
+            includeQuality: fields?.includeQuality ?? true,
+            includeQualityCode: fields?.includeQualityCode ?? true,
+            includeTagPath: fields?.includeTagPath ?? true,
+            properties: fields?.properties ?? {}
+        };
+    };
+
+    const normalizeTopicMapping = (mapping: TopicMapping): TopicMapping => {
+        const fallbackId = `${mapping.brokerId ?? 'unassigned'}:${mapping.sourcePattern}:${mapping.topicPrefix}`;
+        return {
+            ...mapping,
+            id: mapping.id ?? fallbackId,
+            preserveTopicCase: mapping.preserveTopicCase ?? false,
+            publishMode: mapping.publishMode ?? 'PER_TAG_TOPIC',
+            batchWindowMs: mapping.batchWindowMs ?? 100,
+            maxBatchSize: mapping.maxBatchSize ?? 10,
+            useDefaultPayloadFields: mapping.useDefaultPayloadFields ?? true,
+            payloadFields: mapping.payloadFields ? normalizePayloadFields(mapping.payloadFields) : undefined
+        };
+    };
+
     useEffect(() => {
         if (config) {
-            setFormData(config);
+            setFormData({
+                ...config,
+                payloadFields: normalizePayloadFields(config.payloadFields),
+                topicMappings: (config.topicMappings || []).map(normalizeTopicMapping)
+            });
         }
         // Always reload brokers when component mounts or config changes
         loadBrokers();
@@ -82,6 +186,131 @@ const TagSelection: React.FC<Props> = ({ config, onConfigSaved }) => {
         }
     };
 
+    const updatePayloadField = (key: string, enabled: boolean) => {
+        setFormData(prev => ({
+            ...prev,
+            payloadFields: {
+                ...normalizePayloadFields(prev.payloadFields),
+                properties: {
+                    ...normalizePayloadFields(prev.payloadFields).properties,
+                    [key]: enabled
+                }
+            }
+        }));
+    };
+
+    const updatePayloadCoreField = (key: 'includeQuality' | 'includeQualityCode' | 'includeTagPath', enabled: boolean) => {
+        setFormData(prev => ({
+            ...prev,
+            payloadFields: {
+                ...normalizePayloadFields(prev.payloadFields),
+                [key]: enabled
+            }
+        }));
+    };
+
+    const updateMappingPayloadMode = (id: string, useDefault: boolean) => {
+        setFormData(prev => ({
+            ...prev,
+            topicMappings: prev.topicMappings.map(mapping => {
+                if (mapping.id !== id) {
+                    return mapping;
+                }
+                const nextFields = mapping.payloadFields
+                    ? normalizePayloadFields(mapping.payloadFields)
+                    : normalizePayloadFields(prev.payloadFields);
+                return {
+                    ...mapping,
+                    useDefaultPayloadFields: useDefault,
+                    payloadFields: useDefault ? mapping.payloadFields : nextFields
+                };
+            })
+        }));
+    };
+
+    const updateMappingPayloadCoreField = (
+        id: string,
+        key: 'includeQuality' | 'includeQualityCode' | 'includeTagPath',
+        enabled: boolean
+    ) => {
+        setFormData(prev => ({
+            ...prev,
+            topicMappings: prev.topicMappings.map(mapping => {
+                if (mapping.id !== id) {
+                    return mapping;
+                }
+                const fields = normalizePayloadFields(mapping.payloadFields ?? prev.payloadFields);
+                return {
+                    ...mapping,
+                    useDefaultPayloadFields: false,
+                    payloadFields: {
+                        ...fields,
+                        [key]: enabled
+                    }
+                };
+            })
+        }));
+    };
+
+    const updateMappingPayloadField = (id: string, key: string, enabled: boolean) => {
+        setFormData(prev => ({
+            ...prev,
+            topicMappings: prev.topicMappings.map(mapping => {
+                if (mapping.id !== id) {
+                    return mapping;
+                }
+                const fields = normalizePayloadFields(mapping.payloadFields ?? prev.payloadFields);
+                return {
+                    ...mapping,
+                    useDefaultPayloadFields: false,
+                    payloadFields: {
+                        ...fields,
+                        properties: {
+                            ...fields.properties,
+                            [key]: enabled
+                        }
+                    }
+                };
+            })
+        }));
+    };
+
+    const updateMappingPublishMode = (id: string, publishMode: 'PER_TAG_TOPIC' | 'SINGLE_TOPIC') => {
+        setFormData(prev => ({
+            ...prev,
+            topicMappings: prev.topicMappings.map(mapping => (
+                mapping.id === id ? { ...mapping, publishMode } : mapping
+            ))
+        }));
+    };
+
+    const updateMappingPreserveCase = (id: string, preserveTopicCase: boolean) => {
+        setFormData(prev => ({
+            ...prev,
+            topicMappings: prev.topicMappings.map(mapping => (
+                mapping.id === id ? { ...mapping, preserveTopicCase } : mapping
+            ))
+        }));
+    };
+
+    const updateMappingBatchWindow = (id: string, batchWindowMs: number | undefined) => {
+        setFormData(prev => ({
+            ...prev,
+            topicMappings: prev.topicMappings.map(mapping => (
+                mapping.id === id ? { ...mapping, batchWindowMs } : mapping
+            ))
+        }));
+    };
+
+    const updateMappingMaxBatchSize = (id: string, maxBatchSize: number | undefined) => {
+        setFormData(prev => ({
+            ...prev,
+            topicMappings: prev.topicMappings.map(mapping => (
+                mapping.id === id ? { ...mapping, maxBatchSize } : mapping
+            ))
+        }));
+    };
+
     const addTopicMapping = () => {
         if (newMappingSource && newMappingTopic && newMappingBrokerId) {
             const newMapping: TopicMapping = {
@@ -89,7 +318,12 @@ const TagSelection: React.FC<Props> = ({ config, onConfigSaved }) => {
                 brokerId: newMappingBrokerId,
                 sourcePattern: newMappingSource,
                 topicPrefix: newMappingTopic,
-                enabled: true
+                enabled: true,
+                preserveTopicCase: false,
+                publishMode: 'PER_TAG_TOPIC',
+                batchWindowMs: 100,
+                maxBatchSize: 10,
+                useDefaultPayloadFields: true
             };
             setFormData(prev => ({
                 ...prev,
@@ -127,6 +361,31 @@ const TagSelection: React.FC<Props> = ({ config, onConfigSaved }) => {
         setSaving(true);
         setMessage(null);
 
+        const invalidBatchMappings = formData.topicMappings.filter(mapping => {
+            if ((mapping.publishMode ?? 'PER_TAG_TOPIC') !== 'SINGLE_TOPIC') {
+                return false;
+            }
+            const batchWindow = mapping.batchWindowMs;
+            const maxBatch = mapping.maxBatchSize;
+            return (
+                batchWindow === undefined ||
+                maxBatch === undefined ||
+                Number.isNaN(batchWindow) ||
+                Number.isNaN(maxBatch) ||
+                batchWindow < 0 ||
+                maxBatch < 1
+            );
+        });
+
+        if (invalidBatchMappings.length > 0) {
+            setMessage({
+                type: 'error',
+                text: 'Batch window and max batch size must be valid numbers for single topic mappings.'
+            });
+            setSaving(false);
+            return;
+        }
+
         try {
             const response = await saveTagConfig(formData);
 
@@ -162,6 +421,279 @@ const TagSelection: React.FC<Props> = ({ config, onConfigSaved }) => {
         }
         const broker = brokers.find(b => b.id === brokerId);
         return broker ? broker.name : `Broker ${brokerId}`;
+    };
+
+    const payloadFields = normalizePayloadFields(formData.payloadFields);
+
+    const renderPayloadFields = (
+        fields: PayloadFieldConfig,
+        namePrefix: string,
+        onCoreChange: (key: 'includeQuality' | 'includeQualityCode' | 'includeTagPath', enabled: boolean) => void,
+        onPropertyChange: (key: string, enabled: boolean) => void
+    ) => (
+        <>
+            <small>Value and timestamp are always included in the payload.</small>
+            <div className="payload-core">
+                <div className="payload-core-row">
+                    <span>Quality</span>
+                    <div className="payload-radio-group">
+                        <label>
+                            <input
+                                type="radio"
+                                name={`${namePrefix}-includeQuality`}
+                                checked={fields.includeQuality}
+                                onChange={() => onCoreChange('includeQuality', true)}
+                            />
+                            Include
+                        </label>
+                        <label>
+                            <input
+                                type="radio"
+                                name={`${namePrefix}-includeQuality`}
+                                checked={!fields.includeQuality}
+                                onChange={() => onCoreChange('includeQuality', false)}
+                            />
+                            Exclude
+                        </label>
+                    </div>
+                </div>
+                <div className="payload-core-row">
+                    <span>Quality Code</span>
+                    <div className="payload-radio-group">
+                        <label>
+                            <input
+                                type="radio"
+                                name={`${namePrefix}-includeQualityCode`}
+                                checked={fields.includeQualityCode}
+                                onChange={() => onCoreChange('includeQualityCode', true)}
+                            />
+                            Include
+                        </label>
+                        <label>
+                            <input
+                                type="radio"
+                                name={`${namePrefix}-includeQualityCode`}
+                                checked={!fields.includeQualityCode}
+                                onChange={() => onCoreChange('includeQualityCode', false)}
+                            />
+                            Exclude
+                        </label>
+                    </div>
+                </div>
+                <div className="payload-core-row">
+                    <span>Tag Path</span>
+                    <div className="payload-radio-group">
+                        <label>
+                            <input
+                                type="radio"
+                                name={`${namePrefix}-includeTagPath`}
+                                checked={fields.includeTagPath}
+                                onChange={() => onCoreChange('includeTagPath', true)}
+                            />
+                            Include
+                        </label>
+                        <label>
+                            <input
+                                type="radio"
+                                name={`${namePrefix}-includeTagPath`}
+                                checked={!fields.includeTagPath}
+                                onChange={() => onCoreChange('includeTagPath', false)}
+                            />
+                            Exclude
+                        </label>
+                    </div>
+                </div>
+            </div>
+
+            <div className="payload-properties">
+                {payloadPropertyGroups.map(group => (
+                    <details
+                        key={`${namePrefix}-${group.id}`}
+                        className="payload-group"
+                        open={group.id === 'basic'}
+                    >
+                        <summary className="payload-group-summary">{group.label}</summary>
+                        <div className="payload-group-fields">
+                            {group.fields.map(field => {
+                                const enabled = fields.properties[field.key] === true;
+                                return (
+                                    <div key={`${namePrefix}-${field.key}`} className="payload-property-row">
+                                        <span>{field.label}</span>
+                                        <div className="payload-radio-group">
+                                            <label>
+                                                <input
+                                                    type="radio"
+                                                    name={`${namePrefix}-payload-${field.key}`}
+                                                    checked={enabled}
+                                                    onChange={() => onPropertyChange(field.key, true)}
+                                                />
+                                                Include
+                                            </label>
+                                            <label>
+                                                <input
+                                                    type="radio"
+                                                    name={`${namePrefix}-payload-${field.key}`}
+                                                    checked={!enabled}
+                                                    onChange={() => onPropertyChange(field.key, false)}
+                                                />
+                                                Exclude
+                                            </label>
+                                        </div>
+                                    </div>
+                                );
+                            })}
+                        </div>
+                    </details>
+                ))}
+            </div>
+        </>
+    );
+
+    const renderMappingItem = (mapping: TopicMapping) => {
+        const mappingId = mapping.id ?? `${mapping.brokerId}-${mapping.sourcePattern}`;
+        const useDefaultPayload = mapping.useDefaultPayloadFields ?? true;
+        const mappingFields = normalizePayloadFields(mapping.payloadFields ?? formData.payloadFields);
+        const publishMode = mapping.publishMode ?? 'PER_TAG_TOPIC';
+        const batchWindowMs = mapping.batchWindowMs;
+        const maxBatchSize = mapping.maxBatchSize;
+        const preserveTopicCase = mapping.preserveTopicCase ?? false;
+
+        return (
+            <div key={mappingId} className={`mapping-item ${!mapping.enabled ? 'disabled' : ''}`}>
+                <div className="mapping-details">
+                    <span className="mapping-source-display">{mapping.sourcePattern}</span>
+                    <span className="mapping-arrow">→</span>
+                    <span className="mapping-topic-display">{mapping.topicPrefix}</span>
+                </div>
+                <div className="mapping-actions">
+                    <label className="toggle-switch">
+                        <input
+                            type="checkbox"
+                            checked={mapping.enabled}
+                            onChange={() => toggleMappingEnabled(mapping.id!)}
+                        />
+                        <span className="toggle-slider"></span>
+                    </label>
+                    <button
+                        type="button"
+                        onClick={() => removeTopicMapping(mapping.id!)}
+                        className="btn-remove-small"
+                    >
+                        ✕
+                    </button>
+                </div>
+                <div className="mapping-payload">
+                    <div className="mapping-topic-options">
+                        <div className="mapping-option-row">
+                            <span>Topic Mode</span>
+                            <div className="payload-radio-group">
+                                <label>
+                                    <input
+                                        type="radio"
+                                        name={`publish-mode-${mappingId}`}
+                                        checked={publishMode === 'PER_TAG_TOPIC'}
+                                        onChange={() => updateMappingPublishMode(mapping.id!, 'PER_TAG_TOPIC')}
+                                    />
+                                    Per tag topic
+                                </label>
+                                <label>
+                                    <input
+                                        type="radio"
+                                        name={`publish-mode-${mappingId}`}
+                                        checked={publishMode === 'SINGLE_TOPIC'}
+                                        onChange={() => updateMappingPublishMode(mapping.id!, 'SINGLE_TOPIC')}
+                                    />
+                                    Single topic
+                                </label>
+                            </div>
+                        </div>
+                        <label className="mapping-checkbox">
+                            <input
+                                type="checkbox"
+                                checked={preserveTopicCase}
+                                onChange={(e) => updateMappingPreserveCase(mapping.id!, e.target.checked)}
+                            />
+                            Preserve tag case in topic segments
+                        </label>
+                        {publishMode === 'SINGLE_TOPIC' && (
+                            <div className="mapping-batch-settings">
+                                <small>Publishes all matching tags to the topic prefix.</small>
+                                <div className="mapping-option-row">
+                                    <label htmlFor={`batch-window-${mappingId}`}>Batch window (ms)</label>
+                                    <input
+                                        id={`batch-window-${mappingId}`}
+                                        type="number"
+                                        min={0}
+                                        step={10}
+                                        value={batchWindowMs ?? ''}
+                                        placeholder="100"
+                                        onChange={(e) => {
+                                            const raw = e.target.value;
+                                            if (raw === '') {
+                                                updateMappingBatchWindow(mapping.id!, undefined);
+                                                return;
+                                            }
+                                            const next = Number(raw);
+                                            updateMappingBatchWindow(mapping.id!, Number.isFinite(next) ? next : undefined);
+                                        }}
+                                    />
+                                </div>
+                                <div className="mapping-option-row">
+                                    <label htmlFor={`batch-size-${mappingId}`}>Max batch size</label>
+                                    <input
+                                        id={`batch-size-${mappingId}`}
+                                        type="number"
+                                        min={1}
+                                        step={1}
+                                        value={maxBatchSize ?? ''}
+                                        placeholder="10"
+                                        onChange={(e) => {
+                                            const raw = e.target.value;
+                                            if (raw === '') {
+                                                updateMappingMaxBatchSize(mapping.id!, undefined);
+                                                return;
+                                            }
+                                            const next = Number(raw);
+                                            updateMappingMaxBatchSize(mapping.id!, Number.isFinite(next) ? next : undefined);
+                                        }}
+                                    />
+                                </div>
+                                <small>0 ms disables batching (publishes immediately).</small>
+                            </div>
+                        )}
+                    </div>
+                    <div className="mapping-payload-header">
+                        <span>Payload Fields</span>
+                        <div className="payload-radio-group">
+                            <label>
+                                <input
+                                    type="radio"
+                                    name={`payload-mode-${mappingId}`}
+                                    checked={useDefaultPayload}
+                                    onChange={() => updateMappingPayloadMode(mapping.id!, true)}
+                                />
+                                Use default
+                            </label>
+                            <label>
+                                <input
+                                    type="radio"
+                                    name={`payload-mode-${mappingId}`}
+                                    checked={!useDefaultPayload}
+                                    onChange={() => updateMappingPayloadMode(mapping.id!, false)}
+                                />
+                                Custom
+                            </label>
+                        </div>
+                    </div>
+                    {!useDefaultPayload && renderPayloadFields(
+                        mappingFields,
+                        `mapping-${mappingId}`,
+                        (key, enabled) => updateMappingPayloadCoreField(mapping.id!, key, enabled),
+                        (key, enabled) => updateMappingPayloadField(mapping.id!, key, enabled)
+                    )}
+                </div>
+            </div>
+        );
     };
 
     return (
@@ -279,32 +811,7 @@ const TagSelection: React.FC<Props> = ({ config, onConfigSaved }) => {
                                                             <span className="mapping-count">{brokerMappings.length} mapping{brokerMappings.length !== 1 ? 's' : ''}</span>
                                                         </h3>
                                                         <div className="mappings-list">
-                                                            {brokerMappings.map(mapping => (
-                                                                <div key={mapping.id} className={`mapping-item ${!mapping.enabled ? 'disabled' : ''}`}>
-                                                                    <div className="mapping-details">
-                                                                        <span className="mapping-source-display">{mapping.sourcePattern}</span>
-                                                                        <span className="mapping-arrow">→</span>
-                                                                        <span className="mapping-topic-display">{mapping.topicPrefix}</span>
-                                                                    </div>
-                                                                    <div className="mapping-actions">
-                                                                        <label className="toggle-switch">
-                                                                            <input
-                                                                                type="checkbox"
-                                                                                checked={mapping.enabled}
-                                                                                onChange={() => toggleMappingEnabled(mapping.id!)}
-                                                                            />
-                                                                            <span className="toggle-slider"></span>
-                                                                        </label>
-                                                                        <button
-                                                                            type="button"
-                                                                            onClick={() => removeTopicMapping(mapping.id!)}
-                                                                            className="btn-remove-small"
-                                                                        >
-                                                                            ✕
-                                                                        </button>
-                                                                    </div>
-                                                                </div>
-                                                            ))}
+                                                            {brokerMappings.map(renderMappingItem)}
                                                         </div>
                                                     </div>
                                                 );
@@ -315,32 +822,7 @@ const TagSelection: React.FC<Props> = ({ config, onConfigSaved }) => {
                                         <div className="broker-mappings-group">
                                             <h3>{getBrokerName(selectedBrokerId)}</h3>
                                             <div className="mappings-list">
-                                                {(mappingsByBroker[selectedBrokerId] || []).map(mapping => (
-                                                    <div key={mapping.id} className={`mapping-item ${!mapping.enabled ? 'disabled' : ''}`}>
-                                                        <div className="mapping-details">
-                                                            <span className="mapping-source-display">{mapping.sourcePattern}</span>
-                                                            <span className="mapping-arrow">→</span>
-                                                            <span className="mapping-topic-display">{mapping.topicPrefix}</span>
-                                                        </div>
-                                                        <div className="mapping-actions">
-                                                            <label className="toggle-switch">
-                                                                <input
-                                                                    type="checkbox"
-                                                                    checked={mapping.enabled}
-                                                                    onChange={() => toggleMappingEnabled(mapping.id!)}
-                                                                />
-                                                                <span className="toggle-slider"></span>
-                                                            </label>
-                                                            <button
-                                                                type="button"
-                                                                onClick={() => removeTopicMapping(mapping.id!)}
-                                                                className="btn-remove-small"
-                                                            >
-                                                                ✕
-                                                            </button>
-                                                        </div>
-                                                    </div>
-                                                ))}
+                                                {(mappingsByBroker[selectedBrokerId] || []).map(renderMappingItem)}
                                             </div>
                                         </div>
                                     )}
@@ -374,28 +856,13 @@ const TagSelection: React.FC<Props> = ({ config, onConfigSaved }) => {
                     </div>
 
                     <div className="form-group">
-                        <label htmlFor="payloadTemplate">Payload Template (optional)</label>
-                        <textarea
-                            id="payloadTemplate"
-                            name="payloadTemplate"
-                            value={formData.payloadTemplate || ''}
-                            onChange={handleChange}
-                            placeholder="Leave empty for default JSON format"
-                            rows={4}
-                        />
-                        <small>Custom JSON template for message payload (advanced users only)</small>
-                    </div>
-
-                    <div className="form-group checkbox">
-                        <label>
-                            <input
-                                type="checkbox"
-                                name="includeMetadata"
-                                checked={formData.includeMetadata}
-                                onChange={handleChange}
-                            />
-                            Include metadata (timestamp, quality, datatype)
-                        </label>
+                        <label>Default Payload Fields</label>
+                        {renderPayloadFields(
+                            payloadFields,
+                            'default',
+                            updatePayloadCoreField,
+                            updatePayloadField
+                        )}
                     </div>
 
                     <div className="form-group checkbox">

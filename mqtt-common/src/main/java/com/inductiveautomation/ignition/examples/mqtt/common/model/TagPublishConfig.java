@@ -27,6 +27,9 @@ public class TagPublishConfig {
     
     @SerializedName("payloadTemplate")
     private String payloadTemplate;
+
+    @SerializedName("payloadFields")
+    private PayloadFieldConfig payloadFields;
     
     @SerializedName("includeMetadata")
     private boolean includeMetadata;
@@ -49,6 +52,7 @@ public class TagPublishConfig {
         this.tagFolders = new ArrayList<>();
         this.topicOverrides = new HashMap<>();
         this.payloadTemplate = null; // null = use default
+        this.payloadFields = new PayloadFieldConfig();
         this.includeMetadata = true;
         this.valueDeadband = DEFAULT_VALUE_DEADBAND;
         this.publishOnQualityChange = true;
@@ -95,6 +99,42 @@ public class TagPublishConfig {
     
     public void setPayloadTemplate(String payloadTemplate) {
         this.payloadTemplate = payloadTemplate;
+    }
+
+    public PayloadFieldConfig getPayloadFields() {
+        return payloadFields;
+    }
+
+    public void setPayloadFields(PayloadFieldConfig payloadFields) {
+        this.payloadFields = payloadFields;
+    }
+
+    /**
+     * Returns payload field configuration, falling back to legacy metadata settings when missing.
+     */
+    public PayloadFieldConfig getPayloadFieldsOrDefault() {
+        if (payloadFields != null) {
+            return payloadFields;
+        }
+        PayloadFieldConfig defaults = new PayloadFieldConfig();
+        if (includeMetadata) {
+            defaults.getProperties().put("dataType", true);
+        }
+        return defaults;
+    }
+
+    /**
+     * Returns payload fields for a specific topic mapping, falling back to defaults.
+     */
+    public PayloadFieldConfig getPayloadFieldsForMapping(TopicMapping mapping) {
+        PayloadFieldConfig defaults = getPayloadFieldsOrDefault();
+        if (mapping == null) {
+            return defaults;
+        }
+        if (mapping.isUseDefaultPayloadFields() || mapping.getPayloadFields() == null) {
+            return defaults;
+        }
+        return mapping.getPayloadFields();
     }
     
     public boolean isIncludeMetadata() {
@@ -235,6 +275,7 @@ public class TagPublishConfig {
         copy.tagFolders = new ArrayList<>(this.tagFolders);
         copy.topicOverrides = new HashMap<>(this.topicOverrides);
         copy.payloadTemplate = this.payloadTemplate;
+        copy.payloadFields = this.payloadFields != null ? this.payloadFields.copy() : null;
         copy.includeMetadata = this.includeMetadata;
         copy.valueDeadband = this.valueDeadband;
         copy.publishOnQualityChange = this.publishOnQualityChange;

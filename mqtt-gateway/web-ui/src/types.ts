@@ -26,10 +26,17 @@ export interface MqttTagConfig {
     tagFolders: string[];
     topicMappings: TopicMapping[];  // New: Custom topic prefix mappings
     topicOverrides: Record<string, string>;
-    payloadTemplate?: string;
+    payloadFields?: PayloadFieldConfig;
     includeMetadata: boolean;
     valueDeadband: number;
     publishOnQualityChange: boolean;
+}
+
+export interface PayloadFieldConfig {
+    includeQuality: boolean;
+    includeQualityCode: boolean;
+    includeTagPath: boolean;
+    properties: Record<string, boolean>;
 }
 
 export interface TopicMapping {
@@ -38,6 +45,12 @@ export interface TopicMapping {
     sourcePattern: string;  // Tag pattern like "[default]TestTags" or "[default]"
     topicPrefix: string;    // UNS topic prefix like "enterprise/site1/area2"
     enabled: boolean;
+    preserveTopicCase?: boolean;
+    publishMode?: 'PER_TAG_TOPIC' | 'SINGLE_TOPIC';
+    batchWindowMs?: number;
+    maxBatchSize?: number;
+    useDefaultPayloadFields?: boolean;
+    payloadFields?: PayloadFieldConfig;
 }
 
 export interface ModuleStatus {
@@ -61,6 +74,10 @@ export interface ModuleStatistics {
     tagReadSuccessRate: number;
     uptimeMs: number;
     uptimeDisplay: string;
+    batchMessagesPublished?: number;
+    batchMetricsPublished?: number;
+    batchFlushes?: number;
+    batchMaxSize?: number;
 }
 
 export interface ApiResponse<T> {
