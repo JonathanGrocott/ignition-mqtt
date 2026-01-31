@@ -67,3 +67,18 @@ PHASE2-TESTING.md
 
 #examples
 examples/*
+
+# builds
+mqtt-sparkplug-gateway/build/
+mqtt-sparkplug-module/build/
+
+# Node
+**/node_modules/
+**/dist/
+**/.cache/
+**/.parcel-cache/
+**/coverage/
+
+#tests
+test-amd-module.html
+test-connection.js

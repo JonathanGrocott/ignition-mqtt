@@ -28,12 +28,19 @@ jobs:
     - name: Make gradlew executable
       run: chmod +x ./gradlew
     
-    - name: Build module
-      run: ./gradlew clean build
+    - name: Build modules
+      run: ./gradlew clean :mqtt-uns-module:build :mqtt-sparkplug-module:build
     
-    - name: Upload build artifacts
+    - name: Upload UNS module artifact
       uses: actions/upload-artifact@v4
       with:
         name: mqtt-uns-publisher-module
-        path: build/*.modl
+        path: mqtt-uns-module/build/*.modl
+        retention-days: 30
+
+    - name: Upload SparkplugB module artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: mqtt-sparkplugb-publisher-module
+        path: mqtt-sparkplug-module/build/*.modl
         retention-days: 30

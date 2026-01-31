@@ -1,9 +1,9 @@
 #!/bin/bash
 
 ###################################################################################
-# MQTT UNS Publisher Module - Complete Build Script
+# MQTT SparkplugB Publisher Module - Complete Build Script
 ###################################################################################
-# This script builds the complete module including:
+# This script builds the SparkplugB module including:
 # 1. React/TypeScript frontend (web UI)
 # 2. Java backend (Gateway module)
 # 3. Packages everything into a .modl file
@@ -20,12 +20,13 @@ NC='\033[0m' # No Color
 
 # Project paths
 PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-WEB_UI_DIR="$PROJECT_ROOT/mqtt-gateway/web-ui"
-MOUNTED_DIR="$PROJECT_ROOT/mqtt-gateway/src/main/resources/mounted"
-UNS_BUILD_DIR="$PROJECT_ROOT/mqtt-uns-module/build"
+WEB_UI_DIR="$PROJECT_ROOT/mqtt-sparkplug-gateway/web-ui"
+MOUNTED_DIR="$PROJECT_ROOT/mqtt-sparkplug-gateway/src/main/resources/mounted"
+MODULE_MOUNTED_DIR="$PROJECT_ROOT/mqtt-sparkplug-module/src/main/resources/mounted"
+SPARKPLUG_BUILD_DIR="$PROJECT_ROOT/mqtt-sparkplug-module/build"
 
 echo -e "${BLUE}════════════════════════════════════════════════════════════════${NC}"
-echo -e "${BLUE}   MQTT UNS Publisher Module - Complete Build${NC}"
+echo -e "${BLUE}   MQTT SparkplugB Publisher Module - Complete Build${NC}"
 echo -e "${BLUE}════════════════════════════════════════════════════════════════${NC}"
 echo ""
 
@@ -44,22 +45,6 @@ if [ -z "$JAVA_HOME" ]; then
         echo -e "${BLUE}  → Setting JAVA_HOME to $JAVA_HOME${NC}"
     fi
 fi
-
-# Check for Node.js
-if ! command -v node &> /dev/null; then
-    echo -e "${RED}✗ Node.js is not installed. Please install Node.js 16+ and try again.${NC}"
-    exit 1
-fi
-NODE_VERSION=$(node --version)
-echo -e "${GREEN}✓ Node.js found: $NODE_VERSION${NC}"
-
-# Check for npm
-if ! command -v npm &> /dev/null; then
-    echo -e "${RED}✗ npm is not installed. Please install npm and try again.${NC}"
-    exit 1
-fi
-NPM_VERSION=$(npm --version)
-echo -e "${GREEN}✓ npm found: $NPM_VERSION${NC}"
 
 # Check for Java
 if ! command -v java &> /dev/null; then
@@ -85,7 +70,6 @@ echo -e "${YELLOW}[2/4] Building frontend (React/TypeScript)...${NC}"
 
 cd "$WEB_UI_DIR"
 
-# Check if node_modules exists, install if needed
 if [ ! -d "node_modules" ]; then
     echo -e "${BLUE}  → Installing npm dependencies...${NC}"
     npm install
@@ -93,18 +77,22 @@ else
     echo -e "${BLUE}  → npm dependencies already installed${NC}"
 fi
 
-# Build React application
 echo -e "${BLUE}  → Building React application with webpack...${NC}"
 npm run build
 
-# Verify output file exists
-if [ ! -f "$MOUNTED_DIR/mqtt-config.js" ]; then
-    echo -e "${RED}✗ Frontend build failed: mqtt-config.js not found${NC}"
+if [ ! -f "$MOUNTED_DIR/sparkplug-config.js" ]; then
+    echo -e "${RED}✗ Frontend build failed: sparkplug-config.js not found${NC}"
     exit 1
 fi
 
-FILE_SIZE=$(du -h "$MOUNTED_DIR/mqtt-config.js" | cut -f1)
-echo -e "${GREEN}✓ Frontend built successfully: mqtt-config.js ($FILE_SIZE)${NC}"
+mkdir -p "$MODULE_MOUNTED_DIR"
+cp "$MOUNTED_DIR/sparkplug-config.js" "$MODULE_MOUNTED_DIR/sparkplug-config.js"
+if [ -f "$MOUNTED_DIR/sparkplug-config.js.map" ]; then
+    cp "$MOUNTED_DIR/sparkplug-config.js.map" "$MODULE_MOUNTED_DIR/sparkplug-config.js.map"
+fi
+
+FILE_SIZE=$(du -h "$MOUNTED_DIR/sparkplug-config.js" | cut -f1)
+echo -e "${GREEN}✓ Frontend built successfully: sparkplug-config.js ($FILE_SIZE)${NC}"
 echo ""
 
 ###################################################################################
@@ -120,7 +108,7 @@ echo -e "${BLUE}  → Cleaning previous builds...${NC}"
 
 # Build the module
 echo -e "${BLUE}  → Compiling Java code and packaging module...${NC}"
-./gradlew :mqtt-uns-module:build
+./gradlew :mqtt-sparkplug-module:build
 
 # Check if build succeeded
 if [ $? -ne 0 ]; then
@@ -137,7 +125,7 @@ echo ""
 echo -e "${YELLOW}[4/4] Locating build artifacts...${NC}"
 
 # Find the .modl file
-MODL_FILE=$(find "$UNS_BUILD_DIR" -name "*.modl" -type f | head -n 1)
+MODL_FILE=$(find "$SPARKPLUG_BUILD_DIR" -name "*.modl" -type f | head -n 1)
 
 if [ -z "$MODL_FILE" ]; then
     echo -e "${RED}✗ Could not find .modl file in build directory${NC}"
@@ -165,9 +153,6 @@ echo -e "  1. Navigate to your Ignition Gateway web interface"
 echo -e "  2. Go to Config → System → Modules"
 echo -e "  3. Click 'Install or Upgrade a Module'"
 echo -e "  4. Upload: $MODL_NAME"
-echo -e "  5. After installation, navigate to Config → MQTT UNS Publisher"
-echo ""
-echo -e "${BLUE}Web UI will be available at:${NC}"
-echo -e "  http://your-gateway:8088/web/config/mqtt-uns-publisher"
+echo -e "  5. After installation, navigate to Config → MQTT SparkplugB Publisher"
 echo ""
 echo -e "${GREEN}Happy publishing! 📡${NC}"

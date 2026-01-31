@@ -11,21 +11,22 @@ java {
 val modlImplementation by configurations.creating
 
 dependencies {
-    // Depend on common module
     api(project(":mqtt-common"))
-    
-    // Ignition SDK dependencies
+
     compileOnly("com.inductiveautomation.ignitionsdk:ignition-common:8.3.0")
     compileOnly("com.inductiveautomation.ignitionsdk:gateway-api:8.3.0")
-    
-    // MQTT Client - this will be bundled with the module
+
+    // MQTT client for SparkplugB publishers
     implementation("org.eclipse.paho:org.eclipse.paho.client.mqttv3:1.2.5")
     modlImplementation("org.eclipse.paho:org.eclipse.paho.client.mqttv3:1.2.5")
-    
-    // Logging (provided by Ignition)
+
+    // SparkplugB payloads (Tahu)
+    implementation("org.eclipse.tahu:tahu-core:1.0.14")
+    modlImplementation("org.eclipse.tahu:tahu-core:1.0.14")
+    implementation("com.fasterxml.jackson.core:jackson-annotations:2.15.2")
+    modlImplementation("com.fasterxml.jackson.core:jackson-annotations:2.15.2")
+
     compileOnly("ch.qos.logback:logback-classic:1.2.13")
     compileOnly("org.slf4j:slf4j-api:1.7.36")
-    
-    // Gson for JSON (provided by Ignition)
     compileOnly("com.google.code.gson:gson:2.10.1")
 }
