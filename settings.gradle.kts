@@ -11,5 +11,8 @@ rootProject.name = "mqtt-module"
 
 include(
     ":mqtt-common",
-    ":mqtt-gateway"
+    ":mqtt-gateway",
+    ":mqtt-uns-module",
+    ":mqtt-sparkplug-gateway",
+    ":mqtt-sparkplug-module"
 )

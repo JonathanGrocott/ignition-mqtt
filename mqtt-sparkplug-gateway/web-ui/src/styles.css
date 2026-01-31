@@ -1,0 +1,245 @@
+.mqtt-config-page {
+    font-family: "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+    padding: 20px;
+    max-width: 1280px;
+    margin: 0 auto;
+    color: #1f2933;
+}
+
+.page-header {
+    margin-bottom: 20px;
+}
+
+.page-header h1 {
+    margin: 0 0 6px 0;
+    font-size: 24px;
+}
+
+.page-description {
+    margin: 0;
+    color: #4f5d6b;
+}
+
+.tabs {
+    display: flex;
+    gap: 8px;
+    border-bottom: 1px solid #d9e2ec;
+    margin-bottom: 16px;
+}
+
+.tab {
+    background: none;
+    border: none;
+    padding: 10px 14px;
+    cursor: pointer;
+    color: #52606d;
+    border-bottom: 2px solid transparent;
+    font-weight: 600;
+}
+
+.tab.active {
+    color: #102a43;
+    border-bottom-color: #0b76b7;
+}
+
+.tab-content {
+    background: #fff;
+    border: 1px solid #d9e2ec;
+    border-radius: 8px;
+    padding: 18px;
+}
+
+.form-group {
+    margin-bottom: 14px;
+}
+
+.form-group label {
+    display: block;
+    margin-bottom: 6px;
+    font-weight: 600;
+}
+
+.form-group input,
+.form-group select {
+    width: 100%;
+    padding: 8px 10px;
+    border-radius: 6px;
+    border: 1px solid #cbd2d9;
+}
+
+.form-row {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 12px;
+}
+
+.mapping-list {
+    display: grid;
+    gap: 10px;
+}
+
+.mapping-item {
+    border: 1px solid #e4e7eb;
+    border-radius: 6px;
+    padding: 10px;
+    display: grid;
+    gap: 8px;
+    background: #f8f9fb;
+}
+
+.mapping-item.disabled {
+    opacity: 0.65;
+}
+
+.mapping-toolbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 10px;
+    color: #52606d;
+    font-size: 14px;
+}
+
+.mapping-toolbar-actions {
+    display: flex;
+    gap: 8px;
+}
+
+.mapping-add {
+    padding: 12px;
+    border: 1px dashed #cbd2d9;
+    border-radius: 8px;
+    margin-bottom: 12px;
+    background: #fff;
+}
+
+.mapping-add-row {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 12px;
+    align-items: end;
+}
+
+.mapping-add-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.mapping-summary {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 8px 10px;
+    background: #fff;
+    border: 1px solid #e4e7eb;
+    border-radius: 6px;
+}
+
+.mapping-summary-text {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-weight: 600;
+    color: #243b53;
+    overflow: hidden;
+}
+
+.mapping-summary-label {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 360px;
+}
+
+.mapping-summary-arrow {
+    color: #829ab1;
+}
+
+.mapping-summary-actions {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.mapping-toggle {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-weight: 600;
+    color: #1f2933;
+}
+
+.mapping-toggle input {
+    width: 18px;
+    height: 18px;
+}
+
+.field-warning {
+    display: inline-block;
+    margin-top: 4px;
+    color: #b23b3b;
+    font-size: 12px;
+}
+
+.validation-errors {
+    margin-bottom: 12px;
+    padding: 10px 12px;
+    border-radius: 6px;
+    background: #fff4e5;
+    color: #7a4e00;
+}
+
+.validation-errors ul {
+    margin: 8px 0 0 18px;
+}
+
+.mapping-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+}
+
+.btn-primary {
+    background: #0b76b7;
+    color: #fff;
+    border: none;
+    padding: 8px 14px;
+    border-radius: 6px;
+    cursor: pointer;
+}
+
+.btn-secondary {
+    background: #e4e7eb;
+    color: #1f2933;
+    border: none;
+    padding: 8px 14px;
+    border-radius: 6px;
+    cursor: pointer;
+}
+
+.btn-danger {
+    background: #d64545;
+    color: #fff;
+    border: none;
+    padding: 8px 12px;
+    border-radius: 6px;
+    cursor: pointer;
+}
+
+.message {
+    margin-bottom: 12px;
+    padding: 10px 12px;
+    border-radius: 6px;
+}
+
+.message.success {
+    background: #e6fffa;
+    color: #285e61;
+}
+
+.message.error {
+    background: #ffe3e3;
+    color: #8a1c1c;
+}
