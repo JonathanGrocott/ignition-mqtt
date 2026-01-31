@@ -45,6 +45,8 @@ export interface TopicMapping {
     sourcePattern: string;  // Tag pattern like "[default]TestTags" or "[default]"
     topicPrefix: string;    // UNS topic prefix like "enterprise/site1/area2"
     enabled: boolean;
+    useDefaultPayloadFields?: boolean;
+    payloadFields?: PayloadFieldConfig;
 }
 
 export interface ModuleStatus {

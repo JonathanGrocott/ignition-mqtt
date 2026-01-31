@@ -122,6 +122,20 @@ public class TagPublishConfig {
         }
         return defaults;
     }
+
+    /**
+     * Returns payload fields for a specific topic mapping, falling back to defaults.
+     */
+    public PayloadFieldConfig getPayloadFieldsForMapping(TopicMapping mapping) {
+        PayloadFieldConfig defaults = getPayloadFieldsOrDefault();
+        if (mapping == null) {
+            return defaults;
+        }
+        if (mapping.isUseDefaultPayloadFields() || mapping.getPayloadFields() == null) {
+            return defaults;
+        }
+        return mapping.getPayloadFields();
+    }
     
     public boolean isIncludeMetadata() {
         return includeMetadata;

@@ -29,6 +29,12 @@ public class TopicMapping {
     
     @SerializedName("enabled")
     private boolean enabled;
+
+    @SerializedName("useDefaultPayloadFields")
+    private boolean useDefaultPayloadFields;
+
+    @SerializedName("payloadFields")
+    private PayloadFieldConfig payloadFields;
     
     @SerializedName("brokerId")
     private Long brokerId;
@@ -41,6 +47,8 @@ public class TopicMapping {
         this.sourcePattern = "";
         this.topicPrefix = "";
         this.enabled = true;
+        this.useDefaultPayloadFields = true;
+        this.payloadFields = null;
         this.brokerId = null;
     }
     
@@ -52,6 +60,8 @@ public class TopicMapping {
         this.sourcePattern = sourcePattern;
         this.topicPrefix = topicPrefix;
         this.enabled = enabled;
+        this.useDefaultPayloadFields = true;
+        this.payloadFields = null;
         this.brokerId = brokerId;
     }
     
@@ -101,6 +111,22 @@ public class TopicMapping {
     
     public void setEnabled(boolean enabled) {
         this.enabled = enabled;
+    }
+
+    public boolean isUseDefaultPayloadFields() {
+        return useDefaultPayloadFields;
+    }
+
+    public void setUseDefaultPayloadFields(boolean useDefaultPayloadFields) {
+        this.useDefaultPayloadFields = useDefaultPayloadFields;
+    }
+
+    public PayloadFieldConfig getPayloadFields() {
+        return payloadFields;
+    }
+
+    public void setPayloadFields(PayloadFieldConfig payloadFields) {
+        this.payloadFields = payloadFields;
     }
     
     public Long getBrokerId() {
@@ -175,15 +201,17 @@ public class TopicMapping {
         if (o == null || getClass() != o.getClass()) return false;
         TopicMapping that = (TopicMapping) o;
         return enabled == that.enabled &&
+               useDefaultPayloadFields == that.useDefaultPayloadFields &&
                Objects.equals(id, that.id) &&
                Objects.equals(sourcePattern, that.sourcePattern) &&
                Objects.equals(topicPrefix, that.topicPrefix) &&
+               Objects.equals(payloadFields, that.payloadFields) &&
                Objects.equals(brokerId, that.brokerId);
     }
     
     @Override
     public int hashCode() {
-        return Objects.hash(id, sourcePattern, topicPrefix, enabled, brokerId);
+        return Objects.hash(id, sourcePattern, topicPrefix, enabled, useDefaultPayloadFields, payloadFields, brokerId);
     }
     
     @Override
@@ -193,6 +221,8 @@ public class TopicMapping {
                ", sourcePattern='" + sourcePattern + '\'' +
                ", topicPrefix='" + topicPrefix + '\'' +
                ", enabled=" + enabled +
+               ", useDefaultPayloadFields=" + useDefaultPayloadFields +
+               ", payloadFields=" + payloadFields +
                ", brokerId=" + brokerId +
                '}';
     }
@@ -201,6 +231,9 @@ public class TopicMapping {
      * Creates a copy of this mapping
      */
     public TopicMapping copy() {
-        return new TopicMapping(id, sourcePattern, topicPrefix, enabled, brokerId);
+        TopicMapping copy = new TopicMapping(id, sourcePattern, topicPrefix, enabled, brokerId);
+        copy.useDefaultPayloadFields = this.useDefaultPayloadFields;
+        copy.payloadFields = this.payloadFields != null ? this.payloadFields.copy() : null;
+        return copy;
     }
 }

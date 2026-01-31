@@ -115,11 +115,22 @@ const TagSelection: React.FC<Props> = ({ config, onConfigSaved }) => {
         };
     };
 
+    const normalizeTopicMapping = (mapping: TopicMapping): TopicMapping => {
+        const fallbackId = `${mapping.brokerId ?? 'unassigned'}:${mapping.sourcePattern}:${mapping.topicPrefix}`;
+        return {
+            ...mapping,
+            id: mapping.id ?? fallbackId,
+            useDefaultPayloadFields: mapping.useDefaultPayloadFields ?? true,
+            payloadFields: mapping.payloadFields ? normalizePayloadFields(mapping.payloadFields) : undefined
+        };
+    };
+
     useEffect(() => {
         if (config) {
             setFormData({
                 ...config,
-                payloadFields: normalizePayloadFields(config.payloadFields)
+                payloadFields: normalizePayloadFields(config.payloadFields),
+                topicMappings: (config.topicMappings || []).map(normalizeTopicMapping)
             });
         }
         // Always reload brokers when component mounts or config changes
@@ -194,6 +205,72 @@ const TagSelection: React.FC<Props> = ({ config, onConfigSaved }) => {
         }));
     };
 
+    const updateMappingPayloadMode = (id: string, useDefault: boolean) => {
+        setFormData(prev => ({
+            ...prev,
+            topicMappings: prev.topicMappings.map(mapping => {
+                if (mapping.id !== id) {
+                    return mapping;
+                }
+                const nextFields = mapping.payloadFields
+                    ? normalizePayloadFields(mapping.payloadFields)
+                    : normalizePayloadFields(prev.payloadFields);
+                return {
+                    ...mapping,
+                    useDefaultPayloadFields: useDefault,
+                    payloadFields: useDefault ? mapping.payloadFields : nextFields
+                };
+            })
+        }));
+    };
+
+    const updateMappingPayloadCoreField = (
+        id: string,
+        key: 'includeQuality' | 'includeQualityCode' | 'includeTagPath',
+        enabled: boolean
+    ) => {
+        setFormData(prev => ({
+            ...prev,
+            topicMappings: prev.topicMappings.map(mapping => {
+                if (mapping.id !== id) {
+                    return mapping;
+                }
+                const fields = normalizePayloadFields(mapping.payloadFields ?? prev.payloadFields);
+                return {
+                    ...mapping,
+                    useDefaultPayloadFields: false,
+                    payloadFields: {
+                        ...fields,
+                        [key]: enabled
+                    }
+                };
+            })
+        }));
+    };
+
+    const updateMappingPayloadField = (id: string, key: string, enabled: boolean) => {
+        setFormData(prev => ({
+            ...prev,
+            topicMappings: prev.topicMappings.map(mapping => {
+                if (mapping.id !== id) {
+                    return mapping;
+                }
+                const fields = normalizePayloadFields(mapping.payloadFields ?? prev.payloadFields);
+                return {
+                    ...mapping,
+                    useDefaultPayloadFields: false,
+                    payloadFields: {
+                        ...fields,
+                        properties: {
+                            ...fields.properties,
+                            [key]: enabled
+                        }
+                    }
+                };
+            })
+        }));
+    };
+
     const addTopicMapping = () => {
         if (newMappingSource && newMappingTopic && newMappingBrokerId) {
             const newMapping: TopicMapping = {
@@ -201,7 +278,8 @@ const TagSelection: React.FC<Props> = ({ config, onConfigSaved }) => {
                 brokerId: newMappingBrokerId,
                 sourcePattern: newMappingSource,
                 topicPrefix: newMappingTopic,
-                enabled: true
+                enabled: true,
+                useDefaultPayloadFields: true
             };
             setFormData(prev => ({
                 ...prev,
@@ -277,6 +355,194 @@ const TagSelection: React.FC<Props> = ({ config, onConfigSaved }) => {
     };
 
     const payloadFields = normalizePayloadFields(formData.payloadFields);
+
+    const renderPayloadFields = (
+        fields: PayloadFieldConfig,
+        namePrefix: string,
+        onCoreChange: (key: 'includeQuality' | 'includeQualityCode' | 'includeTagPath', enabled: boolean) => void,
+        onPropertyChange: (key: string, enabled: boolean) => void
+    ) => (
+        <>
+            <small>Value and timestamp are always included in the payload.</small>
+            <div className="payload-core">
+                <div className="payload-core-row">
+                    <span>Quality</span>
+                    <div className="payload-radio-group">
+                        <label>
+                            <input
+                                type="radio"
+                                name={`${namePrefix}-includeQuality`}
+                                checked={fields.includeQuality}
+                                onChange={() => onCoreChange('includeQuality', true)}
+                            />
+                            Include
+                        </label>
+                        <label>
+                            <input
+                                type="radio"
+                                name={`${namePrefix}-includeQuality`}
+                                checked={!fields.includeQuality}
+                                onChange={() => onCoreChange('includeQuality', false)}
+                            />
+                            Exclude
+                        </label>
+                    </div>
+                </div>
+                <div className="payload-core-row">
+                    <span>Quality Code</span>
+                    <div className="payload-radio-group">
+                        <label>
+                            <input
+                                type="radio"
+                                name={`${namePrefix}-includeQualityCode`}
+                                checked={fields.includeQualityCode}
+                                onChange={() => onCoreChange('includeQualityCode', true)}
+                            />
+                            Include
+                        </label>
+                        <label>
+                            <input
+                                type="radio"
+                                name={`${namePrefix}-includeQualityCode`}
+                                checked={!fields.includeQualityCode}
+                                onChange={() => onCoreChange('includeQualityCode', false)}
+                            />
+                            Exclude
+                        </label>
+                    </div>
+                </div>
+                <div className="payload-core-row">
+                    <span>Tag Path</span>
+                    <div className="payload-radio-group">
+                        <label>
+                            <input
+                                type="radio"
+                                name={`${namePrefix}-includeTagPath`}
+                                checked={fields.includeTagPath}
+                                onChange={() => onCoreChange('includeTagPath', true)}
+                            />
+                            Include
+                        </label>
+                        <label>
+                            <input
+                                type="radio"
+                                name={`${namePrefix}-includeTagPath`}
+                                checked={!fields.includeTagPath}
+                                onChange={() => onCoreChange('includeTagPath', false)}
+                            />
+                            Exclude
+                        </label>
+                    </div>
+                </div>
+            </div>
+
+            <div className="payload-properties">
+                {payloadPropertyGroups.map(group => (
+                    <details
+                        key={`${namePrefix}-${group.id}`}
+                        className="payload-group"
+                        open={group.id === 'basic'}
+                    >
+                        <summary className="payload-group-summary">{group.label}</summary>
+                        <div className="payload-group-fields">
+                            {group.fields.map(field => {
+                                const enabled = fields.properties[field.key] === true;
+                                return (
+                                    <div key={`${namePrefix}-${field.key}`} className="payload-property-row">
+                                        <span>{field.label}</span>
+                                        <div className="payload-radio-group">
+                                            <label>
+                                                <input
+                                                    type="radio"
+                                                    name={`${namePrefix}-payload-${field.key}`}
+                                                    checked={enabled}
+                                                    onChange={() => onPropertyChange(field.key, true)}
+                                                />
+                                                Include
+                                            </label>
+                                            <label>
+                                                <input
+                                                    type="radio"
+                                                    name={`${namePrefix}-payload-${field.key}`}
+                                                    checked={!enabled}
+                                                    onChange={() => onPropertyChange(field.key, false)}
+                                                />
+                                                Exclude
+                                            </label>
+                                        </div>
+                                    </div>
+                                );
+                            })}
+                        </div>
+                    </details>
+                ))}
+            </div>
+        </>
+    );
+
+    const renderMappingItem = (mapping: TopicMapping) => {
+        const mappingId = mapping.id ?? `${mapping.brokerId}-${mapping.sourcePattern}`;
+        const useDefaultPayload = mapping.useDefaultPayloadFields ?? true;
+        const mappingFields = normalizePayloadFields(mapping.payloadFields ?? formData.payloadFields);
+
+        return (
+            <div key={mappingId} className={`mapping-item ${!mapping.enabled ? 'disabled' : ''}`}>
+                <div className="mapping-details">
+                    <span className="mapping-source-display">{mapping.sourcePattern}</span>
+                    <span className="mapping-arrow">→</span>
+                    <span className="mapping-topic-display">{mapping.topicPrefix}</span>
+                </div>
+                <div className="mapping-actions">
+                    <label className="toggle-switch">
+                        <input
+                            type="checkbox"
+                            checked={mapping.enabled}
+                            onChange={() => toggleMappingEnabled(mapping.id!)}
+                        />
+                        <span className="toggle-slider"></span>
+                    </label>
+                    <button
+                        type="button"
+                        onClick={() => removeTopicMapping(mapping.id!)}
+                        className="btn-remove-small"
+                    >
+                        ✕
+                    </button>
+                </div>
+                <div className="mapping-payload">
+                    <div className="mapping-payload-header">
+                        <span>Payload Fields</span>
+                        <div className="payload-radio-group">
+                            <label>
+                                <input
+                                    type="radio"
+                                    name={`payload-mode-${mappingId}`}
+                                    checked={useDefaultPayload}
+                                    onChange={() => updateMappingPayloadMode(mapping.id!, true)}
+                                />
+                                Use default
+                            </label>
+                            <label>
+                                <input
+                                    type="radio"
+                                    name={`payload-mode-${mappingId}`}
+                                    checked={!useDefaultPayload}
+                                    onChange={() => updateMappingPayloadMode(mapping.id!, false)}
+                                />
+                                Custom
+                            </label>
+                        </div>
+                    </div>
+                    {!useDefaultPayload && renderPayloadFields(
+                        mappingFields,
+                        `mapping-${mappingId}`,
+                        (key, enabled) => updateMappingPayloadCoreField(mapping.id!, key, enabled),
+                        (key, enabled) => updateMappingPayloadField(mapping.id!, key, enabled)
+                    )}
+                </div>
+            </div>
+        );
+    };
 
     return (
         <div className="tag-selection">
@@ -393,32 +659,7 @@ const TagSelection: React.FC<Props> = ({ config, onConfigSaved }) => {
                                                             <span className="mapping-count">{brokerMappings.length} mapping{brokerMappings.length !== 1 ? 's' : ''}</span>
                                                         </h3>
                                                         <div className="mappings-list">
-                                                            {brokerMappings.map(mapping => (
-                                                                <div key={mapping.id} className={`mapping-item ${!mapping.enabled ? 'disabled' : ''}`}>
-                                                                    <div className="mapping-details">
-                                                                        <span className="mapping-source-display">{mapping.sourcePattern}</span>
-                                                                        <span className="mapping-arrow">→</span>
-                                                                        <span className="mapping-topic-display">{mapping.topicPrefix}</span>
-                                                                    </div>
-                                                                    <div className="mapping-actions">
-                                                                        <label className="toggle-switch">
-                                                                            <input
-                                                                                type="checkbox"
-                                                                                checked={mapping.enabled}
-                                                                                onChange={() => toggleMappingEnabled(mapping.id!)}
-                                                                            />
-                                                                            <span className="toggle-slider"></span>
-                                                                        </label>
-                                                                        <button
-                                                                            type="button"
-                                                                            onClick={() => removeTopicMapping(mapping.id!)}
-                                                                            className="btn-remove-small"
-                                                                        >
-                                                                            ✕
-                                                                        </button>
-                                                                    </div>
-                                                                </div>
-                                                            ))}
+                                                            {brokerMappings.map(renderMappingItem)}
                                                         </div>
                                                     </div>
                                                 );
@@ -429,32 +670,7 @@ const TagSelection: React.FC<Props> = ({ config, onConfigSaved }) => {
                                         <div className="broker-mappings-group">
                                             <h3>{getBrokerName(selectedBrokerId)}</h3>
                                             <div className="mappings-list">
-                                                {(mappingsByBroker[selectedBrokerId] || []).map(mapping => (
-                                                    <div key={mapping.id} className={`mapping-item ${!mapping.enabled ? 'disabled' : ''}`}>
-                                                        <div className="mapping-details">
-                                                            <span className="mapping-source-display">{mapping.sourcePattern}</span>
-                                                            <span className="mapping-arrow">→</span>
-                                                            <span className="mapping-topic-display">{mapping.topicPrefix}</span>
-                                                        </div>
-                                                        <div className="mapping-actions">
-                                                            <label className="toggle-switch">
-                                                                <input
-                                                                    type="checkbox"
-                                                                    checked={mapping.enabled}
-                                                                    onChange={() => toggleMappingEnabled(mapping.id!)}
-                                                                />
-                                                                <span className="toggle-slider"></span>
-                                                            </label>
-                                                            <button
-                                                                type="button"
-                                                                onClick={() => removeTopicMapping(mapping.id!)}
-                                                                className="btn-remove-small"
-                                                            >
-                                                                ✕
-                                                            </button>
-                                                        </div>
-                                                    </div>
-                                                ))}
+                                                {(mappingsByBroker[selectedBrokerId] || []).map(renderMappingItem)}
                                             </div>
                                         </div>
                                     )}
@@ -488,121 +704,13 @@ const TagSelection: React.FC<Props> = ({ config, onConfigSaved }) => {
                     </div>
 
                     <div className="form-group">
-                        <label>Payload Fields</label>
-                        <small>Value and timestamp are always included in the payload.</small>
-                        <div className="payload-core">
-                            <div className="payload-core-row">
-                                <span>Quality</span>
-                                <div className="payload-radio-group">
-                                    <label>
-                                        <input
-                                            type="radio"
-                                            name="includeQuality"
-                                            checked={payloadFields.includeQuality}
-                                            onChange={() => updatePayloadCoreField('includeQuality', true)}
-                                        />
-                                        Include
-                                    </label>
-                                    <label>
-                                        <input
-                                            type="radio"
-                                            name="includeQuality"
-                                            checked={!payloadFields.includeQuality}
-                                            onChange={() => updatePayloadCoreField('includeQuality', false)}
-                                        />
-                                        Exclude
-                                    </label>
-                                </div>
-                            </div>
-                            <div className="payload-core-row">
-                                <span>Quality Code</span>
-                                <div className="payload-radio-group">
-                                    <label>
-                                        <input
-                                            type="radio"
-                                            name="includeQualityCode"
-                                            checked={payloadFields.includeQualityCode}
-                                            onChange={() => updatePayloadCoreField('includeQualityCode', true)}
-                                        />
-                                        Include
-                                    </label>
-                                    <label>
-                                        <input
-                                            type="radio"
-                                            name="includeQualityCode"
-                                            checked={!payloadFields.includeQualityCode}
-                                            onChange={() => updatePayloadCoreField('includeQualityCode', false)}
-                                        />
-                                        Exclude
-                                    </label>
-                                </div>
-                            </div>
-                            <div className="payload-core-row">
-                                <span>Tag Path</span>
-                                <div className="payload-radio-group">
-                                    <label>
-                                        <input
-                                            type="radio"
-                                            name="includeTagPath"
-                                            checked={payloadFields.includeTagPath}
-                                            onChange={() => updatePayloadCoreField('includeTagPath', true)}
-                                        />
-                                        Include
-                                    </label>
-                                    <label>
-                                        <input
-                                            type="radio"
-                                            name="includeTagPath"
-                                            checked={!payloadFields.includeTagPath}
-                                            onChange={() => updatePayloadCoreField('includeTagPath', false)}
-                                        />
-                                        Exclude
-                                    </label>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div className="payload-properties">
-                            {payloadPropertyGroups.map(group => (
-                                <details
-                                    key={group.id}
-                                    className="payload-group"
-                                    open={group.id === 'basic'}
-                                >
-                                    <summary className="payload-group-summary">{group.label}</summary>
-                                    <div className="payload-group-fields">
-                                        {group.fields.map(field => {
-                                            const enabled = payloadFields.properties[field.key] === true;
-                                            return (
-                                                <div key={field.key} className="payload-property-row">
-                                                    <span>{field.label}</span>
-                                                    <div className="payload-radio-group">
-                                                        <label>
-                                                            <input
-                                                                type="radio"
-                                                                name={`payload-${field.key}`}
-                                                                checked={enabled}
-                                                                onChange={() => updatePayloadField(field.key, true)}
-                                                            />
-                                                            Include
-                                                        </label>
-                                                        <label>
-                                                            <input
-                                                                type="radio"
-                                                                name={`payload-${field.key}`}
-                                                                checked={!enabled}
-                                                                onChange={() => updatePayloadField(field.key, false)}
-                                                            />
-                                                            Exclude
-                                                        </label>
-                                                    </div>
-                                                </div>
-                                            );
-                                        })}
-                                    </div>
-                                </details>
-                            ))}
-                        </div>
+                        <label>Default Payload Fields</label>
+                        {renderPayloadFields(
+                            payloadFields,
+                            'default',
+                            updatePayloadCoreField,
+                            updatePayloadField
+                        )}
                     </div>
 
                     <div className="form-group checkbox">

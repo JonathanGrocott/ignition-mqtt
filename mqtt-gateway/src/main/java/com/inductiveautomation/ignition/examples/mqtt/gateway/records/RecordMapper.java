@@ -39,6 +39,13 @@ public class RecordMapper {
             if (obj.has("enabled")) {
                 mapping.setEnabled(obj.get("enabled").getAsBoolean());
             }
+            if (obj.has("useDefaultPayloadFields")) {
+                mapping.setUseDefaultPayloadFields(obj.get("useDefaultPayloadFields").getAsBoolean());
+            }
+            if (obj.has("payloadFields") && obj.get("payloadFields").isJsonObject()) {
+                PayloadFieldConfig payloadFields = context.deserialize(obj.get("payloadFields"), PayloadFieldConfig.class);
+                mapping.setPayloadFields(payloadFields);
+            }
             if (obj.has("brokerId") && !obj.get("brokerId").isJsonNull()) {
                 // Handle brokerId as either integer or floating point
                 JsonElement brokerIdElement = obj.get("brokerId");

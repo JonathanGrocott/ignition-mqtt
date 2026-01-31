@@ -593,9 +593,10 @@
 }
 
 .mapping-item {
-    display: flex;
-    justify-content: space-between;
+    display: grid;
+    grid-template-columns: 1fr auto;
     align-items: center;
+    gap: 10px;
     padding: 12px 15px;
     border-bottom: 1px solid #dee2e6;
     background: white;
@@ -638,6 +639,23 @@
     display: flex;
     align-items: center;
     gap: 10px;
+}
+
+.mapping-payload {
+    grid-column: 1 / -1;
+    margin-top: 8px;
+    padding-top: 10px;
+    border-top: 1px dashed #e0e0e0;
+}
+
+.mapping-payload-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 8px;
+    font-size: 13px;
+    font-weight: 600;
+    color: #333;
 }
 
 .toggle-switch {

@@ -96,7 +96,7 @@ public class TagSubscriptionManager {
         monitoredTags.addAll(tags);
         logger.info("Discovered {} tags to monitor", monitoredTags.size());
 
-        loadTagProperties(tags, config.getPayloadFieldsOrDefault());
+        loadTagProperties(tags, buildCombinedPayloadFields(config));
         
         // Subscribe to tag changes
         subscribeToTags();
@@ -335,6 +335,31 @@ public class TagSubscriptionManager {
             return Collections.emptyMap();
         }
     }
+
+    private com.inductiveautomation.ignition.examples.mqtt.common.model.PayloadFieldConfig buildCombinedPayloadFields(
+        TagPublishConfig config
+    ) {
+        com.inductiveautomation.ignition.examples.mqtt.common.model.PayloadFieldConfig combined =
+            config.getPayloadFieldsOrDefault().copy();
+        if (config.getTopicMappings() == null) {
+            return combined;
+        }
+        for (com.inductiveautomation.ignition.examples.mqtt.common.model.TopicMapping mapping : config.getTopicMappings()) {
+            if (mapping == null || mapping.isUseDefaultPayloadFields()) {
+                continue;
+            }
+            com.inductiveautomation.ignition.examples.mqtt.common.model.PayloadFieldConfig fields = mapping.getPayloadFields();
+            if (fields == null || fields.getProperties() == null) {
+                continue;
+            }
+            for (Map.Entry<String, Boolean> entry : fields.getProperties().entrySet()) {
+                if (Boolean.TRUE.equals(entry.getValue())) {
+                    combined.getProperties().put(entry.getKey(), true);
+                }
+            }
+        }
+        return combined;
+    }
     
     /**
      * Determines if a tag value should be published
@@ -431,7 +456,9 @@ public class TagSubscriptionManager {
             
             // Build payload
             Map<String, Object> properties = tagPropertyCache.get(tagPath);
-            String payload = payloadBuilder.buildPayload(tagPath, value, config.getPayloadFieldsOrDefault(), properties);
+            com.inductiveautomation.ignition.examples.mqtt.common.model.PayloadFieldConfig payloadFields =
+                config.getPayloadFieldsForMapping(matchedMapping);
+            String payload = payloadBuilder.buildPayload(tagPath, value, payloadFields, properties);
             
             logger.info("Publishing to broker {}: topic={}, payload={}", brokerId, topic, payload);
             
