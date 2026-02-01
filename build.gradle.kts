@@ -1,5 +1,5 @@
 group = "com.inductiveautomation.ignition.examples"
-version = "1.0.6"
+version = "1.0.7"
 
 allprojects {
     version = rootProject.version
