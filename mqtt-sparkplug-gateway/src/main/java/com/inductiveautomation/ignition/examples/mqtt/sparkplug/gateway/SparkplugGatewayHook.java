@@ -162,7 +162,7 @@ public class SparkplugGatewayHook extends AbstractGatewayModuleHook {
                 .addCategory("mqtt-sparkplug-publisher", cat -> cat
                     .label("MQTT SparkplugB Publisher")
                     .position(110)
-                    .addPage("Configuration", page -> page
+                    .addPage("mqtt-sparkplug-config", page -> page
                         .position(10)
                         .mount("/mqtt-sparkplug-publisher", "Configuration", jsModule)
                     )
