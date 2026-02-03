@@ -6,6 +6,8 @@ import com.inductiveautomation.ignition.common.model.values.QualifiedValue;
 import com.inductiveautomation.ignition.common.model.values.QualityCode;
 import com.inductiveautomation.ignition.common.tags.browsing.NodeDescription;
 import com.inductiveautomation.ignition.common.tags.config.TagConfigurationModel;
+import com.inductiveautomation.ignition.common.tags.config.types.TagObjectType;
+import com.inductiveautomation.ignition.common.tags.config.properties.WellKnownTagProps;
 import com.inductiveautomation.ignition.common.tags.model.TagPath;
 import com.inductiveautomation.ignition.common.tags.model.TagProvider;
 import com.inductiveautomation.ignition.common.tags.model.event.TagChangeEvent;
@@ -248,19 +250,45 @@ public class TagSubscriptionManager {
                 browsePath,
                 BrowseFilter.NONE
             ).get(10, TimeUnit.SECONDS);
-            
-            for (NodeDescription node : results.getResults()) {
+
+            Collection<NodeDescription> nodes = results != null ? results.getResults() : null;
+            if (nodes == null) {
+                logger.warn(
+                    "Browse returned no results for {}/{} - attempting config fallback",
+                    providerName,
+                    path
+                );
+                return browseTagsFromConfig(providerName, browsePath);
+            }
+
+            for (NodeDescription node : nodes) {
                 TagPath nodePath = node.getFullPath();
-                
-                if (node.hasChildren()) {
-                    // This is a folder, browse recursively
+                if (nodePath == null) {
+                    logger.warn(
+                        "Browse returned node with null path under {}/{} (name: {})",
+                        providerName,
+                        path,
+                        node.getName()
+                    );
+                    continue;
+                }
+
+                TagObjectType objectType = node.getObjectType();
+                boolean isUdtInstance = objectType == TagObjectType.UdtInstance;
+                boolean shouldBrowseChildren = node.hasChildren() || isUdtInstance;
+
+                if (shouldBrowseChildren) {
+                    // Browse into folders and UDT instances to discover member tags
                     List<TagPath> childTags = browseTagsRecursive(
-                        providerName, 
+                        providerName,
                         nodePath.toStringPartial()
                     );
                     tags.addAll(childTags);
-                } else {
-                    // This is a leaf tag, add it
+                    continue;
+                }
+
+                // Only include leaf nodes that represent actual tags
+                if (objectType == null || objectType == TagObjectType.AtomicTag || objectType == TagObjectType.Node) {
                     tags.add(nodePath);
                 }
             }
@@ -275,6 +303,36 @@ public class TagSubscriptionManager {
                         providerName, path, e.getMessage());
         }
         
+        return tags;
+    }
+
+    private List<TagPath> browseTagsFromConfig(String providerName, TagPath browsePath) {
+        List<TagPath> tags = new ArrayList<>();
+        TagProvider provider = gatewayContext.getTagManager().getTagProvider(providerName);
+        if (provider == null) {
+            logger.warn("Tag provider not found for config fallback: {}", providerName);
+            return tags;
+        }
+        try {
+            CompletableFuture<List<TagConfigurationModel>> future =
+                provider.getTagConfigsAsync(Collections.singletonList(browsePath), true, false);
+            List<TagConfigurationModel> configs = future.get(10, TimeUnit.SECONDS);
+            if (configs == null) {
+                return tags;
+            }
+            for (TagConfigurationModel configModel : configs) {
+                Object tagType = configModel.getTagProperties().get(WellKnownTagProps.TagType);
+                if (tagType == TagObjectType.AtomicTag) {
+                    tags.add(configModel.getPath());
+                }
+            }
+        } catch (TimeoutException e) {
+            logger.warn("Timeout reading tag configs at {}/{}", providerName, browsePath.toStringPartial());
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        } catch (Exception e) {
+            logger.warn("Error reading tag configs at {}/{}: {}", providerName, browsePath.toStringPartial(), e.getMessage());
+        }
         return tags;
     }
 
@@ -300,7 +358,7 @@ public class TagSubscriptionManager {
                 continue;
             }
             try {
-                CompletableFuture<List<TagConfigurationModel>> future = provider.getTagConfigsAsync(providerTags, false, true);
+                CompletableFuture<List<TagConfigurationModel>> future = provider.getTagConfigsAsync(providerTags, false, false);
                 List<TagConfigurationModel> configs = future.get(10, TimeUnit.SECONDS);
                 for (TagConfigurationModel configModel : configs) {
                     TagPath tagPath = configModel.getPath();
@@ -313,6 +371,9 @@ public class TagSubscriptionManager {
                 logger.warn("Failed to load tag properties for provider {}: {}", providerName, e.getMessage());
             }
         }
+
+        // Fill in missing properties by reading tag property paths (captures inherited UDT defaults)
+        loadMissingPropertyValues(tags, fields);
     }
 
     private Map<String, Object> readTagProperties(TagConfigurationModel configModel, com.inductiveautomation.ignition.examples.mqtt.common.model.PayloadFieldConfig fields) {
@@ -325,16 +386,23 @@ public class TagSubscriptionManager {
                 return Collections.emptyMap();
             }
             Map<String, Object> result = new HashMap<>();
+            Set<String> requestedKeys = new HashSet<>();
             for (Map.Entry<String, Boolean> entry : fields.getProperties().entrySet()) {
                 if (!Boolean.TRUE.equals(entry.getValue())) {
                     continue;
                 }
+                requestedKeys.add(entry.getKey());
                 com.inductiveautomation.ignition.common.config.Property<?> prop = TagPropertyResolver.getPropertyMap().get(entry.getKey());
                 if (prop == null) {
                     continue;
                 }
-                Object propValue = configModel.getTagProperties().get(prop);
-                result.put(entry.getKey(), propValue);
+                Object propValue = getTagPropertyValue(configModel, prop, entry.getKey());
+                if (propValue == null) {
+                    propValue = resolveFallbackProperty(entry.getKey(), configModel);
+                }
+                if (propValue != null) {
+                    result.put(entry.getKey(), propValue);
+                }
             }
             return result;
         } catch (Exception e) {
@@ -368,6 +436,375 @@ public class TagSubscriptionManager {
         return combined;
     }
 
+    private Object resolveFallbackProperty(String key, TagConfigurationModel configModel) {
+        if (configModel == null || key == null) {
+            return null;
+        }
+        switch (key) {
+            case "name":
+                return deriveTagName(configModel.getPath());
+            case "tagGroup":
+                return configModel.getTagProperties().get(WellKnownTagProps.TagGroup);
+            case "dataType":
+                return readTagPropByName(configModel, "DataType");
+            default:
+                return readTagPropByKey(configModel, key);
+        }
+    }
+
+    private Object getTagPropertyValue(
+        TagConfigurationModel configModel,
+        com.inductiveautomation.ignition.common.config.Property<?> prop,
+        String key
+    ) {
+        if (configModel == null || prop == null) {
+            return null;
+        }
+        try {
+            Object value = readPropertyByName(configModel.getTagProperties(), prop, key);
+            if (value != null) {
+                return value;
+            }
+            com.inductiveautomation.ignition.common.config.BoundPropertySet inherited =
+                configModel.getInheritedConfiguration();
+            if (inherited != null) {
+                value = readPropertyByName(inherited, prop, key);
+                if (value != null) {
+                    return value;
+                }
+            }
+            com.inductiveautomation.ignition.common.tags.config.TagConfiguration local =
+                configModel.getLocalConfiguration();
+            if (local != null) {
+                com.inductiveautomation.ignition.common.config.BoundPropertySet localProps = local.getTagProperties();
+                if (localProps != null) {
+                    return readPropertyByName(localProps, prop, key);
+                }
+            }
+        } catch (Exception ignored) {
+        }
+        return null;
+    }
+
+    private Object readPropertyByName(
+        com.inductiveautomation.ignition.common.config.BoundPropertySet props,
+        com.inductiveautomation.ignition.common.config.Property<?> prop,
+        String key
+    ) {
+        if (props == null || prop == null) {
+            return null;
+        }
+        Object value = props.get(prop);
+        if (value != null) {
+            return resolveBoundValue(props, value);
+        }
+        String propName = prop.getName();
+        String keyName = key != null ? key : null;
+        String target = propName != null ? propName.toLowerCase() : null;
+        String keyTarget = keyName != null ? keyName.toLowerCase() : null;
+        for (com.inductiveautomation.ignition.common.config.Property<?> candidate : props.getProperties()) {
+            if (candidate == null) {
+                continue;
+            }
+            String candidateName = candidate.getName();
+            if (candidateName == null) {
+                continue;
+            }
+            String candidateLower = candidateName.toLowerCase();
+            if ((target != null && candidateLower.equals(target)) ||
+                (keyTarget != null && candidateLower.equals(keyTarget))) {
+                Object candidateValue = props.get(candidate);
+                if (candidateValue != null) {
+                    return resolveBoundValue(props, candidateValue);
+                }
+            }
+        }
+        return null;
+    }
+
+    private Object resolveBoundValue(
+        com.inductiveautomation.ignition.common.config.BoundPropertySet props,
+        Object value
+    ) {
+        if (!(value instanceof com.inductiveautomation.ignition.common.config.BoundValue)) {
+            return value;
+        }
+        com.inductiveautomation.ignition.common.config.BoundValue bound =
+            (com.inductiveautomation.ignition.common.config.BoundValue) value;
+        if (bound.getBindType() == null || !"parameter".equalsIgnoreCase(bound.getBindType())) {
+            return bound.toString();
+        }
+        String binding = bound.getBinding();
+        if (binding == null) {
+            return bound.toString();
+        }
+        com.inductiveautomation.ignition.common.config.BoundPropertySet parameters =
+            props.get(WellKnownTagProps.Parameters);
+        if (parameters == null) {
+            return bound.toString();
+        }
+        for (com.inductiveautomation.ignition.common.config.Property<?> paramProp : parameters.getProperties()) {
+            if (paramProp == null || paramProp.getName() == null) {
+                continue;
+            }
+            if (binding.equalsIgnoreCase(paramProp.getName())) {
+                Object paramValue = parameters.get(paramProp);
+                return paramValue != null ? paramValue : bound.toString();
+            }
+        }
+        return bound.toString();
+    }
+
+    private Object readTagPropByKey(TagConfigurationModel configModel, String key) {
+        String propName = mapKeyToTagPropName(key);
+        if (propName == null) {
+            return null;
+        }
+        return readTagPropByName(configModel, propName);
+    }
+
+    private String mapKeyToTagPropName(String key) {
+        if (key == null) {
+            return null;
+        }
+        switch (key) {
+            case "opcServer":
+                return "OPCServer";
+            case "opcItemPath":
+                return "OPCItemPath";
+            case "sourceTagPath":
+                return "SourceTagPath";
+            case "deadband":
+                return "Deadband";
+            case "deadbandMode":
+                return "DeadbandMode";
+            case "scaleMode":
+                return "ScaleMode";
+            case "rawLow":
+                return "RawLow";
+            case "rawHigh":
+                return "RawHigh";
+            case "scaledLow":
+                return "ScaledLow";
+            case "scaledHigh":
+                return "ScaledHigh";
+            case "clampMode":
+                return "ClampMode";
+            case "scaleFactor":
+                return "ScaleFactor";
+            case "engUnit":
+                return "EngUnit";
+            case "engLow":
+                return "EngLow";
+            case "engHigh":
+                return "EngHigh";
+            case "engLimitMode":
+                return "EngLimitMode";
+            case "formatString":
+                return "FormatString";
+            case "valueSource":
+                return "ValueSource";
+            case "executionMode":
+                return "ExecutionMode";
+            case "queryType":
+                return "QueryType";
+            case "datasource":
+                return "SQLBindingDatasource";
+            default:
+                return null;
+        }
+    }
+
+    private Object readTagPropByName(TagConfigurationModel configModel, String propName) {
+        if (configModel == null || propName == null) {
+            return null;
+        }
+        try {
+            java.lang.reflect.Field field = com.inductiveautomation.ignition.common.sqltags.model.TagProp.class.getField(propName);
+            Object prop = field.get(null);
+            if (prop instanceof com.inductiveautomation.ignition.common.config.Property<?>) {
+                return configModel.getTagProperties().get((com.inductiveautomation.ignition.common.config.Property<?>) prop);
+            }
+        } catch (Exception ignored) {
+        }
+        return null;
+    }
+
+    private void loadMissingPropertyValues(
+        List<TagPath> tags,
+        com.inductiveautomation.ignition.examples.mqtt.common.model.PayloadFieldConfig fields
+    ) {
+        if (tags == null || tags.isEmpty() || fields == null || fields.getProperties() == null) {
+            return;
+        }
+        Map<TagPath, Map<String, Object>> missingByTag = new HashMap<>();
+        for (TagPath tagPath : tags) {
+            if (tagPath == null) {
+                continue;
+            }
+            Map<String, Object> existing = tagPropertyCache.get(tagPath);
+            for (Map.Entry<String, Boolean> entry : fields.getProperties().entrySet()) {
+                if (!Boolean.TRUE.equals(entry.getValue())) {
+                    continue;
+                }
+                String key = entry.getKey();
+                if (key == null || key.isEmpty()) {
+                    continue;
+                }
+                if (existing != null && existing.containsKey(key)) {
+                    continue;
+                }
+                String propName = mapKeyToTagPropName(key);
+                if (propName == null) {
+                    continue;
+                }
+                missingByTag
+                    .computeIfAbsent(tagPath, ignored -> new HashMap<>())
+                    .put(key, propName);
+            }
+        }
+
+        if (missingByTag.isEmpty()) {
+            return;
+        }
+
+        List<TagPath> propertyPaths = new ArrayList<>();
+        List<PropertyLookup> lookups = new ArrayList<>();
+        for (Map.Entry<TagPath, Map<String, Object>> entry : missingByTag.entrySet()) {
+            TagPath basePath = entry.getKey();
+            String baseFull = basePath.toStringFull();
+            for (Map.Entry<String, Object> propEntry : entry.getValue().entrySet()) {
+                String key = propEntry.getKey();
+                String propName = (String) propEntry.getValue();
+                try {
+                    TagPath propertyPath = TagPathParser.parse(baseFull + "." + propName);
+                    propertyPaths.add(propertyPath);
+                    lookups.add(new PropertyLookup(basePath, key));
+                } catch (Exception e) {
+                    logger.debug("Failed to parse property path for {}.{}: {}", baseFull, propName, e.getMessage());
+                }
+            }
+        }
+
+        if (propertyPaths.isEmpty()) {
+            return;
+        }
+
+        try {
+            GatewayTagManager tagManager = gatewayContext.getTagManager();
+            List<QualifiedValue> values = tagManager.readAsync(propertyPaths).get(10, TimeUnit.SECONDS);
+            if (values == null) {
+                return;
+            }
+            for (int i = 0; i < values.size() && i < lookups.size(); i++) {
+                QualifiedValue value = values.get(i);
+                PropertyLookup lookup = lookups.get(i);
+                if (lookup == null || lookup.tagPath == null || lookup.key == null) {
+                    continue;
+                }
+                Object propValue = value != null ? value.getValue() : null;
+                if (propValue == null) {
+                    continue;
+                }
+                tagPropertyCache
+                    .computeIfAbsent(lookup.tagPath, ignored -> new HashMap<>())
+                    .putIfAbsent(lookup.key, propValue);
+            }
+        } catch (TimeoutException e) {
+            logger.warn("Timeout reading tag property paths for missing values");
+        } catch (Exception e) {
+            logger.warn("Failed to read tag property paths: {}", e.getMessage());
+        }
+    }
+
+    private static final class PropertyLookup {
+        private final TagPath tagPath;
+        private final String key;
+
+        private PropertyLookup(TagPath tagPath, String key) {
+            this.tagPath = tagPath;
+            this.key = key;
+        }
+    }
+
+    private Map<String, Object> applyPropertyFallbacks(
+        TagPath tagPath,
+        QualifiedValue value,
+        Map<String, Object> properties,
+        com.inductiveautomation.ignition.examples.mqtt.common.model.PayloadFieldConfig payloadFields
+    ) {
+        if (payloadFields == null || payloadFields.getProperties() == null || payloadFields.getProperties().isEmpty()) {
+            return properties;
+        }
+        Map<String, Object> enriched = properties != null ? new HashMap<>(properties) : new HashMap<>();
+        if (shouldIncludeProperty(payloadFields, "name") && !enriched.containsKey("name")) {
+            String name = deriveTagName(tagPath);
+            if (name != null) {
+                enriched.put("name", name);
+            }
+        }
+        if (shouldIncludeProperty(payloadFields, "dataType") && !enriched.containsKey("dataType")) {
+            String dataType = deriveDataTypeName(value != null ? value.getValue() : null);
+            if (dataType != null) {
+                enriched.put("dataType", dataType);
+            }
+        }
+        return enriched.isEmpty() ? properties : enriched;
+    }
+
+    private boolean shouldIncludeProperty(
+        com.inductiveautomation.ignition.examples.mqtt.common.model.PayloadFieldConfig payloadFields,
+        String key
+    ) {
+        if (payloadFields == null || payloadFields.getProperties() == null || key == null) {
+            return false;
+        }
+        return Boolean.TRUE.equals(payloadFields.getProperties().get(key));
+    }
+
+    private String deriveTagName(TagPath tagPath) {
+        if (tagPath == null) {
+            return null;
+        }
+        String partial = tagPath.toStringPartial();
+        if (partial == null || partial.isEmpty()) {
+            return tagPath.toStringFull();
+        }
+        int lastSlash = partial.lastIndexOf('/');
+        if (lastSlash >= 0 && lastSlash < partial.length() - 1) {
+            return partial.substring(lastSlash + 1);
+        }
+        return partial;
+    }
+
+    private String deriveDataTypeName(Object value) {
+        if (value == null) {
+            return null;
+        }
+        if (value instanceof Integer) {
+            return "Int4";
+        }
+        if (value instanceof Long) {
+            return "Int8";
+        }
+        if (value instanceof Float) {
+            return "Float4";
+        }
+        if (value instanceof Double) {
+            return "Float8";
+        }
+        if (value instanceof Boolean) {
+            return "Boolean";
+        }
+        if (value instanceof String) {
+            return "String";
+        }
+        if (value instanceof java.util.Date) {
+            return "DateTime";
+        }
+        return value.getClass().getSimpleName();
+    }
+
     private void enqueueBatchMetric(
         com.inductiveautomation.ignition.examples.mqtt.common.model.TopicMapping mapping,
         Long brokerId,
@@ -377,10 +814,11 @@ public class TagSubscriptionManager {
         Map<String, Object> properties,
         com.inductiveautomation.ignition.examples.mqtt.common.model.PayloadFieldConfig payloadFields
     ) {
+        Map<String, Object> enrichedProperties = applyPropertyFallbacks(tagPath, value, properties, payloadFields);
         int batchWindowMs = mapping.getBatchWindowMs();
         if (batchWindowMs <= 0) {
             List<JsonPayloadBuilder.MetricPayload> metrics = Collections.singletonList(
-                new JsonPayloadBuilder.MetricPayload(tagPath, value, properties)
+                new JsonPayloadBuilder.MetricPayload(tagPath, value, enrichedProperties)
             );
             String payload = payloadBuilder.buildBatchPayload(metrics, payloadFields);
             boolean published = multiBrokerManager.publish(brokerId, topic, payload);
@@ -395,7 +833,7 @@ public class TagSubscriptionManager {
 
         BatchAccumulator accumulator = getBatchAccumulator(mapping, brokerId, topic);
         accumulator.setPayloadFields(payloadFields);
-        int size = accumulator.addMetric(tagPath, value, properties);
+        int size = accumulator.addMetric(tagPath, value, enrichedProperties);
         int maxBatchSize = Math.max(1, mapping.getMaxBatchSize());
         if (size >= maxBatchSize) {
             accumulator.flush();
@@ -591,13 +1029,14 @@ public class TagSubscriptionManager {
             Map<String, Object> properties = tagPropertyCache.get(tagPath);
             com.inductiveautomation.ignition.examples.mqtt.common.model.PayloadFieldConfig payloadFields =
                 config.getPayloadFieldsForMapping(matchedMapping);
+            Map<String, Object> enrichedProperties = applyPropertyFallbacks(tagPath, value, properties, payloadFields);
 
             if (matchedMapping.getPublishMode() == com.inductiveautomation.ignition.examples.mqtt.common.model.TopicPublishMode.SINGLE_TOPIC) {
-                enqueueBatchMetric(matchedMapping, brokerId, topic, tagPath, value, properties, payloadFields);
+                enqueueBatchMetric(matchedMapping, brokerId, topic, tagPath, value, enrichedProperties, payloadFields);
                 return;
             }
 
-            String payload = payloadBuilder.buildPayload(tagPath, value, payloadFields, properties);
+            String payload = payloadBuilder.buildPayload(tagPath, value, payloadFields, enrichedProperties);
 
             logger.info("Publishing to broker {}: topic={}, payload={}", brokerId, topic, payload);
 

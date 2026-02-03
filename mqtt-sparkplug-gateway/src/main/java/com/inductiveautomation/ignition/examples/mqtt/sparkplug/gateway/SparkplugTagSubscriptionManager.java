@@ -6,7 +6,10 @@ import com.inductiveautomation.ignition.common.tags.browsing.NodeDescription;
 import com.inductiveautomation.ignition.common.browsing.Results;
 import com.inductiveautomation.ignition.common.tags.model.event.TagChangeEvent;
 import com.inductiveautomation.ignition.common.tags.model.event.TagChangeListener;
+import com.inductiveautomation.ignition.common.tags.config.TagConfigurationModel;
+import com.inductiveautomation.ignition.common.tags.config.types.TagObjectType;
 import com.inductiveautomation.ignition.common.tags.model.TagPath;
+import com.inductiveautomation.ignition.common.tags.model.TagProvider;
 import com.inductiveautomation.ignition.common.tags.paths.parser.TagPathParser;
 import com.inductiveautomation.ignition.examples.mqtt.common.model.MqttBrokerConfig;
 import com.inductiveautomation.ignition.examples.mqtt.common.sparkplug.SparkplugDeviceMapping;
@@ -21,6 +24,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.Date;
 import java.util.List;
@@ -370,11 +374,27 @@ public class SparkplugTagSubscriptionManager {
                 BrowseFilter.NONE
             ).get(10, TimeUnit.SECONDS);
 
-            for (NodeDescription node : results.getResults()) {
+            Collection<NodeDescription> nodes = results != null ? results.getResults() : null;
+            if (nodes == null) {
+                return browseTagsFromConfig(providerName, browsePath);
+            }
+
+            for (NodeDescription node : nodes) {
                 TagPath nodePath = node.getFullPath();
-                if (node.hasChildren()) {
+                if (nodePath == null) {
+                    logger.warn("Browse returned node with null path under {}/{} (name: {})", providerName, path, node.getName());
+                    continue;
+                }
+                TagObjectType objectType = node.getObjectType();
+                boolean isUdtInstance = objectType == TagObjectType.UdtInstance;
+                boolean shouldBrowseChildren = node.hasChildren() || isUdtInstance;
+
+                if (shouldBrowseChildren) {
                     tags.addAll(browseTagsRecursive(providerName, nodePath.toStringPartial()));
-                } else {
+                    continue;
+                }
+
+                if (objectType == null || objectType == TagObjectType.AtomicTag || objectType == TagObjectType.Node) {
                     tags.add(nodePath);
                 }
             }
@@ -386,6 +406,36 @@ public class SparkplugTagSubscriptionManager {
             logger.warn("Error browsing Sparkplug tags at {}/{}: {}", providerName, path, e.getMessage());
         }
 
+        return tags;
+    }
+
+    private List<TagPath> browseTagsFromConfig(String providerName, TagPath browsePath) {
+        List<TagPath> tags = new ArrayList<>();
+        TagProvider provider = gatewayContext.getTagManager().getTagProvider(providerName);
+        if (provider == null) {
+            logger.warn("Tag provider not found for Sparkplug config fallback: {}", providerName);
+            return tags;
+        }
+        try {
+            CompletableFuture<List<TagConfigurationModel>> future =
+                provider.getTagConfigsAsync(Collections.singletonList(browsePath), true, false);
+            List<TagConfigurationModel> configs = future.get(10, TimeUnit.SECONDS);
+            if (configs == null) {
+                return tags;
+            }
+            for (TagConfigurationModel configModel : configs) {
+                TagObjectType type = configModel.getType();
+                if (type == TagObjectType.AtomicTag) {
+                    tags.add(configModel.getPath());
+                }
+            }
+        } catch (TimeoutException e) {
+            logger.warn("Timeout reading Sparkplug tag configs at {}/{}", providerName, browsePath.toStringPartial());
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        } catch (Exception e) {
+            logger.warn("Error reading Sparkplug tag configs at {}/{}: {}", providerName, browsePath.toStringPartial(), e.getMessage());
+        }
         return tags;
     }
 

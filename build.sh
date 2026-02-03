@@ -1,12 +1,11 @@
 #!/bin/bash
 
 ###################################################################################
-# MQTT UNS Publisher Module - Complete Build Script
+# Ignition MQTT Modules - Build Script
 ###################################################################################
-# This script builds the complete module including:
-# 1. React/TypeScript frontend (web UI)
-# 2. Java backend (Gateway module)
-# 3. Packages everything into a .modl file
+# Builds one or both modules:
+# 1) MQTT UNS Publisher
+# 2) MQTT SparkplugB Publisher
 ###################################################################################
 
 set -e  # Exit on any error
@@ -20,154 +19,224 @@ NC='\033[0m' # No Color
 
 # Project paths
 PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-WEB_UI_DIR="$PROJECT_ROOT/mqtt-gateway/web-ui"
-MOUNTED_DIR="$PROJECT_ROOT/mqtt-gateway/src/main/resources/mounted"
+UNS_WEB_UI_DIR="$PROJECT_ROOT/mqtt-gateway/web-ui"
+UNS_MOUNTED_DIR="$PROJECT_ROOT/mqtt-gateway/src/main/resources/mounted"
 UNS_BUILD_DIR="$PROJECT_ROOT/mqtt-uns-module/build"
 
-echo -e "${BLUE}════════════════════════════════════════════════════════════════${NC}"
-echo -e "${BLUE}   MQTT UNS Publisher Module - Complete Build${NC}"
-echo -e "${BLUE}════════════════════════════════════════════════════════════════${NC}"
-echo ""
+SPARK_WEB_UI_DIR="$PROJECT_ROOT/mqtt-sparkplug-gateway/web-ui"
+SPARK_MOUNTED_DIR="$PROJECT_ROOT/mqtt-sparkplug-gateway/src/main/resources/mounted"
+SPARK_MODULE_MOUNTED_DIR="$PROJECT_ROOT/mqtt-sparkplug-module/src/main/resources/mounted"
+SPARK_BUILD_DIR="$PROJECT_ROOT/mqtt-sparkplug-module/build"
 
-###################################################################################
-# Step 1: Check Prerequisites
-###################################################################################
-echo -e "${YELLOW}[1/4] Checking prerequisites...${NC}"
+CLEAN_DONE=0
 
-# Set JAVA_HOME if not already set (macOS specific)
-if [ -z "$JAVA_HOME" ]; then
-    if [ -d "/opt/homebrew/opt/openjdk@17" ]; then
-        export JAVA_HOME=/opt/homebrew/opt/openjdk@17
-        echo -e "${BLUE}  → Setting JAVA_HOME to $JAVA_HOME${NC}"
-    elif [ -d "/usr/lib/jvm/java-11-openjdk" ]; then
-        export JAVA_HOME=/usr/lib/jvm/java-11-openjdk
-        echo -e "${BLUE}  → Setting JAVA_HOME to $JAVA_HOME${NC}"
+print_header() {
+    echo -e "${BLUE}════════════════════════════════════════════════════════════════${NC}"
+    echo -e "${BLUE}   Ignition MQTT Modules - Build${NC}"
+    echo -e "${BLUE}════════════════════════════════════════════════════════════════${NC}"
+    echo ""
+}
+
+set_java_home_if_needed() {
+    if [ -z "$JAVA_HOME" ]; then
+        if [ -d "/opt/homebrew/opt/openjdk@17" ]; then
+            export JAVA_HOME=/opt/homebrew/opt/openjdk@17
+            echo -e "${BLUE}  → Setting JAVA_HOME to $JAVA_HOME${NC}"
+        elif [ -d "/usr/lib/jvm/java-11-openjdk" ]; then
+            export JAVA_HOME=/usr/lib/jvm/java-11-openjdk
+            echo -e "${BLUE}  → Setting JAVA_HOME to $JAVA_HOME${NC}"
+        fi
     fi
-fi
+}
 
-# Check for Node.js
-if ! command -v node &> /dev/null; then
-    echo -e "${RED}✗ Node.js is not installed. Please install Node.js 16+ and try again.${NC}"
-    exit 1
-fi
-NODE_VERSION=$(node --version)
-echo -e "${GREEN}✓ Node.js found: $NODE_VERSION${NC}"
+check_prereqs() {
+    echo -e "${YELLOW}Checking prerequisites...${NC}"
+    set_java_home_if_needed
 
-# Check for npm
-if ! command -v npm &> /dev/null; then
-    echo -e "${RED}✗ npm is not installed. Please install npm and try again.${NC}"
-    exit 1
-fi
-NPM_VERSION=$(npm --version)
-echo -e "${GREEN}✓ npm found: $NPM_VERSION${NC}"
+    if ! command -v node &> /dev/null; then
+        echo -e "${RED}✗ Node.js is not installed. Please install Node.js 16+ and try again.${NC}"
+        exit 1
+    fi
+    echo -e "${GREEN}✓ Node.js found: $(node --version)${NC}"
 
-# Check for Java
-if ! command -v java &> /dev/null; then
-    echo -e "${RED}✗ Java is not installed. Please install Java 11+ and try again.${NC}"
-    exit 1
-fi
-JAVA_VERSION=$(java -version 2>&1 | head -n 1)
-echo -e "${GREEN}✓ Java found: $JAVA_VERSION${NC}"
+    if ! command -v npm &> /dev/null; then
+        echo -e "${RED}✗ npm is not installed. Please install npm and try again.${NC}"
+        exit 1
+    fi
+    echo -e "${GREEN}✓ npm found: $(npm --version)${NC}"
 
-# Check for Gradle wrapper
-if [ ! -f "$PROJECT_ROOT/gradlew" ]; then
-    echo -e "${RED}✗ Gradle wrapper not found. Please ensure gradlew exists in project root.${NC}"
-    exit 1
-fi
-echo -e "${GREEN}✓ Gradle wrapper found${NC}"
+    if ! command -v java &> /dev/null; then
+        echo -e "${RED}✗ Java is not installed. Please install Java 11+ and try again.${NC}"
+        exit 1
+    fi
+    echo -e "${GREEN}✓ Java found: $(java -version 2>&1 | head -n 1)${NC}"
 
-echo ""
+    if [ ! -f "$PROJECT_ROOT/gradlew" ]; then
+        echo -e "${RED}✗ Gradle wrapper not found. Please ensure gradlew exists in project root.${NC}"
+        exit 1
+    fi
+    echo -e "${GREEN}✓ Gradle wrapper found${NC}"
+    echo ""
+}
 
-###################################################################################
-# Step 2: Build Frontend (React/TypeScript)
-###################################################################################
-echo -e "${YELLOW}[2/4] Building frontend (React/TypeScript)...${NC}"
+ensure_gradle_clean() {
+    if [ "$CLEAN_DONE" -eq 0 ]; then
+        echo -e "${BLUE}  → Cleaning previous builds...${NC}"
+        (cd "$PROJECT_ROOT" && ./gradlew clean --quiet)
+        CLEAN_DONE=1
+    fi
+}
 
-cd "$WEB_UI_DIR"
+build_uns_ui() {
+    echo -e "${YELLOW}[UNS] Building frontend (React/TypeScript)...${NC}"
+    cd "$UNS_WEB_UI_DIR"
+    if [ ! -d "node_modules" ]; then
+        echo -e "${BLUE}  → Installing npm dependencies...${NC}"
+        npm install
+    else
+        echo -e "${BLUE}  → npm dependencies already installed${NC}"
+    fi
+    echo -e "${BLUE}  → Building React application with webpack...${NC}"
+    npm run build
+    if [ ! -f "$UNS_MOUNTED_DIR/mqtt-config.js" ]; then
+        echo -e "${RED}✗ Frontend build failed: mqtt-config.js not found${NC}"
+        exit 1
+    fi
+    echo -e "${GREEN}✓ Frontend built successfully: mqtt-config.js ($(du -h "$UNS_MOUNTED_DIR/mqtt-config.js" | cut -f1))${NC}"
+    echo ""
+}
 
-# Check if node_modules exists, install if needed
-if [ ! -d "node_modules" ]; then
-    echo -e "${BLUE}  → Installing npm dependencies...${NC}"
-    npm install
-else
-    echo -e "${BLUE}  → npm dependencies already installed${NC}"
-fi
+build_sparkplug_ui() {
+    echo -e "${YELLOW}[Sparkplug] Building frontend (React/TypeScript)...${NC}"
+    cd "$SPARK_WEB_UI_DIR"
+    if [ ! -d "node_modules" ]; then
+        echo -e "${BLUE}  → Installing npm dependencies...${NC}"
+        npm install
+    else
+        echo -e "${BLUE}  → npm dependencies already installed${NC}"
+    fi
+    echo -e "${BLUE}  → Building React application with webpack...${NC}"
+    npm run build
+    if [ ! -f "$SPARK_MOUNTED_DIR/sparkplug-config.js" ]; then
+        echo -e "${RED}✗ Frontend build failed: sparkplug-config.js not found${NC}"
+        exit 1
+    fi
+    mkdir -p "$SPARK_MODULE_MOUNTED_DIR"
+    cp "$SPARK_MOUNTED_DIR/sparkplug-config.js" "$SPARK_MODULE_MOUNTED_DIR/sparkplug-config.js"
+    if [ -f "$SPARK_MOUNTED_DIR/sparkplug-config.js.map" ]; then
+        cp "$SPARK_MOUNTED_DIR/sparkplug-config.js.map" "$SPARK_MODULE_MOUNTED_DIR/sparkplug-config.js.map"
+    fi
+    echo -e "${GREEN}✓ Frontend built successfully: sparkplug-config.js ($(du -h "$SPARK_MOUNTED_DIR/sparkplug-config.js" | cut -f1))${NC}"
+    echo ""
+}
 
-# Build React application
-echo -e "${BLUE}  → Building React application with webpack...${NC}"
-npm run build
+build_uns_backend() {
+    echo -e "${YELLOW}[UNS] Building backend (Java/Gradle)...${NC}"
+    ensure_gradle_clean
+    (cd "$PROJECT_ROOT" && ./gradlew :mqtt-uns-module:build)
+    echo -e "${GREEN}✓ Backend built successfully${NC}"
+    echo ""
+}
 
-# Verify output file exists
-if [ ! -f "$MOUNTED_DIR/mqtt-config.js" ]; then
-    echo -e "${RED}✗ Frontend build failed: mqtt-config.js not found${NC}"
-    exit 1
-fi
+build_sparkplug_backend() {
+    echo -e "${YELLOW}[Sparkplug] Building backend (Java/Gradle)...${NC}"
+    ensure_gradle_clean
+    (cd "$PROJECT_ROOT" && ./gradlew :mqtt-sparkplug-module:build)
+    echo -e "${GREEN}✓ Backend built successfully${NC}"
+    echo ""
+}
 
-FILE_SIZE=$(du -h "$MOUNTED_DIR/mqtt-config.js" | cut -f1)
-echo -e "${GREEN}✓ Frontend built successfully: mqtt-config.js ($FILE_SIZE)${NC}"
-echo ""
+show_uns_artifact() {
+    local modl_file
+    modl_file=$(find "$UNS_BUILD_DIR" -name "*.modl" -type f | head -n 1)
+    if [ -z "$modl_file" ]; then
+        echo -e "${RED}✗ Could not find UNS .modl file in build directory${NC}"
+        exit 1
+    fi
+    echo -e "${GREEN}✓ UNS module file created: $(basename "$modl_file") ($(du -h "$modl_file" | cut -f1))${NC}"
+    echo -e "  $modl_file"
+    echo ""
+}
 
-###################################################################################
-# Step 3: Build Backend (Java/Gradle)
-###################################################################################
-echo -e "${YELLOW}[3/4] Building backend (Java/Gradle)...${NC}"
+show_sparkplug_artifact() {
+    local modl_file
+    modl_file=$(find "$SPARK_BUILD_DIR" -name "*.modl" -type f | head -n 1)
+    if [ -z "$modl_file" ]; then
+        echo -e "${RED}✗ Could not find Sparkplug .modl file in build directory${NC}"
+        exit 1
+    fi
+    echo -e "${GREEN}✓ Sparkplug module file created: $(basename "$modl_file") ($(du -h "$modl_file" | cut -f1))${NC}"
+    echo -e "  $modl_file"
+    echo ""
+}
 
-cd "$PROJECT_ROOT"
+build_uns() {
+    build_uns_ui
+    build_uns_backend
+    show_uns_artifact
+}
 
-# Clean previous builds
-echo -e "${BLUE}  → Cleaning previous builds...${NC}"
-./gradlew clean --quiet
+build_sparkplug() {
+    build_sparkplug_ui
+    build_sparkplug_backend
+    show_sparkplug_artifact
+}
 
-# Build the module
-echo -e "${BLUE}  → Compiling Java code and packaging module...${NC}"
-./gradlew :mqtt-uns-module:build
+prompt_selection() {
+    local choice
+    local input="/dev/stdin"
+    if [ -r /dev/tty ]; then
+        input="/dev/tty"
+    elif [ ! -t 0 ]; then
+        echo -e "${YELLOW}No interactive terminal detected; defaulting to 'both'.${NC}" >&2
+        echo "both"
+        return
+    fi
 
-# Check if build succeeded
-if [ $? -ne 0 ]; then
-    echo -e "${RED}✗ Gradle build failed${NC}"
-    exit 1
-fi
+    while true; do
+        echo "Select build target:" >&2
+        echo "  1) Build UNS Module" >&2
+        echo "  2) Build Sparkplug Module" >&2
+        echo "  3) Build Both" >&2
+        printf "Enter choice (1-3) [default 3]: " >&2
+        read -r choice < "$input" || choice=""
+        case "$choice" in
+            1) echo "uns"; return ;;
+            2) echo "sparkplug"; return ;;
+            3) echo "both"; return ;;
+            "") echo "both"; return ;;
+            *) echo -e "${RED}Invalid selection. Please choose 1-3.${NC}" >&2 ;;
+        esac
+    done
+}
 
-echo -e "${GREEN}✓ Backend built successfully${NC}"
-echo ""
+main() {
+    print_header
+    check_prereqs
 
-###################################################################################
-# Step 4: Locate and Display Output
-###################################################################################
-echo -e "${YELLOW}[4/4] Locating build artifacts...${NC}"
+    local target="$1"
+    if [ -z "$target" ]; then
+        target=$(prompt_selection)
+    fi
 
-# Find the .modl file
-MODL_FILE=$(find "$UNS_BUILD_DIR" -name "*.modl" -type f | head -n 1)
+    case "$target" in
+        uns)
+            build_uns
+            ;;
+        sparkplug)
+            build_sparkplug
+            ;;
+        both)
+            build_uns
+            build_sparkplug
+            ;;
+        *)
+            echo -e "${RED}Invalid selection. Please run again and choose 1-3.${NC}"
+            exit 1
+            ;;
+    esac
 
-if [ -z "$MODL_FILE" ]; then
-    echo -e "${RED}✗ Could not find .modl file in build directory${NC}"
-    exit 1
-fi
+    echo -e "${GREEN}Build completed successfully.${NC}"
+}
 
-MODL_SIZE=$(du -h "$MODL_FILE" | cut -f1)
-MODL_NAME=$(basename "$MODL_FILE")
-
-echo -e "${GREEN}✓ Module file created: $MODL_NAME ($MODL_SIZE)${NC}"
-echo ""
-
-###################################################################################
-# Success Summary
-###################################################################################
-echo -e "${BLUE}════════════════════════════════════════════════════════════════${NC}"
-echo -e "${GREEN}   Build Completed Successfully! 🎉${NC}"
-echo -e "${BLUE}════════════════════════════════════════════════════════════════${NC}"
-echo ""
-echo -e "${BLUE}Module file location:${NC}"
-echo -e "  $MODL_FILE"
-echo ""
-echo -e "${BLUE}Next steps:${NC}"
-echo -e "  1. Navigate to your Ignition Gateway web interface"
-echo -e "  2. Go to Config → System → Modules"
-echo -e "  3. Click 'Install or Upgrade a Module'"
-echo -e "  4. Upload: $MODL_NAME"
-echo -e "  5. After installation, navigate to Config → MQTT UNS Publisher"
-echo ""
-echo -e "${BLUE}Web UI will be available at:${NC}"
-echo -e "  http://your-gateway:8088/web/config/mqtt-uns-publisher"
-echo ""
-echo -e "${GREEN}Happy publishing! 📡${NC}"
+main "$@"

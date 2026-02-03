@@ -25,19 +25,35 @@ An Ignition module that publishes tag data to an external MQTT broker in a Unifi
 
 ## Building
 
-Use the included build script:
+Use the unified build script:
 
 ```bash
 ./build.sh
 ```
 
+You will be prompted to choose:
+1. Build UNS Module
+2. Build Sparkplug Module
+3. Build Both
+
+Non-interactive usage:
+
+```bash
+./build.sh uns
+./build.sh sparkplug
+./build.sh both
+```
+
 Or use Gradle directly:
 
 ```bash
-./gradlew clean build
+./gradlew :mqtt-uns-module:build
+./gradlew :mqtt-sparkplug-module:build
 ```
 
-The compiled `.modl` file will be located at `build/MQTT-UNS-Publisher.unsigned.modl` (approximately 250KB).
+Built `.modl` files will be located at:
+- `mqtt-uns-module/build/`
+- `mqtt-sparkplug-module/build/`
 
 ## Installation
 
@@ -48,10 +64,10 @@ Download the latest `.modl` file from the [Releases page](https://github.com/Jon
 ### Or Build from Source
 
 ```bash
-./gradlew clean build
+./build.sh
 ```
 
-The compiled `.modl` file will be located at `build/MQTT-UNS-Publisher.unsigned.modl`.
+Follow the prompt to build the UNS module. The compiled `.modl` file will be located at `mqtt-uns-module/build/`.
 
 ### Install in Ignition
 1. Navigate to your Ignition Gateway web interface (typically `http://localhost:8088`)
@@ -187,11 +203,11 @@ For detailed setup instructions for various brokers, see the [MQTT documentation
 
 ## Development Status
 
-**Current Version**: 1.0.5 - Production Ready ✅
+**Current Version**: 1.0.9 - Production Ready ✅
 
 This module is production-ready with full multi-broker support and web UI configuration.
 
-### Recent Updates (v1.0.5)
+### Recent Updates (v1.0.9)
 - ✅ Fixed broker connection when saving tag configuration
 - ✅ Enhanced debug logging for troubleshooting
 - ✅ Improved broker lifecycle management
