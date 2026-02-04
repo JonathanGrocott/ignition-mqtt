@@ -231,7 +231,7 @@ public class MqttConfigRoute implements RouteHandler {
             // Save to database (this will trigger RecordListener)
             db.save(record);
             
-            logger.info("Saved broker configuration: {}", record.getBrokerUrl());
+            logger.debug("Saved broker configuration: {}", record.getBrokerUrl());
             
             Map<String, Object> response = successResponse(recordToMap(record));
             response.put("id", record.getId());
@@ -290,7 +290,7 @@ public class MqttConfigRoute implements RouteHandler {
             // Save to database (this will trigger RecordListener)
             db.save(record);
             
-            logger.info("Saved tag configuration: {}", record.getName());
+            logger.debug("Saved tag configuration: {}", record.getName());
             
             Map<String, Object> response = successResponse(recordToMap(record));
             response.put("id", record.getId());

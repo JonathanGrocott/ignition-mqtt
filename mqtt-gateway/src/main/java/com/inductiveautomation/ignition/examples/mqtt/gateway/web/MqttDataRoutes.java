@@ -43,12 +43,12 @@ public final class MqttDataRoutes {
      */
     public static void mountRoutes(RouteGroup routes, MqttGatewayHook moduleHook) {
         hook = moduleHook;
-        logger.info("Mounting REST API routes for MQTT UNS Publisher");
-        logger.info("RouteGroup instance: {}", routes.getClass().getName());
+        logger.debug("Mounting REST API routes for MQTT UNS Publisher");
+        logger.debug("RouteGroup instance: {}", routes.getClass().getName());
         
         // Configuration routes
         // GET with optional ?id param - gets all brokers or specific broker
-        logger.info("Mounting route: /config/broker (GET)");
+        logger.debug("Mounting route: /config/broker (GET)");
         routes.newRoute("/config/broker")
             .type(RouteGroup.TYPE_JSON)
             .handler(MqttDataRoutes::handleBrokerGetOrDelete)
@@ -57,7 +57,7 @@ public final class MqttDataRoutes {
             .mount();
         
         // POST to create/update broker
-        logger.info("Mounting route: /config/broker (POST)");
+        logger.debug("Mounting route: /config/broker (POST)");
         routes.newRoute("/config/broker")
             .type(RouteGroup.TYPE_JSON)
             .handler(MqttDataRoutes::handleBrokerPost)
@@ -66,16 +66,16 @@ public final class MqttDataRoutes {
             .mount();
         
         // DELETE with ?id param to delete broker
-        logger.info("Mounting route: /config/broker (DELETE)");
+        logger.debug("Mounting route: /config/broker (DELETE)");
         routes.newRoute("/config/broker")
             .type(RouteGroup.TYPE_JSON)
             .handler(MqttDataRoutes::handleBrokerGetOrDelete)
             .method(HttpMethod.DELETE)
             .accessControl(AccessControlStrategy.OPEN_ROUTE)
             .mount();
-        logger.info("Successfully mounted: /config/broker (GET/POST/DELETE)");
+        logger.debug("Successfully mounted: /config/broker (GET/POST/DELETE)");
         
-        logger.info("Mounting route: /config/tags (GET)");
+        logger.debug("Mounting route: /config/tags (GET)");
         routes.newRoute("/config/tags")
             .type(RouteGroup.TYPE_JSON)
             .handler(MqttDataRoutes::handleTagConfig)
@@ -83,16 +83,16 @@ public final class MqttDataRoutes {
             .accessControl(AccessControlStrategy.OPEN_ROUTE)
             .mount();
         
-        logger.info("Mounting route: /config/tags (POST)");
+        logger.debug("Mounting route: /config/tags (POST)");
         routes.newRoute("/config/tags")
             .type(RouteGroup.TYPE_JSON)
             .handler(MqttDataRoutes::handleTagConfig)
             .method(HttpMethod.POST)
             .accessControl(AccessControlStrategy.OPEN_ROUTE)
             .mount();
-        logger.info("Successfully mounted: /config/tags");
+        logger.debug("Successfully mounted: /config/tags");
         
-        logger.info("Mounting route: /status");
+        logger.debug("Mounting route: /status");
         MqttStatusRoute statusRoute = new MqttStatusRoute(hook);
         routes.newRoute("/status")
             .type(RouteGroup.TYPE_JSON)
@@ -100,25 +100,25 @@ public final class MqttDataRoutes {
             .method(HttpMethod.GET)
             .accessControl(AccessControlStrategy.OPEN_ROUTE)
             .mount();
-        logger.info("Successfully mounted: /status");
+        logger.debug("Successfully mounted: /status");
         
-        logger.info("Mounting route: /test-connection");
+        logger.debug("Mounting route: /test-connection");
         routes.newRoute("/test-connection")
             .type(RouteGroup.TYPE_JSON)
             .handler(MqttDataRoutes::handleTestConnection)
             .method(HttpMethod.POST)
             .accessControl(AccessControlStrategy.OPEN_ROUTE)
             .mount();
-        logger.info("Successfully mounted: /test-connection");
+        logger.debug("Successfully mounted: /test-connection");
         
-        logger.info("Mounted 4 REST API routes with open access");
+        logger.debug("Mounted 4 REST API routes with open access");
     }
     
     /**
      * Handle POST for broker configuration
      */
     private static Object handleBrokerPost(RequestContext req, HttpServletResponse res) {
-        logger.info("handleBrokerPost called! Method: {}, Path: {}", req.getMethod().name(), req.getPath());
+        logger.debug("handleBrokerPost called! Method: {}, Path: {}", req.getMethod().name(), req.getPath());
         
         try {
             res.setContentType("application/json");
@@ -136,27 +136,27 @@ public final class MqttDataRoutes {
      * DELETE with id = delete broker
      */
     private static Object handleBrokerGetOrDelete(RequestContext req, HttpServletResponse res) {
-        logger.info("=== handleBrokerGetOrDelete called ===");
-        logger.info("Method: {}", req.getMethod().name());
-        logger.info("Path: {}", req.getPath());
-        logger.info("Query String: {}", req.getRequest().getQueryString());
+        logger.debug("=== handleBrokerGetOrDelete called ===");
+        logger.debug("Method: {}", req.getMethod().name());
+        logger.debug("Path: {}", req.getPath());
+        logger.debug("Query String: {}", req.getRequest().getQueryString());
         
         try {
             res.setContentType("application/json");
             
             String idParam = req.getParameter("id");
-            logger.info("ID parameter: {}", idParam);
+            logger.debug("ID parameter: {}", idParam);
             
             if ("GET".equals(req.getMethod().name())) {
                 if (idParam != null && !idParam.isEmpty()) {
-                    logger.info("Processing GET request for specific broker with ID: {}", idParam);
+                    logger.debug("Processing GET request for specific broker with ID: {}", idParam);
                     return getBrokerById(req);
                 } else {
-                    logger.info("Processing GET request for all brokers");
+                    logger.debug("Processing GET request for all brokers");
                     return getAllBrokerConfigs(req);
                 }
             } else if ("DELETE".equals(req.getMethod().name())) {
-                logger.info("Processing DELETE request for broker");
+                logger.debug("Processing DELETE request for broker");
                 return deleteBroker(req);
             } else {
                 logger.warn("Unsupported method: {}", req.getMethod().name());
@@ -219,17 +219,17 @@ public final class MqttDataRoutes {
      * Handle POST for connection testing
      */
     private static Object handleTestConnection(RequestContext req, HttpServletResponse res) {
-        logger.info("handleTestConnection called! Method: {}, Path: {}", req.getMethod().name(), req.getPath());
+        logger.debug("handleTestConnection called! Method: {}, Path: {}", req.getMethod().name(), req.getPath());
         
         try {
             res.setContentType("application/json");
             
             String body = readRequestBody(req);
-            logger.info("Request body: {}", body);
+            logger.debug("Request body: {}", body);
             
             @SuppressWarnings("unchecked")
             Map<String, Object> data = gson.fromJson(body, Map.class);
-            logger.info("Parsed data: {}", data);
+            logger.debug("Parsed data: {}", data);
             
             // Create test config
             String brokerUrl = (String) data.get("brokerUrl");
@@ -240,7 +240,7 @@ public final class MqttDataRoutes {
                 return errorJson("Broker URL is required");
             }
             
-            logger.info("Testing connection to broker: {} with client ID: {}", brokerUrl, clientId);
+            logger.debug("Testing connection to broker: {} with client ID: {}", brokerUrl, clientId);
             
             // Create response matching ApiResponse<TestConnectionResult> format
             JsonObject response = new JsonObject();
@@ -253,7 +253,7 @@ public final class MqttDataRoutes {
             
             response.add("data", testResult);
             
-            logger.info("Test connection response: {}", response);
+            logger.debug("Test connection response: {}", response);
             return response;
         } catch (Exception e) {
             logger.error("Error handling test connection request", e);
@@ -312,7 +312,7 @@ public final class MqttDataRoutes {
         
         // Get ID from query parameter
         String idParam = req.getParameter("id");
-        logger.info("getBrokerById - ID parameter: {}", idParam);
+        logger.debug("getBrokerById - ID parameter: {}", idParam);
         
         if (idParam == null || idParam.isEmpty()) {
             return errorJson("Broker ID is required");
@@ -364,7 +364,7 @@ public final class MqttDataRoutes {
         
         // Get ID from query parameter
         String idParam = req.getParameter("id");
-        logger.info("deleteBroker - ID parameter: {}", idParam);
+        logger.debug("deleteBroker - ID parameter: {}", idParam);
         
         if (idParam == null || idParam.isEmpty()) {
             return errorJson("Broker ID is required");
@@ -421,17 +421,17 @@ public final class MqttDataRoutes {
         
         try {
             // Remove broker from MultiBrokerManager first (disconnect if connected)
-            logger.info("Removing broker from MultiBrokerManager: {} (ID: {})", brokerName, id);
+            logger.debug("Removing broker from MultiBrokerManager: {} (ID: {})", brokerName, id);
             hook.getMultiBrokerManager().removeBroker(id);
             
             // Delete the record
-            logger.info("Deleting broker record from database: {} (ID: {})", brokerName, id);
+            logger.debug("Deleting broker record from database: {} (ID: {})", brokerName, id);
             record.deleteRecord();
             
             // Force commit by calling save with the deleted record
             db.save(record);
             
-            logger.info("Successfully deleted broker: {} (ID: {})", brokerName, id);
+            logger.debug("Successfully deleted broker: {} (ID: {})", brokerName, id);
         } catch (Exception e) {
             logger.error("Error deleting broker: {} (ID: {})", brokerName, id, e);
             return errorJson("Failed to delete broker: " + e.getMessage());
@@ -467,13 +467,13 @@ public final class MqttDataRoutes {
             if (record == null) {
                 return errorJson("Broker not found with ID: " + id);
             }
-            logger.info("Updating existing broker with ID: {}", id);
+            logger.debug("Updating existing broker with ID: {}", id);
         } else {
             // CREATE new
             record = db.createNew(MqttBrokerConfigRecord.META);
             record.setName("New MQTT Broker");
             isNewRecord = true;
-            logger.info("Creating new broker configuration");
+            logger.debug("Creating new broker configuration");
         }
         
         // Update fields
@@ -497,7 +497,7 @@ public final class MqttDataRoutes {
         
         db.save(record);
         
-        logger.info("Saved broker configuration: {} (ID: {})", record.getName(), record.getId());
+        logger.debug("Saved broker configuration: {} (ID: {})", record.getName(), record.getId());
         
         // Note: In multi-broker architecture, we don't apply configuration here
         // The MultiBrokerManager will be responsible for managing connections
@@ -664,7 +664,7 @@ public final class MqttDataRoutes {
         
         db.save(record);
         
-        logger.info("Saved tag configuration: {}", record.getName());
+        logger.debug("Saved tag configuration: {}", record.getName());
         
         // Apply the new configuration immediately (connect brokers and start/restart tag subscriptions)
         if (hook != null) {
@@ -672,7 +672,7 @@ public final class MqttDataRoutes {
                 TagPublishConfig config = com.inductiveautomation.ignition.examples.mqtt.gateway.records.RecordMapper.toModel(record);
                 if (config != null && config.isEnabled()) {
                     config.validate();
-                    logger.info("Applying tag configuration: {} providers, {} folders, {} mappings", 
+                    logger.debug("Applying tag configuration: {} providers, {} folders, {} mappings", 
                         config.getTagProviders().size(),
                         config.getTagFolders().size(),
                         config.getTopicMappings() != null ? config.getTopicMappings().size() : 0);
@@ -683,19 +683,19 @@ public final class MqttDataRoutes {
                         for (com.inductiveautomation.ignition.examples.mqtt.common.model.TopicMapping mapping : config.getTopicMappings()) {
                             if (mapping.isEnabled() && mapping.getBrokerId() != null) {
                                 brokersNeeded.add(mapping.getBrokerId());
-                                logger.info("Topic mapping requires broker ID: {}", mapping.getBrokerId());
+                                logger.debug("Topic mapping requires broker ID: {}", mapping.getBrokerId());
                             }
                         }
                     }
                     
-                    logger.info("Tag config requires {} broker(s): {}", brokersNeeded.size(), brokersNeeded);
+                    logger.debug("Tag config requires {} broker(s): {}", brokersNeeded.size(), brokersNeeded);
                     
                     // Disconnect brokers that are no longer needed
                     java.util.Set<Long> currentBrokers = hook.getMultiBrokerManager().getActiveBrokerIds();
-                    logger.info("Currently active brokers: {}", currentBrokers);
+                    logger.debug("Currently active brokers: {}", currentBrokers);
                     for (Long brokerId : currentBrokers) {
                         if (!brokersNeeded.contains(brokerId)) {
-                            logger.info("Disconnecting broker {} (no longer needed)", brokerId);
+                            logger.debug("Disconnecting broker {} (no longer needed)", brokerId);
                             hook.getMultiBrokerManager().disconnectBroker(brokerId);
                         }
                     }
@@ -705,13 +705,13 @@ public final class MqttDataRoutes {
                         if (!hook.getMultiBrokerManager().isConnected(brokerId)) {
                             // Load broker config from database
                             try {
-                                logger.info("Loading broker config for ID {} from database...", brokerId);
+                                logger.debug("Loading broker config for ID {} from database...", brokerId);
                                 MqttBrokerConfigRecord brokerRecord = db.find(MqttBrokerConfigRecord.META, brokerId);
                                 
                                 if (brokerRecord != null && brokerRecord.isEnabled()) {
                                     MqttBrokerConfig brokerConfig = com.inductiveautomation.ignition.examples.mqtt.gateway.records.RecordMapper.toModel(brokerRecord);
                                     brokerConfig.validate();
-                                    logger.info("Connecting broker {} (ID: {}) for tag publishing", brokerConfig.getName(), brokerId);
+                                    logger.debug("Connecting broker {} (ID: {}) for tag publishing", brokerConfig.getName(), brokerId);
                                     hook.getMultiBrokerManager().connectBroker(brokerId, brokerConfig);
                                 } else {
                                     logger.warn("Broker {} not found or disabled, cannot connect", brokerId);
@@ -720,7 +720,7 @@ public final class MqttDataRoutes {
                                 logger.error("Error loading/connecting broker {}: {}", brokerId, e.getMessage(), e);
                             }
                         } else {
-                            logger.info("Broker {} already connected", brokerId);
+                            logger.debug("Broker {} already connected", brokerId);
                         }
                     }
                     
@@ -728,7 +728,7 @@ public final class MqttDataRoutes {
                     if (hook.getTagSubscriptionManager() != null) {
                         hook.getTagSubscriptionManager().shutdown();
                         hook.getTagSubscriptionManager().start(config);
-                        logger.info("Tag subscriptions started successfully");
+                        logger.debug("Tag subscriptions started successfully");
                     } else {
                         logger.warn("Tag subscription manager not available");
                     }
