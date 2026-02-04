@@ -442,7 +442,7 @@ public class MqttGatewayHook extends AbstractGatewayModuleHook {
                 .addCategory("mqtt-uns-publisher", cat -> cat
                     .label("MQTT UNS Publisher")
                     .position(100)
-                    .addPage("mqtt-uns-config", page -> page
+                    .addPage("Configuration", page -> page
                         .position(10)
                         .mount("/mqtt-uns-publisher", "Configuration", jsModule)
                     )
