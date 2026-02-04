@@ -75,7 +75,7 @@ public class TestConnectionRoute implements RouteHandler {
                 clientId = "ignition-test-" + System.currentTimeMillis();
             }
             
-            logger.info("Testing connection to MQTT broker: {}", brokerUrl);
+            logger.debug("Testing connection to MQTT broker: {}", brokerUrl);
             
             // Create test client
             testClient = new MqttClient(
@@ -113,7 +113,7 @@ public class TestConnectionRoute implements RouteHandler {
                 testClient.close();
             }
             
-            logger.info("Test connection successful to {} (took {}ms)", brokerUrl, connectionTime);
+            logger.debug("Test connection successful to {} (took {}ms)", brokerUrl, connectionTime);
             
             Map<String, Object> result = new HashMap<>();
             result.put("connected", connected);

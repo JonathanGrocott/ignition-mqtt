@@ -824,7 +824,6 @@ public class TagSubscriptionManager {
             boolean published = multiBrokerManager.publish(brokerId, topic, payload);
             if (published) {
                 statistics.incrementBatchPublished(1);
-                logger.info("Published batch payload (1 metric) to {} on broker {}", topic, brokerId);
             } else {
                 logger.warn("Failed to publish batch payload to broker {}", brokerId);
             }
@@ -922,7 +921,6 @@ public class TagSubscriptionManager {
                 boolean published = multiBrokerManager.publish(brokerId, topic, payload);
                 if (published) {
                     statistics.incrementBatchPublished(batch.size());
-                    logger.info("Published batch payload ({} metrics) to {} on broker {}", batch.size(), topic, brokerId);
                 } else {
                     logger.warn("Failed to publish batch payload to broker {}", brokerId);
                 }
@@ -1019,8 +1017,7 @@ public class TagSubscriptionManager {
                 return;
             }
             
-            logger.info("Matched tag {} to mapping: source={}, topicPrefix={}, brokerId={}", 
-                fullPath, matchedMapping.getSourcePattern(), matchedMapping.getTopicPrefix(), brokerId);
+            // Per-tag match logging is intentionally omitted to reduce gateway log volume.
             
             // Map tag to topic using the matched mapping (not searching again)
             String topic = topicMapper.mapTagToTopicWithMapping(tagPath, matchedMapping);
@@ -1038,15 +1035,10 @@ public class TagSubscriptionManager {
 
             String payload = payloadBuilder.buildPayload(tagPath, value, payloadFields, enrichedProperties);
 
-            logger.info("Publishing to broker {}: topic={}, payload={}", brokerId, topic, payload);
-
             // Publish to the SPECIFIC broker assigned to this mapping
             boolean published = multiBrokerManager.publish(brokerId, topic, payload);
 
-            if (published) {
-                logger.info("Published {}: {} to {} on broker {}", 
-                    tagPath, value.getValue(), topic, brokerId);
-            } else {
+            if (!published) {
                 logger.warn("Failed to publish {} to broker {}", tagPath, brokerId);
             }
             

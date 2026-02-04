@@ -148,7 +148,6 @@ public class MultiBrokerManager {
             return false;
         }
         
-        logger.info("Forwarding publish to broker {}: topic={}", brokerId, topic);
         return publisher.publish(topic, payload);
     }
     
