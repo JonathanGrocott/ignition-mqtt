@@ -1,6 +1,8 @@
-# MQTT UNS Publisher Module for Ignition 8.3
+# MQTT Modules for Ignition 8.3 (UNS + SparkplugB)
 
-An Ignition module that publishes tag data to an external MQTT broker in a Unified Namespace (UNS) structure with configurable JSON payloads.
+This project includes two Ignition gateway modules:
+- **MQTT UNS Publisher**: Publishes tag data to an MQTT broker using a Unified Namespace (UNS) structure with configurable JSON payloads.
+- **MQTT SparkplugB Publisher**: Publishes tag data to an MQTT broker using SparkplugB payloads.
 
 ## Features
 
@@ -57,7 +59,7 @@ Built `.modl` files will be located at:
 
 ## Installation
 
-### Download Pre-built Module
+### Download Pre-built Modules
 
 Download the latest `.modl` file from the [Releases page](https://github.com/JonathanGrocott/ignition-mqtt/releases).
 
@@ -67,7 +69,9 @@ Download the latest `.modl` file from the [Releases page](https://github.com/Jon
 ./build.sh
 ```
 
-Follow the prompt to build the UNS module. The compiled `.modl` file will be located at `mqtt-uns-module/build/`.
+Follow the prompt to build the desired module. The compiled `.modl` files will be located in:
+- `mqtt-uns-module/build/`
+- `mqtt-sparkplug-module/build/`
 
 ### Install in Ignition
 1. Navigate to your Ignition Gateway web interface (typically `http://localhost:8088`)
@@ -203,11 +207,11 @@ For detailed setup instructions for various brokers, see the [MQTT documentation
 
 ## Development Status
 
-**Current Version**: 1.0.9 - Production Ready ✅
+**Current Version**: 1.1.0 - Production Ready ✅
 
 This module is production-ready with full multi-broker support and web UI configuration.
 
-### Recent Updates (v1.0.9)
+### Recent Updates (v1.1.0)
 - ✅ Fixed broker connection when saving tag configuration
 - ✅ Enhanced debug logging for troubleshooting
 - ✅ Improved broker lifecycle management
