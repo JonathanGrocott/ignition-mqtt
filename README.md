@@ -228,14 +228,10 @@ This module is production-ready with full multi-broker support and web UI config
 
 ### Future Enhancements
 - [ ] TLS/SSL support for secure MQTT connections
-- [ ] Sparkplug B protocol support
-- [ ] Custom payload templates
-- [ ] Batch publishing for high-volume scenarios
 - [ ] Comprehensive unit and integration tests
 
 ### Known Limitations
 - TLS/SSL connections not yet supported (plaintext MQTT only)
-- Sparkplug B protocol not yet supported
 - Not compatible with Ignition Maker Edition (third-party modules not supported)
 
 ## Project Structure
