@@ -28,6 +28,9 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.Date;
 import java.util.List;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
@@ -37,6 +40,8 @@ public class SparkplugTagSubscriptionManager {
 
     private static final Logger logger = LoggerFactory.getLogger(SparkplugTagSubscriptionManager.class);
     private static final String NODE_KEY = "__node__";
+    private static final int BATCH_MAX_METRICS = 100;
+    private static final long BATCH_FLUSH_MS = 100;
 
     private final GatewayContext gatewayContext;
     private final SparkplugPublisherManager publisherManager;
@@ -45,6 +50,12 @@ public class SparkplugTagSubscriptionManager {
     private final SparkplugPayloadBuilder payloadBuilder = new SparkplugPayloadBuilder();
     private final SparkplugBdSeqManager bdSeqManager = new SparkplugBdSeqManager();
     private final SparkplugTagChangeListener tagChangeListener = new SparkplugTagChangeListener();
+    private final ScheduledExecutorService batchScheduler = Executors.newSingleThreadScheduledExecutor(r -> {
+        Thread t = new Thread(r, "sparkplug-batch-flush");
+        t.setDaemon(true);
+        return t;
+    });
+    private final java.util.Map<BatchKey, MetricBatchBuffer> batchBuffers = new java.util.concurrent.ConcurrentHashMap<>();
 
     private final List<TagPath> monitoredTags = new ArrayList<>();
     private final java.util.Map<TagPath, String> tagDeviceMap = new java.util.concurrent.ConcurrentHashMap<>();
@@ -130,6 +141,7 @@ public class SparkplugTagSubscriptionManager {
     }
 
     public void shutdown() {
+        flushAllBatches();
         for (EdgeKey edgeKey : sequenceMap.keySet()) {
             try {
                 SparkplugSequence sequence = sequenceMap.get(edgeKey);
@@ -170,6 +182,8 @@ public class SparkplugTagSubscriptionManager {
         deviceTagsMap.clear();
         sequenceMap.clear();
         bdSeqMap.clear();
+        batchBuffers.clear();
+        batchScheduler.shutdownNow();
     }
 
     private void subscribeToTags() {
@@ -462,22 +476,7 @@ public class SparkplugTagSubscriptionManager {
                 return;
             }
 
-            byte[] payload = payloadBuilder.buildPayload(sequence.next(), Collections.singletonList(metric));
-            if (deviceId == null || deviceId.isEmpty()) {
-                publisherManager.publish(
-                    SparkplugTopicBuilder.nodeData(edgeKey.groupId, edgeKey.edgeNodeId),
-                    payload,
-                    brokerConfig.getQos(),
-                    brokerConfig.isRetained()
-                );
-            } else {
-                publisherManager.publish(
-                    SparkplugTopicBuilder.deviceData(edgeKey.groupId, edgeKey.edgeNodeId, deviceId),
-                    payload,
-                    brokerConfig.getQos(),
-                    brokerConfig.isRetained()
-                );
-            }
+            enqueueMetric(edgeKey, deviceId, metric, sequence);
         }
 
         @Override
@@ -648,6 +647,59 @@ public class SparkplugTagSubscriptionManager {
         return new Date();
     }
 
+    private void enqueueMetric(EdgeKey edgeKey, String deviceId, Metric metric, SparkplugSequence sequence) {
+        String deviceKey = normalizeDeviceKey(deviceId);
+        BatchKey batchKey = new BatchKey(edgeKey, deviceKey);
+        MetricBatchBuffer buffer = batchBuffers.computeIfAbsent(batchKey, ignored -> new MetricBatchBuffer());
+        int size = buffer.addMetric(metric);
+
+        if (size >= BATCH_MAX_METRICS) {
+            flushBatch(batchKey, buffer, sequence);
+            return;
+        }
+
+        buffer.scheduleFlush(() -> flushBatch(batchKey, buffer, sequence));
+    }
+
+    private void flushBatch(BatchKey batchKey, MetricBatchBuffer buffer, SparkplugSequence sequence) {
+        List<Metric> batch = buffer.drain();
+        if (batch.isEmpty()) {
+            return;
+        }
+        publishBatch(batchKey, batch, sequence);
+        if (buffer.isIdle()) {
+            batchBuffers.remove(batchKey, buffer);
+        }
+    }
+
+    private void flushAllBatches() {
+        for (java.util.Map.Entry<BatchKey, MetricBatchBuffer> entry : batchBuffers.entrySet()) {
+            BatchKey key = entry.getKey();
+            MetricBatchBuffer buffer = entry.getValue();
+            SparkplugSequence sequence = sequenceMap.computeIfAbsent(key.edgeKey, ignored -> new SparkplugSequence());
+            flushBatch(key, buffer, sequence);
+        }
+    }
+
+    private void publishBatch(BatchKey batchKey, List<Metric> metrics, SparkplugSequence sequence) {
+        byte[] payload = payloadBuilder.buildPayload(sequence.next(), metrics);
+        if (NODE_KEY.equals(batchKey.deviceId)) {
+            publisherManager.publish(
+                SparkplugTopicBuilder.nodeData(batchKey.edgeKey.groupId, batchKey.edgeKey.edgeNodeId),
+                payload,
+                brokerConfig.getQos(),
+                brokerConfig.isRetained()
+            );
+        } else {
+            publisherManager.publish(
+                SparkplugTopicBuilder.deviceData(batchKey.edgeKey.groupId, batchKey.edgeKey.edgeNodeId, batchKey.deviceId),
+                payload,
+                brokerConfig.getQos(),
+                brokerConfig.isRetained()
+            );
+        }
+    }
+
     private void handleCommand(String topic, byte[] payload) {
         if (topic == null || payload == null) {
             return;
@@ -784,6 +836,73 @@ public class SparkplugTagSubscriptionManager {
             return NODE_KEY;
         }
         return deviceId;
+    }
+
+    private class MetricBatchBuffer {
+        private final Object lock = new Object();
+        private final List<Metric> metrics = new ArrayList<>();
+        private ScheduledFuture<?> flushTask;
+
+        int addMetric(Metric metric) {
+            synchronized (lock) {
+                metrics.add(metric);
+                return metrics.size();
+            }
+        }
+
+        void scheduleFlush(Runnable flushAction) {
+            synchronized (lock) {
+                if (flushTask != null && !flushTask.isDone()) {
+                    return;
+                }
+                flushTask = batchScheduler.schedule(flushAction, BATCH_FLUSH_MS, TimeUnit.MILLISECONDS);
+            }
+        }
+
+        List<Metric> drain() {
+            synchronized (lock) {
+                if (flushTask != null) {
+                    flushTask.cancel(false);
+                    flushTask = null;
+                }
+                if (metrics.isEmpty()) {
+                    return Collections.emptyList();
+                }
+                List<Metric> batch = new ArrayList<>(metrics);
+                metrics.clear();
+                return batch;
+            }
+        }
+
+        boolean isIdle() {
+            synchronized (lock) {
+                return metrics.isEmpty() && (flushTask == null || flushTask.isDone());
+            }
+        }
+    }
+
+    private static class BatchKey {
+        private final EdgeKey edgeKey;
+        private final String deviceId;
+
+        private BatchKey(EdgeKey edgeKey, String deviceId) {
+            this.edgeKey = edgeKey;
+            this.deviceId = deviceId;
+        }
+
+        @Override
+        public boolean equals(Object o) {
+            if (this == o) return true;
+            if (o == null || getClass() != o.getClass()) return false;
+            BatchKey batchKey = (BatchKey) o;
+            return java.util.Objects.equals(edgeKey, batchKey.edgeKey) &&
+                java.util.Objects.equals(deviceId, batchKey.deviceId);
+        }
+
+        @Override
+        public int hashCode() {
+            return java.util.Objects.hash(edgeKey, deviceId);
+        }
     }
 
     private static class EdgeKey {
