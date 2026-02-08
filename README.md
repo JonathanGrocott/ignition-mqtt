@@ -76,7 +76,6 @@ Follow the prompt to build the desired module. The compiled `.modl` files will b
 ### Install in Ignition
 1. Navigate to your Ignition Gateway web interface (typically `http://localhost:8088`)
 2. Go to **Config > Modules**
-2. Go to **Config > Modules**
 3. Scroll down and click **Install or Upgrade a Module**
 4. Select the `.modl` file
 5. Click **Install**
@@ -135,7 +134,7 @@ For backwards compatibility, JSON file configuration is still supported at:
     "retained": false,
     "cleanSession": true,
     "connectionTimeout": 30,
-    "keepAliveInterval": 60
+    "keepAlive": 60
   },
   "tags": {
     "enabled": true,
@@ -162,6 +161,10 @@ See `mqtt-uns-config-combined-example.json` in the repository for a complete con
 - `qos`: Quality of Service (0, 1, or 2)
 - `retained`: Whether messages should be retained by broker
 - `cleanSession`: Whether to use clean session
+- `connectionTimeout`: Connection timeout (seconds)
+- `keepAlive`: Keep-alive interval (seconds, legacy JSON config)
+
+**Web UI Note:** The REST API uses `keepAliveInterval` for the same value.
 
 **Tag Settings:**
 - `enabled`: Enable/disable tag publishing
@@ -207,9 +210,11 @@ For detailed setup instructions for various brokers, see the [MQTT documentation
 
 ## Development Status
 
-**Current Version**: 1.1.0 - Production Ready ✅
+**Current Version**: 1.1.0
 
-This module is production-ready with full multi-broker support and web UI configuration.
+### Status
+- **MQTT UNS Publisher**: Production-ready for MQTT 3.1.1 brokers (non‑TLS).
+- **MQTT SparkplugB Publisher**: Preview/experimental. Core publish path works, but spec compliance gaps remain.
 
 ### Recent Updates (v1.1.0)
 - ✅ Fixed broker connection when saving tag configuration
@@ -228,11 +233,16 @@ This module is production-ready with full multi-broker support and web UI config
 
 ### Future Enhancements
 - [ ] TLS/SSL support for secure MQTT connections
+- [ ] SparkplugB spec compliance improvements (state handling, metrics typing, command handling)
+- [ ] Custom payload templates
+- [ ] Batch publishing for high-volume scenarios
 - [ ] Comprehensive unit and integration tests
 
 ### Known Limitations
 - TLS/SSL connections not yet supported (plaintext MQTT only)
+- SparkplugB module is preview; some spec compliance gaps remain
 - Not compatible with Ignition Maker Edition (third-party modules not supported)
+- Known issue: switching from UNS config to Sparkplug config may require navigating to a different page first
 
 ## Project Structure
 
@@ -247,7 +257,7 @@ ignition-mqtt/
 │           ├── TagPublishConfig.java
 │           ├── TopicMapping.java
 │           └── MqttModuleConfig.java
-├── mqtt-gateway/                     # Gateway scope (main implementation)
+├── mqtt-gateway/                     # UNS gateway scope
 │   ├── src/main/java/.../gateway/
 │   │   ├── MqttGatewayHook.java         # Module entry point & lifecycle
 │   │   ├── MultiBrokerManager.java      # Multi-broker connection management
@@ -269,8 +279,8 @@ ignition-mqtt/
 │   │   ├── src/
 │   │   │   ├── components/
 │   │   │   │   ├── Configuration.tsx    # Main container
-│   │   │   │   ├── BrokerManagement.tsx # Broker config UI
-│   │   │   │   ├── TagConfiguration.tsx # Topic mapping UI
+│   │   │   │   ├── BrokerSettings.tsx   # Broker config UI
+│   │   │   │   ├── TagSelection.tsx     # Topic mapping UI
 │   │   │   │   └── StatusDashboard.tsx  # Real-time monitoring
 │   │   │   ├── api.ts                   # REST API client
 │   │   │   ├── index.tsx                # Entry point
@@ -280,6 +290,18 @@ ignition-mqtt/
 │   └── src/main/resources/
 │       └── mounted/                     # Webpack build output
 │           └── mqtt-config.js           # Bundled React app
+├── mqtt-sparkplug-gateway/            # SparkplugB gateway scope
+│   ├── src/main/java/.../sparkplug/
+│   │   ├── SparkplugPublisherManager.java
+│   │   ├── SparkplugTagSubscriptionManager.java
+│   │   └── web/                         # REST API
+│   ├── web-ui/                          # SparkplugB React UI
+│   │   └── src/components/Configuration.tsx
+│   └── src/main/resources/
+│       └── mounted/
+│           └── sparkplug-config.js
+├── mqtt-uns-module/                   # UNS module packaging
+├── mqtt-sparkplug-module/             # SparkplugB module packaging
 ├── .github/workflows/                # CI/CD
 │   ├── build.yml                     # Build on push
 │   └── release.yml                   # Create releases on tags
@@ -493,4 +515,4 @@ Feel free to use this as a template for your own Ignition modules!
 
 ## License
 
-Copyright © 2026. All rights reserved.
+MIT License. See `LICENSE`.

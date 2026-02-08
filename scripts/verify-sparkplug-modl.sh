@@ -1,7 +1,9 @@
 #!/bin/bash
 set -euo pipefail
 
-MODL_PATH="${1:-/Users/jg/Documents/github/ignition-mqtt/mqtt-sparkplug-module/build/MQTT-SparkplugB-Publisher.unsigned.modl}"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+MODL_PATH="${1:-$REPO_ROOT/mqtt-sparkplug-module/build/MQTT-SparkplugB-Publisher.unsigned.modl}"
 
 if [ ! -f "$MODL_PATH" ]; then
   echo "Missing modl: $MODL_PATH"

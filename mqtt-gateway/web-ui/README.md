@@ -58,7 +58,7 @@ The UI communicates with the following REST API endpoints:
 
 ### Broker Settings Tab
 - Configure MQTT broker connection (URL, client ID, credentials)
-- TLS/SSL encryption support
+- TLS/SSL toggle (backend support pending)
 - QoS, retained messages, clean session options
 - Connection timeout and keep-alive settings
 - Test connection before saving

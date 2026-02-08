@@ -42,8 +42,8 @@ set_java_home_if_needed() {
         if [ -d "/opt/homebrew/opt/openjdk@17" ]; then
             export JAVA_HOME=/opt/homebrew/opt/openjdk@17
             echo -e "${BLUE}  → Setting JAVA_HOME to $JAVA_HOME${NC}"
-        elif [ -d "/usr/lib/jvm/java-11-openjdk" ]; then
-            export JAVA_HOME=/usr/lib/jvm/java-11-openjdk
+        elif [ -d "/usr/lib/jvm/java-17-openjdk" ]; then
+            export JAVA_HOME=/usr/lib/jvm/java-17-openjdk
             echo -e "${BLUE}  → Setting JAVA_HOME to $JAVA_HOME${NC}"
         fi
     fi
@@ -66,7 +66,7 @@ check_prereqs() {
     echo -e "${GREEN}✓ npm found: $(npm --version)${NC}"
 
     if ! command -v java &> /dev/null; then
-        echo -e "${RED}✗ Java is not installed. Please install Java 11+ and try again.${NC}"
+        echo -e "${RED}✗ Java is not installed. Please install Java 17+ and try again.${NC}"
         exit 1
     fi
     echo -e "${GREEN}✓ Java found: $(java -version 2>&1 | head -n 1)${NC}"

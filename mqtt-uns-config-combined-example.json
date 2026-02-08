@@ -8,9 +8,7 @@
     "retained": false,
     "cleanSession": true,
     "connectionTimeout": 30,
-    "keepAliveInterval": 60,
-    "automaticReconnect": true,
-    "maxReconnectDelay": 30000
+    "keepAlive": 60
   },
   "tags": {
     "enabled": true,

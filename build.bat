@@ -46,7 +46,7 @@ echo [+] npm found: %NPM_VERSION%
 REM Check for Java
 where java >nul 2>nul
 if %errorlevel% neq 0 (
-    echo [X] Java is not installed. Please install Java 11+ and try again.
+    echo [X] Java is not installed. Please install Java 17+ and try again.
     exit /b 1
 )
 echo [+] Java found
