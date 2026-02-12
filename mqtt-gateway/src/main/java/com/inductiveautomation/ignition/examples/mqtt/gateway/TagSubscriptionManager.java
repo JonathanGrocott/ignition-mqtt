@@ -992,17 +992,8 @@ public class TagSubscriptionManager {
             String fullPath = tagPath.toStringFull();
             
             // Find matching enabled topic mapping with longest source pattern (most specific)
-            com.inductiveautomation.ignition.examples.mqtt.common.model.TopicMapping matchedMapping = null;
-            if (config.getTopicMappings() != null) {
-                matchedMapping = config.getTopicMappings().stream()
-                    .filter(com.inductiveautomation.ignition.examples.mqtt.common.model.TopicMapping::isEnabled)
-                    .filter(mapping -> mapping.matches(fullPath))
-                    .max((m1, m2) -> Integer.compare(
-                        m1.getSourcePattern().length(), 
-                        m2.getSourcePattern().length()
-                    ))
-                    .orElse(null);
-            }
+            com.inductiveautomation.ignition.examples.mqtt.common.model.TopicMapping matchedMapping =
+                topicMapper.findBestMapping(fullPath);
             
             // Only publish if tag matches an enabled mapping
             if (matchedMapping == null) {

@@ -4,7 +4,11 @@ import com.inductiveautomation.ignition.common.tags.model.TagPath;
 import com.inductiveautomation.ignition.examples.mqtt.common.model.TopicMapping;
 
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Comparator;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 /**
  * Maps Ignition tag paths to MQTT topics.
@@ -15,12 +19,15 @@ import java.util.List;
 public class MqttTopicMapper {
     
     private List<TopicMapping> topicMappings = new ArrayList<>();
+    private volatile List<TopicMapping> enabledMappingsSorted = new ArrayList<>();
+    private volatile Map<String, TopicMapping> enabledMappingsBySource = new HashMap<>();
     
     /**
      * Sets the topic mappings to use for custom tag-to-topic transformations
      */
     public void setTopicMappings(List<TopicMapping> mappings) {
-        this.topicMappings = mappings != null ? mappings : new ArrayList<>();
+        this.topicMappings = mappings != null ? new ArrayList<>(mappings) : new ArrayList<>();
+        rebuildIndex(this.topicMappings);
     }
     
     /**
@@ -28,6 +35,30 @@ public class MqttTopicMapper {
      */
     public List<TopicMapping> getTopicMappings() {
         return topicMappings;
+    }
+
+    /**
+     * Finds the best matching enabled mapping for a full tag path.
+     * Uses a prefix map for fast lookups and falls back to a sorted scan
+     * for edge cases where mappings don't align to path segment boundaries.
+     */
+    public TopicMapping findBestMapping(String fullPath) {
+        if (fullPath == null) {
+            return null;
+        }
+
+        TopicMapping directMatch = findByPrefix(fullPath);
+        if (directMatch != null) {
+            return directMatch;
+        }
+
+        for (TopicMapping mapping : enabledMappingsSorted) {
+            if (mapping.matches(fullPath)) {
+                return mapping;
+            }
+        }
+
+        return null;
     }
     
     /**
@@ -144,23 +175,69 @@ public class MqttTopicMapper {
         }
         
         String fullPath = tagPath.toStringFull();
-        
-        // Check if any topic mapping matches (sorted by source pattern length, longest first)
-        TopicMapping matchedMapping = topicMappings.stream()
-            .filter(TopicMapping::isEnabled)
-            .filter(mapping -> mapping.matches(fullPath))
-            .max((m1, m2) -> Integer.compare(
-                m1.getSourcePattern().length(), 
-                m2.getSourcePattern().length()
-            ))
-            .orElse(null);
-        
+
+        TopicMapping matchedMapping = findBestMapping(fullPath);
         if (matchedMapping != null) {
             return mapTagToTopicWithMapping(tagPath, matchedMapping);
         }
         
         // No mapping found, use default topic generation
         return mapTagToTopic(tagPath);
+    }
+
+    private void rebuildIndex(List<TopicMapping> mappings) {
+        List<TopicMapping> enabled = new ArrayList<>();
+        Map<String, TopicMapping> bySource = new HashMap<>();
+
+        if (mappings != null) {
+            for (TopicMapping mapping : mappings) {
+                if (mapping == null || !mapping.isEnabled()) {
+                    continue;
+                }
+                enabled.add(mapping);
+            }
+        }
+
+        enabled.sort(Comparator.comparingInt((TopicMapping mapping) -> {
+            String source = mapping.getSourcePattern();
+            return source != null ? source.length() : 0;
+        }).reversed());
+
+        for (TopicMapping mapping : enabled) {
+            String source = mapping.getSourcePattern();
+            if (source != null && !source.isEmpty()) {
+                bySource.putIfAbsent(source, mapping);
+            }
+        }
+
+        enabledMappingsSorted = Collections.unmodifiableList(enabled);
+        enabledMappingsBySource = Collections.unmodifiableMap(bySource);
+    }
+
+    private TopicMapping findByPrefix(String fullPath) {
+        Map<String, TopicMapping> bySource = enabledMappingsBySource;
+        String candidate = fullPath;
+
+        while (true) {
+            TopicMapping mapping = bySource.get(candidate);
+            if (mapping != null) {
+                return mapping;
+            }
+
+            int slash = candidate.lastIndexOf('/');
+            if (slash < 0) {
+                break;
+            }
+            candidate = candidate.substring(0, slash);
+        }
+
+        int providerEnd = fullPath.indexOf(']');
+        if (providerEnd > -1) {
+            String providerOnly = fullPath.substring(0, providerEnd + 1);
+            return bySource.get(providerOnly);
+        }
+
+        return null;
     }
     
     /**

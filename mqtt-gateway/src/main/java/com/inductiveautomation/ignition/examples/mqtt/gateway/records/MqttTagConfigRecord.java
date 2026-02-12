@@ -39,7 +39,8 @@ public class MqttTagConfigRecord extends PersistentRecord {
         .setDefault("[]");
     
     // Topic mappings (stored as JSON array: [{"sourcePattern":"[default]","topicPrefix":"enterprise/site1","enabled":true}])
-    public static final StringField TopicMappings = new StringField(META, "TopicMappings", 4000)
+    // Increase max length to support large mapping sets without validation errors.
+    public static final StringField TopicMappings = new StringField(META, "TopicMappings", 1_000_000)
         .setDefault("[]");
     
     // Topic overrides (stored as JSON object string: {"[default]Tag1": "custom/topic/path"})
