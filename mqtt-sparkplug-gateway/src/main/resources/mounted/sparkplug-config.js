@@ -1,13 +1,13 @@
 (function webpackUniversalModuleDefinition(root, factory) {
 	if(typeof exports === 'object' && typeof module === 'object')
-		module.exports = factory(require("/res/sys/js/react.js"), require("/res/sys/js/react-dom.js"));
+		module.exports = factory(require("/res/sys/js/react.js"));
 	else if(typeof define === 'function' && define.amd)
-		define("com.inductiveautomation.mqtt.sparkplugb.gateway", ["/res/sys/js/react.js", "/res/sys/js/react-dom.js"], factory);
+		define("com.inductiveautomation.mqtt.sparkplugb.gateway", ["/res/sys/js/react.js"], factory);
 	else if(typeof exports === 'object')
-		exports["com.inductiveautomation.mqtt.sparkplugb.gateway"] = factory(require("/res/sys/js/react.js"), require("/res/sys/js/react-dom.js"));
+		exports["com.inductiveautomation.mqtt.sparkplugb.gateway"] = factory(require("/res/sys/js/react.js"));
 	else
-		root["com.inductiveautomation.mqtt.sparkplugb.gateway"] = factory(root["/res/sys/js/react.js"], root["/res/sys/js/react-dom.js"]);
-})(this, (__WEBPACK_EXTERNAL_MODULE__704__, __WEBPACK_EXTERNAL_MODULE__739__) => {
+		root["com.inductiveautomation.mqtt.sparkplugb.gateway"] = factory(root["/res/sys/js/react.js"]);
+})(this, (__WEBPACK_EXTERNAL_MODULE__704__) => {
 return /******/ (() => { // webpackBootstrap
 /******/ 	"use strict";
 /******/ 	var __webpack_modules__ = ({
@@ -581,13 +581,6 @@ module.exports = __WEBPACK_EXTERNAL_MODULE__704__;
 
 /***/ },
 
-/***/ 739
-(module) {
-
-module.exports = __WEBPACK_EXTERNAL_MODULE__739__;
-
-/***/ },
-
 /***/ 825
 (module) {
 
@@ -724,12 +717,11 @@ __webpack_require__.d(__webpack_exports__, {
   "default": () => (/* binding */ src)
 });
 
+// UNUSED EXPORTS: Configuration
+
 // EXTERNAL MODULE: external "/res/sys/js/react.js"
 var react_js_ = __webpack_require__(704);
 var react_js_default = /*#__PURE__*/__webpack_require__.n(react_js_);
-// EXTERNAL MODULE: external "/res/sys/js/react-dom.js"
-var react_dom_js_ = __webpack_require__(739);
-var react_dom_js_default = /*#__PURE__*/__webpack_require__.n(react_dom_js_);
 ;// ./src/api.ts
 const BASE_URL = '/data/mqtt-sparkplug-publisher';
 async function getBrokerConfig() {
@@ -796,7 +788,10 @@ const BrokerSettings = () => {
     };
     const selectBroker = (broker) => {
         setSelectedBrokerId(broker.id || null);
-        setEditingBroker({ ...broker });
+        setEditingBroker({
+            ...broker,
+            slowReconnectIntervalSeconds: broker.slowReconnectIntervalSeconds ?? 600
+        });
         setMessage(null);
     };
     const handleAddNew = () => {
@@ -812,6 +807,7 @@ const BrokerSettings = () => {
             cleanSession: true,
             connectionTimeout: 30,
             keepAliveInterval: 60,
+            slowReconnectIntervalSeconds: 600,
             enabled: true
         };
         setEditingBroker(newBroker);
@@ -925,6 +921,10 @@ const BrokerSettings = () => {
                 react_js_default().createElement("div", { className: "form-group" },
                     react_js_default().createElement("label", null, "Connection Timeout (s)"),
                     react_js_default().createElement("input", { type: "number", name: "connectionTimeout", value: editingBroker.connectionTimeout, onChange: handleChange }))),
+            react_js_default().createElement("div", { className: "form-row" },
+                react_js_default().createElement("div", { className: "form-group" },
+                    react_js_default().createElement("label", null, "Slow Reconnect Interval (s)"),
+                    react_js_default().createElement("input", { type: "number", name: "slowReconnectIntervalSeconds", value: editingBroker.slowReconnectIntervalSeconds, onChange: handleChange, min: 30 }))),
             react_js_default().createElement("div", { className: "form-row" },
                 react_js_default().createElement("label", null,
                     react_js_default().createElement("input", { type: "checkbox", name: "enabled", checked: editingBroker.enabled, onChange: handleChange }),
@@ -1372,54 +1372,9 @@ class ErrorBoundary extends react_js_.Component {
 
 
 
-
-console.log('=== SPARKPLUG MODULE LOADING ===');
-console.log('[Sparkplug Module] index.tsx loaded');
-console.log('[Sparkplug Module] React available:', typeof (react_js_default()) !== 'undefined');
-console.log('[Sparkplug Module] ReactDOM available:', typeof (react_dom_js_default()) !== 'undefined');
-console.log('[Sparkplug Module] ConfigurationComponent type:', typeof components_Configuration);
-const ConfigurationWrapper = function (...args) {
-    console.log('[Sparkplug Module] Configuration wrapper called');
-    console.log('[Sparkplug Module] this:', this);
-    console.log('[Sparkplug Module] args:', args);
-    console.log('[Sparkplug Module] args.length:', args.length);
-    if (new.target) {
-        console.log('[Sparkplug Module] Called with new keyword (constructor)');
-        return react_js_default().createElement(components_ErrorBoundary, { children: react_js_default().createElement(components_Configuration) });
-    }
-    if (args.length === 0) {
-        console.log('[Sparkplug Module] Called with no args - returning React element');
-        return react_js_default().createElement(components_ErrorBoundary, { children: react_js_default().createElement(components_Configuration) });
-    }
-    if (args.length >= 1) {
-        console.log('[Sparkplug Module] Called with args - creating React element with props');
-        const props = args[0] && typeof args[0] === 'object' ? args[0] : {};
-        return react_js_default().createElement(components_ErrorBoundary, { children: react_js_default().createElement(components_Configuration, props) });
-    }
-    if (args[0] && args[0].nodeType) {
-        console.log('[Sparkplug Module] Called with DOM element - mounting component');
-        react_dom_js_default().render(react_js_default().createElement(components_ErrorBoundary, { children: react_js_default().createElement(components_Configuration) }), args[0]);
-        return;
-    }
-    console.log('[Sparkplug Module] Fallback - returning React element');
-    return react_js_default().createElement(components_ErrorBoundary, { children: react_js_default().createElement(components_Configuration) });
-};
-ConfigurationWrapper.displayName = 'Configuration';
-const moduleExports = {
-    Configuration: ConfigurationWrapper
-};
-console.log('[Sparkplug Module] Module exports:', moduleExports);
-console.log('=== SPARKPLUG MODULE EXPORT ===');
-if (typeof window !== 'undefined') {
-    setTimeout(() => {
-        const System = window.System;
-        if (System) {
-            const registered = System.get('com.inductiveautomation.mqtt.sparkplugb.gateway');
-            console.log('[Sparkplug Module] SystemJS registration check:', registered);
-        }
-    }, 500);
-}
-/* harmony default export */ const src = (moduleExports);
+const src_Configuration = () => (react_js_default().createElement(components_ErrorBoundary, null,
+    react_js_default().createElement(components_Configuration, null)));
+/* harmony default export */ const src = ({ Configuration: src_Configuration });
 
 __webpack_exports__ = __webpack_exports__["default"];
 /******/ 	return __webpack_exports__;

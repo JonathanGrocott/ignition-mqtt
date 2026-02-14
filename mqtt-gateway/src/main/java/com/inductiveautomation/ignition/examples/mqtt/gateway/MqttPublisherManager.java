@@ -34,6 +34,7 @@ public class MqttPublisherManager {
     private final AtomicReference<MqttBrokerConfig> config = new AtomicReference<>();
     private final AtomicReference<ConnectionState> connectionState = new AtomicReference<>(ConnectionState.DISCONNECTED);
     private final AtomicInteger reconnectAttempts = new AtomicInteger(0);
+    private volatile boolean slowReconnectMode = false;
     
     private volatile MqttClient mqttClient;
     private ScheduledExecutorService reconnectScheduler;
@@ -133,6 +134,7 @@ public class MqttPublisherManager {
             // Success!
             setConnectionState(ConnectionState.CONNECTED);
             reconnectAttempts.set(0);
+            slowReconnectMode = false;
             statistics.recordSuccessfulConnection();
             logger.info("Successfully connected to MQTT broker: {} (client ID: '{}')", 
                 cfg.getBrokerUrl(), cfg.getClientId());
@@ -180,29 +182,61 @@ public class MqttPublisherManager {
             logger.debug("Not scheduling reconnect - should not be connected");
             return;
         }
-        
-        int attempts = reconnectAttempts.incrementAndGet();
-        
-        if (attempts > MAX_RECONNECT_ATTEMPTS) {
-            logger.error("Exceeded maximum reconnection attempts ({}). Giving up.", MAX_RECONNECT_ATTEMPTS);
-            setConnectionState(ConnectionState.ERROR);
+
+        if (slowReconnectMode) {
+            long slowDelayMs = getSlowReconnectDelayMs();
+            logger.info("Scheduling slow reconnection attempt in {} ms", slowDelayMs);
+            reconnectScheduler.schedule(() -> {
+                if (shouldBeConnected) {
+                    logger.info("Attempting slow reconnection");
+                    doConnect();
+                }
+            }, slowDelayMs, TimeUnit.MILLISECONDS);
             return;
         }
-        
+
+        int attempts = reconnectAttempts.incrementAndGet();
+
+        if (attempts > MAX_RECONNECT_ATTEMPTS) {
+            slowReconnectMode = true;
+            long slowDelayMs = getSlowReconnectDelayMs();
+            logger.warn(
+                "Exceeded maximum reconnection attempts ({}). Switching to slow retry every {} ms.",
+                MAX_RECONNECT_ATTEMPTS,
+                slowDelayMs
+            );
+            reconnectScheduler.schedule(() -> {
+                if (shouldBeConnected) {
+                    logger.info("Attempting slow reconnection");
+                    doConnect();
+                }
+            }, slowDelayMs, TimeUnit.MILLISECONDS);
+            return;
+        }
+
         // Exponential backoff: 1s, 2s, 4s, 8s, 16s, up to MAX_RECONNECT_DELAY
         long delay = Math.min(
             MAX_RECONNECT_DELAY,
             INITIAL_RECONNECT_DELAY * (long) Math.pow(2, attempts - 1)
         );
-        
+
         logger.info("Scheduling reconnection attempt {} in {} ms", attempts, delay);
-        
+
         reconnectScheduler.schedule(() -> {
             if (shouldBeConnected) {
                 logger.info("Attempting reconnection (attempt {})", attempts);
                 doConnect();
             }
         }, delay, TimeUnit.MILLISECONDS);
+    }
+
+    private long getSlowReconnectDelayMs() {
+        MqttBrokerConfig cfg = config.get();
+        int intervalSeconds = cfg != null ? cfg.getSlowReconnectIntervalSeconds() : 0;
+        if (intervalSeconds <= 0) {
+            intervalSeconds = DEFAULT_SLOW_RECONNECT_INTERVAL_SECONDS;
+        }
+        return TimeUnit.SECONDS.toMillis(intervalSeconds);
     }
     
     /**
@@ -263,6 +297,7 @@ public class MqttPublisherManager {
     public synchronized void disconnect() {
         logger.info("Disconnecting from MQTT broker");
         shouldBeConnected = false;
+        slowReconnectMode = false;
         
         if (mqttClient != null && mqttClient.isConnected()) {
             try {

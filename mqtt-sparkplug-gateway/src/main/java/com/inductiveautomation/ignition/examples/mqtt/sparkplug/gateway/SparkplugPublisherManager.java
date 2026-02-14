@@ -22,6 +22,7 @@ public class SparkplugPublisherManager {
     private final AtomicReference<MqttBrokerConfig> config = new AtomicReference<>();
     private final AtomicReference<ConnectionState> connectionState = new AtomicReference<>(ConnectionState.DISCONNECTED);
     private final AtomicInteger reconnectAttempts = new AtomicInteger(0);
+    private volatile boolean slowReconnectMode = false;
 
     private volatile MqttClient mqttClient;
     private ScheduledExecutorService reconnectScheduler;
@@ -116,6 +117,7 @@ public class SparkplugPublisherManager {
             mqttClient.connect(options);
             setConnectionState(ConnectionState.CONNECTED);
             reconnectAttempts.set(0);
+            slowReconnectMode = false;
             logger.info("Connected to Sparkplug MQTT broker: {} (client ID: '{}')",
                 cfg.getBrokerUrl(), cfg.getClientId());
 
@@ -160,9 +162,25 @@ public class SparkplugPublisherManager {
             return;
         }
 
+        if (slowReconnectMode) {
+            long slowDelayMs = getSlowReconnectDelayMs();
+            reconnectScheduler.schedule(() -> {
+                if (shouldBeConnected) {
+                    doConnect(willTopic, willPayload, willQos, willRetained);
+                }
+            }, slowDelayMs, TimeUnit.MILLISECONDS);
+            return;
+        }
+
         int attempts = reconnectAttempts.incrementAndGet();
         if (attempts > MAX_RECONNECT_ATTEMPTS) {
-            setConnectionState(ConnectionState.ERROR);
+            slowReconnectMode = true;
+            long slowDelayMs = getSlowReconnectDelayMs();
+            reconnectScheduler.schedule(() -> {
+                if (shouldBeConnected) {
+                    doConnect(willTopic, willPayload, willQos, willRetained);
+                }
+            }, slowDelayMs, TimeUnit.MILLISECONDS);
             return;
         }
 
@@ -176,6 +194,15 @@ public class SparkplugPublisherManager {
                 doConnect(willTopic, willPayload, willQos, willRetained);
             }
         }, delay, TimeUnit.MILLISECONDS);
+    }
+
+    private long getSlowReconnectDelayMs() {
+        MqttBrokerConfig cfg = config.get();
+        int intervalSeconds = cfg != null ? cfg.getSlowReconnectIntervalSeconds() : 0;
+        if (intervalSeconds <= 0) {
+            intervalSeconds = DEFAULT_SLOW_RECONNECT_INTERVAL_SECONDS;
+        }
+        return TimeUnit.SECONDS.toMillis(intervalSeconds);
     }
 
     public boolean publish(String topic, byte[] payload, int qos, boolean retained) {
@@ -222,6 +249,7 @@ public class SparkplugPublisherManager {
 
     public void disconnect() {
         shouldBeConnected = false;
+        slowReconnectMode = false;
         try {
             if (mqttClient != null) {
                 mqttClient.disconnect();

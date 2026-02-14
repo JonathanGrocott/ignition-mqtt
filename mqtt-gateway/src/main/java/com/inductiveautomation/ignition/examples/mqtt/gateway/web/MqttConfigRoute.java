@@ -340,6 +340,9 @@ public class MqttConfigRoute implements RouteHandler {
         if (data.containsKey("keepAliveInterval")) {
             record.setKeepAliveInterval(((Number) data.get("keepAliveInterval")).intValue());
         }
+        if (data.containsKey("slowReconnectIntervalSeconds")) {
+            record.setSlowReconnectIntervalSeconds(((Number) data.get("slowReconnectIntervalSeconds")).intValue());
+        }
         if (data.containsKey("enabled")) {
             record.setEnabled((Boolean) data.get("enabled"));
         }
@@ -391,6 +394,7 @@ public class MqttConfigRoute implements RouteHandler {
         map.put("cleanSession", record.isCleanSession());
         map.put("connectionTimeout", record.getConnectionTimeout());
         map.put("keepAliveInterval", record.getKeepAliveInterval());
+        map.put("slowReconnectIntervalSeconds", record.getSlowReconnectIntervalSeconds());
         map.put("enabled", record.isEnabled());
         return map;
     }

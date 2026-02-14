@@ -56,6 +56,9 @@ public class MqttBrokerConfigRecord extends PersistentRecord {
     
     public static final IntField KeepAliveInterval = new IntField(META, "KeepAliveInterval")
         .setDefault(60);
+
+    public static final IntField SlowReconnectIntervalSeconds = new IntField(META, "SlowReconnectIntervalSeconds")
+        .setDefault(600);
     
     public static final BooleanField Enabled = new BooleanField(META, "Enabled")
         .setDefault(true);
@@ -157,6 +160,14 @@ public class MqttBrokerConfigRecord extends PersistentRecord {
     
     public void setKeepAliveInterval(int interval) {
         setInt(KeepAliveInterval, interval);
+    }
+
+    public int getSlowReconnectIntervalSeconds() {
+        return getInt(SlowReconnectIntervalSeconds);
+    }
+
+    public void setSlowReconnectIntervalSeconds(int intervalSeconds) {
+        setInt(SlowReconnectIntervalSeconds, intervalSeconds);
     }
     
     public boolean isEnabled() {

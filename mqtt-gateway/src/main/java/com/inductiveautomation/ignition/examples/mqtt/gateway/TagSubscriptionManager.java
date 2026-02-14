@@ -824,8 +824,10 @@ public class TagSubscriptionManager {
             boolean published = multiBrokerManager.publish(brokerId, topic, payload);
             if (published) {
                 statistics.incrementBatchPublished(1);
-            } else {
+            } else if (multiBrokerManager.isConnected(brokerId)) {
                 logger.warn("Failed to publish batch payload to broker {}", brokerId);
+            } else {
+                logger.debug("Skipping batch publish to broker {} because it is not connected", brokerId);
             }
             return;
         }
@@ -921,8 +923,10 @@ public class TagSubscriptionManager {
                 boolean published = multiBrokerManager.publish(brokerId, topic, payload);
                 if (published) {
                     statistics.incrementBatchPublished(batch.size());
-                } else {
+                } else if (multiBrokerManager.isConnected(brokerId)) {
                     logger.warn("Failed to publish batch payload to broker {}", brokerId);
+                } else {
+                    logger.debug("Skipping batch publish to broker {} because it is not connected", brokerId);
                 }
             } catch (Exception e) {
                 logger.warn("Failed to publish batch payload for mapping {}: {}", mapping.getSourcePattern(), e.getMessage());
@@ -1030,7 +1034,11 @@ public class TagSubscriptionManager {
             boolean published = multiBrokerManager.publish(brokerId, topic, payload);
 
             if (!published) {
-                logger.warn("Failed to publish {} to broker {}", tagPath, brokerId);
+                if (multiBrokerManager.isConnected(brokerId)) {
+                    logger.warn("Failed to publish {} to broker {}", tagPath, brokerId);
+                } else {
+                    logger.debug("Skipping publish for {} because broker {} is not connected", tagPath, brokerId);
+                }
             }
             
         } catch (Exception e) {

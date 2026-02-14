@@ -17,6 +17,7 @@ export interface MqttBrokerConfig {
     cleanSession: boolean;
     connectionTimeout: number;
     keepAliveInterval: number;
+    slowReconnectIntervalSeconds: number;
     enabled: boolean;
 }
 

@@ -41,7 +41,10 @@ const BrokerSettings: React.FC<Props> = ({ onBrokersChanged }) => {
 
     const selectBroker = (broker: MqttBrokerConfig) => {
         setSelectedBrokerId(broker.id || null);
-        setEditingBroker({ ...broker });
+        setEditingBroker({
+            ...broker,
+            slowReconnectIntervalSeconds: broker.slowReconnectIntervalSeconds ?? 600
+        });
         setIsAddingNew(false);
         setMessage(null);
     };
@@ -59,6 +62,7 @@ const BrokerSettings: React.FC<Props> = ({ onBrokersChanged }) => {
             cleanSession: true,
             connectionTimeout: 30,
             keepAliveInterval: 60,
+            slowReconnectIntervalSeconds: 600,
             enabled: true
         };
         setEditingBroker(newBroker);
@@ -358,6 +362,22 @@ const BrokerSettings: React.FC<Props> = ({ onBrokersChanged }) => {
                                         min={10}
                                         max={3600}
                                     />
+                                </div>
+                            </div>
+
+                            <div className="form-row">
+                                <div className="form-group">
+                                    <label htmlFor="slowReconnectIntervalSeconds">Slow Reconnect Interval (seconds)</label>
+                                    <input
+                                        type="number"
+                                        id="slowReconnectIntervalSeconds"
+                                        name="slowReconnectIntervalSeconds"
+                                        value={editingBroker.slowReconnectIntervalSeconds}
+                                        onChange={handleChange}
+                                        min={30}
+                                        max={86400}
+                                    />
+                                    <small>Used after max reconnect attempts (e.g., 600 = 10 minutes)</small>
                                 </div>
                             </div>
 

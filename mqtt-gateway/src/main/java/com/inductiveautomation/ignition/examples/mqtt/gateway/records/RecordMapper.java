@@ -104,6 +104,7 @@ public class RecordMapper {
         config.setRetained(record.isRetained());
         config.setKeepAlive(record.getKeepAliveInterval());
         config.setConnectionTimeout(record.getConnectionTimeout());
+        config.setSlowReconnectIntervalSeconds(record.getSlowReconnectIntervalSeconds());
         config.setCleanSession(record.isCleanSession());
         return config;
     }
@@ -126,6 +127,7 @@ public class RecordMapper {
         record.setRetained(model.isRetained());
         record.setKeepAliveInterval(model.getKeepAlive());
         record.setConnectionTimeout(model.getConnectionTimeout());
+        record.setSlowReconnectIntervalSeconds(model.getSlowReconnectIntervalSeconds());
         record.setCleanSession(model.isCleanSession());
     }
     

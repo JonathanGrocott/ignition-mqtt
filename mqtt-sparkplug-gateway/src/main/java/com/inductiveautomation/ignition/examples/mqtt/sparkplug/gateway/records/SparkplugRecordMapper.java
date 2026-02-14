@@ -30,6 +30,7 @@ public class SparkplugRecordMapper {
         config.setCleanSession(record.isCleanSession());
         config.setConnectionTimeout(record.getConnectionTimeout());
         config.setKeepAlive(record.getKeepAliveInterval());
+        config.setSlowReconnectIntervalSeconds(record.getSlowReconnectIntervalSeconds());
         return config;
     }
 
@@ -45,6 +46,7 @@ public class SparkplugRecordMapper {
         record.setCleanSession(config.isCleanSession());
         record.setConnectionTimeout(config.getConnectionTimeout());
         record.setKeepAliveInterval(config.getKeepAlive());
+        record.setSlowReconnectIntervalSeconds(config.getSlowReconnectIntervalSeconds());
     }
 
     public static SparkplugPublishConfig toModel(SparkplugPublishConfigRecord record) {

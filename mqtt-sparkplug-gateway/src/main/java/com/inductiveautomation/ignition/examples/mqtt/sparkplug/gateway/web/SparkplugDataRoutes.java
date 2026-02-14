@@ -175,6 +175,7 @@ public final class SparkplugDataRoutes {
             brokerJson.addProperty("cleanSession", record.isCleanSession());
             brokerJson.addProperty("connectionTimeout", record.getConnectionTimeout());
             brokerJson.addProperty("keepAliveInterval", record.getKeepAliveInterval());
+            brokerJson.addProperty("slowReconnectIntervalSeconds", record.getSlowReconnectIntervalSeconds());
             brokerJson.addProperty("enabled", record.isEnabled());
             brokers.add(brokerJson);
         }
@@ -215,6 +216,7 @@ public final class SparkplugDataRoutes {
         data.addProperty("cleanSession", record.isCleanSession());
         data.addProperty("connectionTimeout", record.getConnectionTimeout());
         data.addProperty("keepAliveInterval", record.getKeepAliveInterval());
+        data.addProperty("slowReconnectIntervalSeconds", record.getSlowReconnectIntervalSeconds());
         data.addProperty("enabled", record.isEnabled());
 
         JsonObject response = new JsonObject();
@@ -292,6 +294,9 @@ public final class SparkplugDataRoutes {
         if (data.containsKey("cleanSession")) record.setCleanSession(toBoolean(data.get("cleanSession")));
         if (data.containsKey("connectionTimeout")) record.setConnectionTimeout(toInt(data.get("connectionTimeout")));
         if (data.containsKey("keepAliveInterval")) record.setKeepAliveInterval(toInt(data.get("keepAliveInterval")));
+        if (data.containsKey("slowReconnectIntervalSeconds")) {
+            record.setSlowReconnectIntervalSeconds(toInt(data.get("slowReconnectIntervalSeconds")));
+        }
         if (data.containsKey("enabled")) record.setEnabled(toBoolean(data.get("enabled")));
 
         db.save(record);
@@ -314,6 +319,7 @@ public final class SparkplugDataRoutes {
         savedData.addProperty("cleanSession", record.isCleanSession());
         savedData.addProperty("connectionTimeout", record.getConnectionTimeout());
         savedData.addProperty("keepAliveInterval", record.getKeepAliveInterval());
+        savedData.addProperty("slowReconnectIntervalSeconds", record.getSlowReconnectIntervalSeconds());
         savedData.addProperty("enabled", record.isEnabled());
 
         JsonObject response = new JsonObject();

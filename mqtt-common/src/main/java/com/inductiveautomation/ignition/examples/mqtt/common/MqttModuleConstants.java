@@ -54,6 +54,11 @@ public class MqttModuleConstants {
      * Maximum reconnection delay (milliseconds)
      */
     public static final long MAX_RECONNECT_DELAY = 30000;
+
+    /**
+     * Default slow reconnection interval after max attempts (seconds)
+     */
+    public static final int DEFAULT_SLOW_RECONNECT_INTERVAL_SECONDS = 600;
     
     /**
      * Default value deadband for change detection

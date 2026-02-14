@@ -293,6 +293,7 @@ public final class MqttDataRoutes {
             brokerJson.addProperty("cleanSession", record.isCleanSession());
             brokerJson.addProperty("connectionTimeout", record.getConnectionTimeout());
             brokerJson.addProperty("keepAliveInterval", record.getKeepAliveInterval());
+            brokerJson.addProperty("slowReconnectIntervalSeconds", record.getSlowReconnectIntervalSeconds());
             brokerJson.addProperty("enabled", record.isEnabled());
             brokers.add(brokerJson);
         }
@@ -347,6 +348,7 @@ public final class MqttDataRoutes {
         data.addProperty("cleanSession", record.isCleanSession());
         data.addProperty("connectionTimeout", record.getConnectionTimeout());
         data.addProperty("keepAliveInterval", record.getKeepAliveInterval());
+        data.addProperty("slowReconnectIntervalSeconds", record.getSlowReconnectIntervalSeconds());
         data.addProperty("enabled", record.isEnabled());
         
         response.add("data", data);
@@ -493,6 +495,9 @@ public final class MqttDataRoutes {
         if (data.containsKey("cleanSession")) record.setCleanSession(toBoolean(data.get("cleanSession")));
         if (data.containsKey("connectionTimeout")) record.setConnectionTimeout(toInt(data.get("connectionTimeout")));
         if (data.containsKey("keepAliveInterval")) record.setKeepAliveInterval(toInt(data.get("keepAliveInterval")));
+        if (data.containsKey("slowReconnectIntervalSeconds")) {
+            record.setSlowReconnectIntervalSeconds(toInt(data.get("slowReconnectIntervalSeconds")));
+        }
         if (data.containsKey("enabled")) record.setEnabled(toBoolean(data.get("enabled")));
         
         db.save(record);
@@ -519,6 +524,7 @@ public final class MqttDataRoutes {
         savedData.addProperty("cleanSession", record.isCleanSession());
         savedData.addProperty("connectionTimeout", record.getConnectionTimeout());
         savedData.addProperty("keepAliveInterval", record.getKeepAliveInterval());
+        savedData.addProperty("slowReconnectIntervalSeconds", record.getSlowReconnectIntervalSeconds());
         savedData.addProperty("enabled", record.isEnabled());
         
         response.add("data", savedData);

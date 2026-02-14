@@ -45,6 +45,9 @@ public class MqttBrokerConfig {
     
     @SerializedName("connectionTimeout")
     private int connectionTimeout;
+
+    @SerializedName("slowReconnectIntervalSeconds")
+    private int slowReconnectIntervalSeconds;
     
     @SerializedName("cleanSession")
     private boolean cleanSession;
@@ -64,6 +67,7 @@ public class MqttBrokerConfig {
         this.retained = false;
         this.keepAlive = DEFAULT_KEEP_ALIVE;
         this.connectionTimeout = DEFAULT_CONNECTION_TIMEOUT;
+        this.slowReconnectIntervalSeconds = DEFAULT_SLOW_RECONNECT_INTERVAL_SECONDS;
         this.cleanSession = true;
     }
     
@@ -82,6 +86,26 @@ public class MqttBrokerConfig {
         this.retained = retained;
         this.keepAlive = keepAlive;
         this.connectionTimeout = connectionTimeout;
+        this.slowReconnectIntervalSeconds = DEFAULT_SLOW_RECONNECT_INTERVAL_SECONDS;
+        this.cleanSession = cleanSession;
+    }
+
+    /**
+     * Constructor with all parameters including slow reconnect interval
+     */
+    public MqttBrokerConfig(String brokerUrl, String clientId, String username, String password,
+                           boolean useTls, int qos, boolean retained, int keepAlive,
+                           int connectionTimeout, int slowReconnectIntervalSeconds, boolean cleanSession) {
+        this.brokerUrl = brokerUrl;
+        this.clientId = clientId;
+        this.username = username;
+        this.password = password;
+        this.useTls = useTls;
+        this.qos = qos;
+        this.retained = retained;
+        this.keepAlive = keepAlive;
+        this.connectionTimeout = connectionTimeout;
+        this.slowReconnectIntervalSeconds = slowReconnectIntervalSeconds;
         this.cleanSession = cleanSession;
     }
     
@@ -177,6 +201,14 @@ public class MqttBrokerConfig {
     public void setConnectionTimeout(int connectionTimeout) {
         this.connectionTimeout = connectionTimeout;
     }
+
+    public int getSlowReconnectIntervalSeconds() {
+        return slowReconnectIntervalSeconds;
+    }
+
+    public void setSlowReconnectIntervalSeconds(int slowReconnectIntervalSeconds) {
+        this.slowReconnectIntervalSeconds = slowReconnectIntervalSeconds;
+    }
     
     public boolean isCleanSession() {
         return cleanSession;
@@ -210,6 +242,9 @@ public class MqttBrokerConfig {
         if (connectionTimeout < 0) {
             throw new IllegalArgumentException("Connection timeout must be >= 0");
         }
+        if (slowReconnectIntervalSeconds < 0) {
+            throw new IllegalArgumentException("Slow reconnect interval must be >= 0");
+        }
     }
     
     @Override
@@ -222,6 +257,7 @@ public class MqttBrokerConfig {
                retained == that.retained &&
                keepAlive == that.keepAlive &&
                connectionTimeout == that.connectionTimeout &&
+               slowReconnectIntervalSeconds == that.slowReconnectIntervalSeconds &&
                cleanSession == that.cleanSession &&
                Objects.equals(id, that.id) &&
                Objects.equals(name, that.name) &&
@@ -232,8 +268,8 @@ public class MqttBrokerConfig {
     
     @Override
     public int hashCode() {
-        return Objects.hash(id, name, brokerUrl, clientId, username, useTls, qos, retained, 
-                          keepAlive, connectionTimeout, cleanSession);
+        return Objects.hash(id, name, brokerUrl, clientId, username, useTls, qos, retained,
+                          keepAlive, connectionTimeout, slowReconnectIntervalSeconds, cleanSession);
     }
     
     @Override
@@ -249,6 +285,7 @@ public class MqttBrokerConfig {
                ", retained=" + retained +
                ", keepAlive=" + keepAlive +
                ", connectionTimeout=" + connectionTimeout +
+               ", slowReconnectIntervalSeconds=" + slowReconnectIntervalSeconds +
                ", cleanSession=" + cleanSession +
                '}';
     }
@@ -269,6 +306,7 @@ public class MqttBrokerConfig {
         copy.retained = this.retained;
         copy.keepAlive = this.keepAlive;
         copy.connectionTimeout = this.connectionTimeout;
+        copy.slowReconnectIntervalSeconds = this.slowReconnectIntervalSeconds;
         copy.cleanSession = this.cleanSession;
         return copy;
     }

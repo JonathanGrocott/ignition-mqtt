@@ -33,7 +33,10 @@ const BrokerSettings: React.FC = () => {
 
     const selectBroker = (broker: MqttBrokerConfig) => {
         setSelectedBrokerId(broker.id || null);
-        setEditingBroker({ ...broker });
+        setEditingBroker({
+            ...broker,
+            slowReconnectIntervalSeconds: broker.slowReconnectIntervalSeconds ?? 600
+        });
         setMessage(null);
     };
 
@@ -50,6 +53,7 @@ const BrokerSettings: React.FC = () => {
             cleanSession: true,
             connectionTimeout: 30,
             keepAliveInterval: 60,
+            slowReconnectIntervalSeconds: 600,
             enabled: true
         };
         setEditingBroker(newBroker);
@@ -185,6 +189,18 @@ const BrokerSettings: React.FC = () => {
                         <div className="form-group">
                             <label>Connection Timeout (s)</label>
                             <input type="number" name="connectionTimeout" value={editingBroker.connectionTimeout} onChange={handleChange} />
+                        </div>
+                    </div>
+                    <div className="form-row">
+                        <div className="form-group">
+                            <label>Slow Reconnect Interval (s)</label>
+                            <input
+                                type="number"
+                                name="slowReconnectIntervalSeconds"
+                                value={editingBroker.slowReconnectIntervalSeconds}
+                                onChange={handleChange}
+                                min={30}
+                            />
                         </div>
                     </div>
                     <div className="form-row">

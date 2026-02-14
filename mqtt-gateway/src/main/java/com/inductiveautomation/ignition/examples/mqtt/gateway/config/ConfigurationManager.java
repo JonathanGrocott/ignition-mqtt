@@ -243,7 +243,7 @@ public class ConfigurationManager {
                 }
             }
             
-            logger.info("Loaded {} broker configuration(s) from database", configs.size());
+            logger.debug("Loaded {} broker configuration(s) from database", configs.size());
             
         } catch (Exception e) {
             logger.error("Error loading broker configurations from database", e);
@@ -486,6 +486,7 @@ public class ConfigurationManager {
                 brokerRecord.setCleanSession(true);
                 brokerRecord.setConnectionTimeout(30);
                 brokerRecord.setKeepAliveInterval(60);
+                brokerRecord.setSlowReconnectIntervalSeconds(600);
                 brokerRecord.setUseTls(false);
                 
                 db.save(brokerRecord);
