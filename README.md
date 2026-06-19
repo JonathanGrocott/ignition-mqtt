@@ -76,9 +76,9 @@ SKIP_MODULE_SIGNING=1 ./build.sh both
 GitHub releases are created by pushing a version tag. The release workflow builds both modules, signs them with the IA module signing tool, verifies that each `.modl` contains `certificates.p7b` and `signatures.properties`, and attaches only the signed `.modl` files to the release.
 
 ```bash
-git tag v1.1.3
+git tag v1.1.4
 git push origin dev/enable-module-signing
-git push origin v1.1.3
+git push origin v1.1.4
 ```
 
 ## Installation
