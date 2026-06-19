@@ -23,6 +23,8 @@ The output `.modl` files are written to:
 - `mqtt-uns-module/build/`
 - `mqtt-sparkplug-module/build/`
 
+`./build.sh` signs modules by default with the IA module signing tool and a local self-signed certificate generated under `certs/`. Use `SKIP_MODULE_SIGNING=1 ./build.sh both` only for development gateways that allow unsigned modules.
+
 ## Reporting Issues
 Please include:
 - Ignition version and edition

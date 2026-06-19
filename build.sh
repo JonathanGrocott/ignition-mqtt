@@ -38,12 +38,21 @@ print_header() {
 }
 
 set_java_home_if_needed() {
-    if [ -z "$JAVA_HOME" ]; then
-        if [ -d "/opt/homebrew/opt/openjdk@17" ]; then
+    local java_version
+    java_version="$(java -version 2>&1 | awk -F\" '/version/ {print $2}' || true)"
+
+    if [[ "$java_version" != 17.* ]]; then
+        if [ -d "/Library/Java/JavaVirtualMachines/openjdk-17.jdk/Contents/Home" ]; then
+            export JAVA_HOME=/Library/Java/JavaVirtualMachines/openjdk-17.jdk/Contents/Home
+            export PATH="$JAVA_HOME/bin:$PATH"
+            echo -e "${BLUE}  → Setting JAVA_HOME to $JAVA_HOME${NC}"
+        elif [ -d "/opt/homebrew/opt/openjdk@17" ]; then
             export JAVA_HOME=/opt/homebrew/opt/openjdk@17
+            export PATH="$JAVA_HOME/bin:$PATH"
             echo -e "${BLUE}  → Setting JAVA_HOME to $JAVA_HOME${NC}"
         elif [ -d "/usr/lib/jvm/java-17-openjdk" ]; then
             export JAVA_HOME=/usr/lib/jvm/java-17-openjdk
+            export PATH="$JAVA_HOME/bin:$PATH"
             echo -e "${BLUE}  → Setting JAVA_HOME to $JAVA_HOME${NC}"
         fi
     fi
@@ -134,6 +143,7 @@ build_uns_backend() {
     echo -e "${YELLOW}[UNS] Building backend (Java/Gradle)...${NC}"
     ensure_gradle_clean
     (cd "$PROJECT_ROOT" && ./gradlew :mqtt-uns-module:build)
+    sign_module uns
     echo -e "${GREEN}✓ Backend built successfully${NC}"
     echo ""
 }
@@ -142,13 +152,28 @@ build_sparkplug_backend() {
     echo -e "${YELLOW}[Sparkplug] Building backend (Java/Gradle)...${NC}"
     ensure_gradle_clean
     (cd "$PROJECT_ROOT" && ./gradlew :mqtt-sparkplug-module:build)
+    sign_module sparkplug
     echo -e "${GREEN}✓ Backend built successfully${NC}"
     echo ""
 }
 
+sign_module() {
+    local target="$1"
+    if [ "${SKIP_MODULE_SIGNING:-0}" = "1" ]; then
+        echo -e "${YELLOW}  → Skipping module signing because SKIP_MODULE_SIGNING=1${NC}"
+        return
+    fi
+
+    echo -e "${BLUE}  → Signing module with IA module-signer...${NC}"
+    "$PROJECT_ROOT/scripts/sign-modules.sh" "$target"
+}
+
 show_uns_artifact() {
     local modl_file
-    modl_file=$(find "$UNS_BUILD_DIR" -name "*.modl" -type f | head -n 1)
+    modl_file=$(find "$UNS_BUILD_DIR" -name "*.modl" ! -name "*.unsigned.modl" -type f | head -n 1)
+    if [ -z "$modl_file" ]; then
+        modl_file=$(find "$UNS_BUILD_DIR" -name "*.unsigned.modl" -type f | head -n 1)
+    fi
     if [ -z "$modl_file" ]; then
         echo -e "${RED}✗ Could not find UNS .modl file in build directory${NC}"
         exit 1
@@ -160,7 +185,10 @@ show_uns_artifact() {
 
 show_sparkplug_artifact() {
     local modl_file
-    modl_file=$(find "$SPARK_BUILD_DIR" -name "*.modl" -type f | head -n 1)
+    modl_file=$(find "$SPARK_BUILD_DIR" -name "*.modl" ! -name "*.unsigned.modl" -type f | head -n 1)
+    if [ -z "$modl_file" ]; then
+        modl_file=$(find "$SPARK_BUILD_DIR" -name "*.unsigned.modl" -type f | head -n 1)
+    fi
     if [ -z "$modl_file" ]; then
         echo -e "${RED}✗ Could not find Sparkplug .modl file in build directory${NC}"
         exit 1

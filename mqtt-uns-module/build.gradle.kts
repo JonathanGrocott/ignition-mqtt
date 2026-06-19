@@ -33,9 +33,8 @@ dependencies {
     modlImplementation(project(":mqtt-gateway"))
 }
 
-// NOTE: Module signing with self-signed certificates is not supported by Ignition.
-// Vendor names only appear for modules signed with certificates from recognized Certificate Authorities.
-// For development, use unsigned modules. For production with vendor name display, obtain a proper code signing certificate.
+// The build creates an unsigned intermediate .modl; build.sh signs it with the IA
+// module-signer using the self-signed certificate generated under certs/.
 
 tasks.named("writeModuleXml") {
     doLast {

@@ -1,9 +1,9 @@
-# Module signing configuration
-# Copy this file to gradle.properties and fill in your values
-# DO NOT commit gradle.properties to git (it contains passwords)
+# Optional Gradle-plugin signing configuration.
+# The default repo build signs via scripts/sign-modules.sh and the IA module-signer.
+# DO NOT commit gradle.properties to git if you copy this file and add passwords.
 
 ignition.signing.keystoreFile=certs/module-keystore.jks
 ignition.signing.keystorePassword=YOUR_KEYSTORE_PASSWORD
 ignition.signing.certAlias=module-signer
 ignition.signing.certPassword=YOUR_CERT_PASSWORD
-ignition.signing.certFile=certs/module-cert.pem
+ignition.signing.certFile=certs/module-signing-chain.p7b

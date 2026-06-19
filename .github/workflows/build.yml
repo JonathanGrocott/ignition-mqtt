@@ -30,17 +30,24 @@ jobs:
     
     - name: Build modules
       run: ./gradlew clean :mqtt-uns-module:build :mqtt-sparkplug-module:build
+
+    - name: Sign modules
+      run: ./scripts/sign-modules.sh both
     
     - name: Upload UNS module artifact
       uses: actions/upload-artifact@v4
       with:
         name: mqtt-uns-publisher-module
-        path: mqtt-uns-module/build/*.modl
+        path: |
+          mqtt-uns-module/build/*.modl
+          !mqtt-uns-module/build/*.unsigned.modl
         retention-days: 30
 
     - name: Upload SparkplugB module artifact
       uses: actions/upload-artifact@v4
       with:
         name: mqtt-sparkplugb-publisher-module
-        path: mqtt-sparkplug-module/build/*.modl
+        path: |
+          mqtt-sparkplug-module/build/*.modl
+          !mqtt-sparkplug-module/build/*.unsigned.modl
         retention-days: 30
