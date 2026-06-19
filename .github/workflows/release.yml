@@ -33,6 +33,9 @@ jobs:
     
     - name: Build modules
       run: ./gradlew clean :mqtt-uns-module:build :mqtt-sparkplug-module:build
+
+    - name: Sign modules
+      run: ./scripts/sign-modules.sh both
     
     - name: Get version from build.gradle.kts
       id: get_version
@@ -40,16 +43,39 @@ jobs:
         VERSION=$(grep "version = " build.gradle.kts | head -1 | sed 's/.*"\(.*\)".*/\1/')
         echo "VERSION=$VERSION" >> $GITHUB_ENV
         echo "Module version: $VERSION"
+
+    - name: Verify tag matches module version
+      if: github.ref_type == 'tag'
+      run: |
+        EXPECTED_TAG="v$VERSION"
+        if [ "$GITHUB_REF_NAME" != "$EXPECTED_TAG" ]; then
+          echo "Tag $GITHUB_REF_NAME does not match module version $VERSION; expected $EXPECTED_TAG" >&2
+          exit 1
+        fi
     
     - name: Find .modl files
       id: find_modl
       run: |
-        UNS_MODL_FILE=$(find mqtt-uns-module/build -name "*.unsigned.modl" -type f | head -1)
-        SPARKPLUG_MODL_FILE=$(find mqtt-sparkplug-module/build -name "*.unsigned.modl" -type f | head -1)
+        UNS_MODL_FILE=$(find mqtt-uns-module/build -name "*.modl" ! -name "*.unsigned.modl" -type f | head -1)
+        SPARKPLUG_MODL_FILE=$(find mqtt-sparkplug-module/build -name "*.modl" ! -name "*.unsigned.modl" -type f | head -1)
+        test -n "$UNS_MODL_FILE"
+        test -n "$SPARKPLUG_MODL_FILE"
         echo "UNS_MODL_FILE=$UNS_MODL_FILE" >> $GITHUB_ENV
         echo "SPARKPLUG_MODL_FILE=$SPARKPLUG_MODL_FILE" >> $GITHUB_ENV
         echo "Found UNS module file: $UNS_MODL_FILE"
         echo "Found SparkplugB module file: $SPARKPLUG_MODL_FILE"
+
+    - name: Verify signed modules
+      run: |
+        for module in "$UNS_MODL_FILE" "$SPARKPLUG_MODL_FILE"; do
+          echo "Verifying signed module: $module"
+          unzip -l "$module" | grep -q "certificates.p7b"
+          unzip -l "$module" | grep -q "signatures.properties"
+          if [[ "$module" == *.unsigned.modl ]]; then
+            echo "Refusing to release unsigned module: $module" >&2
+            exit 1
+          fi
+        done
     
     - name: Create Release
       uses: softprops/action-gh-release@v1
@@ -65,8 +91,9 @@ jobs:
           Version: ${{ env.VERSION }}
           
           ### Installation
-          1. Download the .modl file below
+          1. Download the signed .modl file below
           2. Install it in Ignition via Config > Modules > Install or Upgrade a Module
+          3. Accept the self-signed certificate if prompted
           
           ### Changes
           See the commit history for details on changes in this release.

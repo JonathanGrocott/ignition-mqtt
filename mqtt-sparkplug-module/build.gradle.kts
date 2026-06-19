@@ -33,8 +33,8 @@ dependencies {
     modlImplementation(project(":mqtt-sparkplug-gateway"))
 }
 
-// NOTE: Module signing with self-signed certificates is not supported by Ignition.
-// For development, use unsigned modules.
+// The build creates an unsigned intermediate .modl; build.sh signs it with the IA
+// module-signer using the self-signed certificate generated under certs/.
 
 tasks.named("writeModuleXml") {
     doLast {

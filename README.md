@@ -33,6 +33,8 @@ Use the unified build script:
 ./build.sh
 ```
 
+By default, `build.sh` signs the built modules with the IA module signing tool and a simple self-signed certificate. If signing material does not exist yet, the script creates it under `certs/`; those files are ignored by git. Keep the same files for future releases if you want Ignition users to accept the self-signed certificate only once.
+
 You will be prompted to choose:
 1. Build UNS Module
 2. Build Sparkplug Module
@@ -53,9 +55,31 @@ Or use Gradle directly:
 ./gradlew :mqtt-sparkplug-module:build
 ```
 
-Built `.modl` files will be located at:
+Direct Gradle builds create unsigned intermediate modules. Sign them with:
+
+```bash
+./scripts/sign-modules.sh both
+```
+
+Built and signed `.modl` files will be located at:
 - `mqtt-uns-module/build/`
 - `mqtt-sparkplug-module/build/`
+
+For a development-only unsigned build:
+
+```bash
+SKIP_MODULE_SIGNING=1 ./build.sh both
+```
+
+## Release
+
+GitHub releases are created by pushing a version tag. The release workflow builds both modules, signs them with the IA module signing tool, verifies that each `.modl` contains `certificates.p7b` and `signatures.properties`, and attaches only the signed `.modl` files to the release.
+
+```bash
+git tag v1.1.3
+git push origin dev/enable-module-signing
+git push origin v1.1.3
+```
 
 ## Installation
 
@@ -84,7 +108,7 @@ Follow the prompt to build the desired module. The compiled `.modl` files will b
 
 ### Development Mode
 
-For development, you may want to allow unsigned modules. Add this line to your `data/ignition.conf` file:
+The normal build produces signed modules. For development-only unsigned modules, add this line to your `data/ignition.conf` file:
 
 ```
 wrapper.java.additional.[index]=-Dignition.allowunsignedmodules=true
@@ -423,7 +447,12 @@ Custom overrides allow any tag to publish to a specific topic.
 
 **Problem:** Module rejected due to signature
 
-**Solution:** Add to `ignition.conf`:
+**Solution:** Install the signed `.modl` from `./build.sh`, or sign direct Gradle output with:
+```bash
+./scripts/sign-modules.sh both
+```
+
+For development-only unsigned testing, add this to `ignition.conf`:
 ```
 wrapper.java.additional.X=-Dignition.allowunsignedmodules=true
 ```
