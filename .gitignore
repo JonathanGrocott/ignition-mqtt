@@ -28,6 +28,8 @@ nbdist/
 
 # Codex
 .opencode/
+.codex-local/
+.playwright-mcp/
 
 # macOS
 .DS_Store

@@ -6,9 +6,10 @@ import com.inductiveautomation.ignition.examples.mqtt.common.model.TopicMapping;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
-import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.TreeMap;
 
 /**
  * Maps Ignition tag paths to MQTT topics.
@@ -20,7 +21,6 @@ public class MqttTopicMapper {
     
     private List<TopicMapping> topicMappings = new ArrayList<>();
     private volatile List<TopicMapping> enabledMappingsSorted = new ArrayList<>();
-    private volatile Map<String, TopicMapping> enabledMappingsBySource = new HashMap<>();
     
     /**
      * Sets the topic mappings to use for custom tag-to-topic transformations
@@ -39,26 +39,38 @@ public class MqttTopicMapper {
 
     /**
      * Finds the best matching enabled mapping for a full tag path.
-     * Uses a prefix map for fast lookups and falls back to a sorted scan
-     * for edge cases where mappings don't align to path segment boundaries.
+     * Returns the first route from the all-matches API for backward compatibility.
      */
     public TopicMapping findBestMapping(String fullPath) {
         if (fullPath == null) {
             return null;
         }
 
-        TopicMapping directMatch = findByPrefix(fullPath);
-        if (directMatch != null) {
-            return directMatch;
+        List<TopicMapping> matches = findMatchingMappings(fullPath);
+        return matches.isEmpty() ? null : matches.get(0);
+    }
+
+    /**
+     * Finds all enabled mappings that match a full tag path.
+     *
+     * Results are sorted from most-specific source pattern to least-specific source pattern,
+     * preserving configuration order for mappings with the same source pattern length. Exact
+     * duplicate route definitions are collapsed so copy/paste duplicates do not publish twice.
+     */
+    public List<TopicMapping> findMatchingMappings(String fullPath) {
+        if (fullPath == null) {
+            return Collections.emptyList();
         }
 
+        Map<String, TopicMapping> matches = new LinkedHashMap<>();
         for (TopicMapping mapping : enabledMappingsSorted) {
-            if (mapping.matches(fullPath)) {
-                return mapping;
+            if (!mapping.matches(fullPath)) {
+                continue;
             }
+            matches.putIfAbsent(buildRouteDefinitionKey(mapping), mapping);
         }
 
-        return null;
+        return new ArrayList<>(matches.values());
     }
     
     /**
@@ -187,7 +199,6 @@ public class MqttTopicMapper {
 
     private void rebuildIndex(List<TopicMapping> mappings) {
         List<TopicMapping> enabled = new ArrayList<>();
-        Map<String, TopicMapping> bySource = new HashMap<>();
 
         if (mappings != null) {
             for (TopicMapping mapping : mappings) {
@@ -203,41 +214,53 @@ public class MqttTopicMapper {
             return source != null ? source.length() : 0;
         }).reversed());
 
-        for (TopicMapping mapping : enabled) {
-            String source = mapping.getSourcePattern();
-            if (source != null && !source.isEmpty()) {
-                bySource.putIfAbsent(source, mapping);
-            }
-        }
-
         enabledMappingsSorted = Collections.unmodifiableList(enabled);
-        enabledMappingsBySource = Collections.unmodifiableMap(bySource);
     }
 
-    private TopicMapping findByPrefix(String fullPath) {
-        Map<String, TopicMapping> bySource = enabledMappingsBySource;
-        String candidate = fullPath;
+    private String buildRouteDefinitionKey(TopicMapping mapping) {
+        return String.join(
+            "\u0000",
+            String.valueOf(mapping.getBrokerId()),
+            nullToEmpty(mapping.getSourcePattern()),
+            nullToEmpty(mapping.getTopicPrefix()),
+            String.valueOf(mapping.getPublishMode()),
+            String.valueOf(mapping.isPreserveTopicCase()),
+            String.valueOf(mapping.getBatchWindowMs()),
+            String.valueOf(mapping.getMaxBatchSize()),
+            String.valueOf(mapping.isUseDefaultPayloadFields()),
+            buildPayloadFieldsKey(mapping)
+        );
+    }
 
-        while (true) {
-            TopicMapping mapping = bySource.get(candidate);
-            if (mapping != null) {
-                return mapping;
-            }
-
-            int slash = candidate.lastIndexOf('/');
-            if (slash < 0) {
-                break;
-            }
-            candidate = candidate.substring(0, slash);
+    private String buildPayloadFieldsKey(TopicMapping mapping) {
+        com.inductiveautomation.ignition.examples.mqtt.common.model.PayloadFieldConfig fields =
+            mapping.getPayloadFields();
+        if (fields == null) {
+            return "";
         }
+        Map<String, Boolean> properties = fields.getProperties() != null
+            ? new TreeMap<>(fields.getProperties())
+            : Collections.emptyMap();
+        return String.join(
+            "|",
+            String.valueOf(fields.isIncludeQuality()),
+            String.valueOf(fields.isIncludeQualityCode()),
+            String.valueOf(fields.isIncludeTagPath()),
+            properties.toString()
+        );
+    }
 
-        int providerEnd = fullPath.indexOf(']');
-        if (providerEnd > -1) {
-            String providerOnly = fullPath.substring(0, providerEnd + 1);
-            return bySource.get(providerOnly);
-        }
+    String buildEffectiveRouteKey(Long brokerId, String topic, TopicMapping mapping) {
+        return String.join(
+            "\u0000",
+            String.valueOf(brokerId),
+            topic != null ? topic : "",
+            String.valueOf(mapping.getPublishMode())
+        );
+    }
 
-        return null;
+    private String nullToEmpty(String value) {
+        return value != null ? value : "";
     }
     
     /**

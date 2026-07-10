@@ -203,6 +203,32 @@ See `mqtt-uns-config-combined-example.json` in the repository for a complete con
   - `brokerId`: ID of the broker to publish to
   - `enabled`: Enable/disable this mapping
 
+Topic mappings are independent publish routes. A tag that matches multiple
+enabled mappings publishes through each matching route, so one Ignition source
+path can publish to multiple MQTT topic prefixes or brokers without duplicating
+broker definitions. For example:
+
+```json
+[
+  {
+    "sourcePattern": "[default]enterprise/renton/hbl",
+    "topicPrefix": "enterprise/renton_40_20/hbl",
+    "brokerId": 1,
+    "enabled": true
+  },
+  {
+    "sourcePattern": "[default]enterprise/renton/hbl",
+    "topicPrefix": "enterprise/renton_04_20/hbl",
+    "brokerId": 1,
+    "enabled": true
+  }
+]
+```
+
+With per-tag topic mode, `[default]enterprise/renton/hbl/Line1/Asset1/Temp`
+publishes to both `enterprise/renton_40_20/hbl/line1/asset1/temp` and
+`enterprise/renton_04_20/hbl/line1/asset1/temp`.
+
 ## Quick Start
 
 1. **Download and Install**: Get the latest `.modl` file from [Releases](https://github.com/JonathanGrocott/ignition-mqtt/releases) and install via Config > Modules

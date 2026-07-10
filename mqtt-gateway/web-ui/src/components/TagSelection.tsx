@@ -425,6 +425,20 @@ const TagSelection: React.FC<Props> = ({ config, onConfigSaved }) => {
 
     const payloadFields = normalizePayloadFields(formData.payloadFields);
 
+    const getPayloadSummary = (fields: PayloadFieldConfig) => {
+        const coreFields = [
+            fields.includeQuality ? 'quality' : null,
+            fields.includeQualityCode ? 'quality code' : null,
+            fields.includeTagPath ? 'tag path' : null
+        ].filter(Boolean);
+        const propertyCount = Object.values(fields.properties || {}).filter(Boolean).length;
+        const parts = [
+            coreFields.length > 0 ? coreFields.join(', ') : 'value only',
+            propertyCount > 0 ? `${propertyCount} tag propert${propertyCount === 1 ? 'y' : 'ies'}` : null
+        ].filter(Boolean);
+        return parts.join(' + ');
+    };
+
     const renderPayloadFields = (
         fields: PayloadFieldConfig,
         namePrefix: string,
@@ -557,13 +571,26 @@ const TagSelection: React.FC<Props> = ({ config, onConfigSaved }) => {
         const batchWindowMs = mapping.batchWindowMs;
         const maxBatchSize = mapping.maxBatchSize;
         const preserveTopicCase = mapping.preserveTopicCase ?? false;
+        const mappingSummary = publishMode === 'SINGLE_TOPIC'
+            ? `Single topic${batchWindowMs !== undefined ? `, ${batchWindowMs} ms batch` : ''}`
+            : 'Per tag topic';
+        const payloadSummary = useDefaultPayload
+            ? `Default payload: ${getPayloadSummary(payloadFields)}`
+            : `Custom payload: ${getPayloadSummary(mappingFields)}`;
 
         return (
             <div key={mappingId} className={`mapping-item ${!mapping.enabled ? 'disabled' : ''}`}>
-                <div className="mapping-details">
-                    <span className="mapping-source-display">{mapping.sourcePattern}</span>
-                    <span className="mapping-arrow">→</span>
-                    <span className="mapping-topic-display">{mapping.topicPrefix}</span>
+                <div className="mapping-main">
+                    <div className="mapping-details">
+                        <span className="mapping-source-display">{mapping.sourcePattern}</span>
+                        <span className="mapping-arrow">→</span>
+                        <span className="mapping-topic-display">{mapping.topicPrefix}</span>
+                    </div>
+                    <div className="mapping-meta">
+                        <span>{mappingSummary}</span>
+                        <span>{payloadSummary}</span>
+                        {preserveTopicCase && <span>Preserves case</span>}
+                    </div>
                 </div>
                 <div className="mapping-actions">
                     <label className="toggle-switch">
@@ -582,7 +609,8 @@ const TagSelection: React.FC<Props> = ({ config, onConfigSaved }) => {
                         ✕
                     </button>
                 </div>
-                <div className="mapping-payload">
+                <details className="mapping-advanced">
+                    <summary className="mapping-advanced-summary">Route options</summary>
                     <div className="mapping-topic-options">
                         <div className="mapping-option-row">
                             <span>Topic Mode</span>
@@ -662,36 +690,39 @@ const TagSelection: React.FC<Props> = ({ config, onConfigSaved }) => {
                             </div>
                         )}
                     </div>
-                    <div className="mapping-payload-header">
-                        <span>Payload Fields</span>
-                        <div className="payload-radio-group">
-                            <label>
-                                <input
-                                    type="radio"
-                                    name={`payload-mode-${mappingId}`}
-                                    checked={useDefaultPayload}
-                                    onChange={() => updateMappingPayloadMode(mapping.id!, true)}
-                                />
-                                Use default
-                            </label>
-                            <label>
-                                <input
-                                    type="radio"
-                                    name={`payload-mode-${mappingId}`}
-                                    checked={!useDefaultPayload}
-                                    onChange={() => updateMappingPayloadMode(mapping.id!, false)}
-                                />
-                                Custom
-                            </label>
+                    <details className="mapping-payload">
+                        <summary className="mapping-payload-summary">Payload override</summary>
+                        <div className="mapping-payload-header">
+                            <span>{payloadSummary}</span>
+                            <div className="payload-radio-group">
+                                <label>
+                                    <input
+                                        type="radio"
+                                        name={`payload-mode-${mappingId}`}
+                                        checked={useDefaultPayload}
+                                        onChange={() => updateMappingPayloadMode(mapping.id!, true)}
+                                    />
+                                    Use default
+                                </label>
+                                <label>
+                                    <input
+                                        type="radio"
+                                        name={`payload-mode-${mappingId}`}
+                                        checked={!useDefaultPayload}
+                                        onChange={() => updateMappingPayloadMode(mapping.id!, false)}
+                                    />
+                                    Custom
+                                </label>
+                            </div>
                         </div>
-                    </div>
-                    {!useDefaultPayload && renderPayloadFields(
-                        mappingFields,
-                        `mapping-${mappingId}`,
-                        (key, enabled) => updateMappingPayloadCoreField(mapping.id!, key, enabled),
-                        (key, enabled) => updateMappingPayloadField(mapping.id!, key, enabled)
-                    )}
-                </div>
+                        {!useDefaultPayload && renderPayloadFields(
+                            mappingFields,
+                            `mapping-${mappingId}`,
+                            (key, enabled) => updateMappingPayloadCoreField(mapping.id!, key, enabled),
+                            (key, enabled) => updateMappingPayloadField(mapping.id!, key, enabled)
+                        )}
+                    </details>
+                </details>
             </div>
         );
     };
@@ -702,8 +733,9 @@ const TagSelection: React.FC<Props> = ({ config, onConfigSaved }) => {
                 <div className="form-section">
                     <h2>UNS Topic Mappings</h2>
                     <p className="section-description">
-                        Map tag providers or folders to custom UNS topic prefixes and assign them to MQTT brokers. 
-                        Only tags matching enabled mappings will be published to their assigned broker.
+                        Map tag providers or folders to custom UNS topic prefixes and assign them to MQTT brokers.
+                        Each enabled mapping is an independent publish route, so a tag that matches multiple mappings
+                        is published through each route.
                         Example: Map <code>[Sample_Tags]Random</code> to <code>enterprise/site1/line1</code>
                     </p>
 
@@ -720,7 +752,7 @@ const TagSelection: React.FC<Props> = ({ config, onConfigSaved }) => {
                                 <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px'}}>
                                     <label>Add New Topic Mapping</label>
                                     <button type="button" onClick={loadBrokers} className="btn-secondary" style={{fontSize: '12px', padding: '4px 10px'}}>
-                                        🔄 Refresh Brokers
+                                        Refresh Brokers
                                     </button>
                                 </div>
                                 <div className="mapping-input-container">
@@ -833,7 +865,7 @@ const TagSelection: React.FC<Props> = ({ config, onConfigSaved }) => {
                                 </p>
                             )}
                             
-                            <small>Custom mappings override default topic generation for matching tags</small>
+                            <small>Each enabled mapping is evaluated as a publish route for matching tags.</small>
                         </>
                     )}
                 </div>
@@ -855,16 +887,6 @@ const TagSelection: React.FC<Props> = ({ config, onConfigSaved }) => {
                         <small>Minimum change required to publish (prevents noise from small fluctuations)</small>
                     </div>
 
-                    <div className="form-group">
-                        <label>Default Payload Fields</label>
-                        {renderPayloadFields(
-                            payloadFields,
-                            'default',
-                            updatePayloadCoreField,
-                            updatePayloadField
-                        )}
-                    </div>
-
                     <div className="form-group checkbox">
                         <label>
                             <input
@@ -876,6 +898,21 @@ const TagSelection: React.FC<Props> = ({ config, onConfigSaved }) => {
                             Publish when tag quality changes
                         </label>
                     </div>
+
+                    <details className="advanced-settings">
+                        <summary className="advanced-settings-summary">Default payload fields</summary>
+                        <div className="advanced-settings-body">
+                            <p className="advanced-settings-note">
+                                {getPayloadSummary(payloadFields)}
+                            </p>
+                            {renderPayloadFields(
+                                payloadFields,
+                                'default',
+                                updatePayloadCoreField,
+                                updatePayloadField
+                            )}
+                        </div>
+                    </details>
                 </div>
 
                 <div className="form-section">

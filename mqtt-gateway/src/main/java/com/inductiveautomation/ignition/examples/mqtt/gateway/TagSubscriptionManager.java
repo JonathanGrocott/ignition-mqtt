@@ -264,11 +264,13 @@ public class TagSubscriptionManager {
             for (NodeDescription node : nodes) {
                 TagPath nodePath = node.getFullPath();
                 if (nodePath == null) {
-                    logger.warn(
-                        "Browse returned node with null path under {}/{} (name: {})",
+                    logger.debug(
+                        "Skipping browse node with null path under {}/{} (name: {}, objectType: {}, hasChildren: {})",
                         providerName,
                         path,
-                        node.getName()
+                        node.getName(),
+                        node.getObjectType(),
+                        node.hasChildren()
                     );
                     continue;
                 }
@@ -995,27 +997,48 @@ public class TagSubscriptionManager {
         try {
             String fullPath = tagPath.toStringFull();
             
-            // Find matching enabled topic mapping with longest source pattern (most specific)
-            com.inductiveautomation.ignition.examples.mqtt.common.model.TopicMapping matchedMapping =
-                topicMapper.findBestMapping(fullPath);
+            // Find every enabled topic mapping that matches this tag. Each mapping is an
+            // independent publish route, so the same tag can fan out to multiple brokers
+            // or topic prefixes.
+            List<com.inductiveautomation.ignition.examples.mqtt.common.model.TopicMapping> matchedMappings =
+                topicMapper.findMatchingMappings(fullPath);
             
             // Only publish if tag matches an enabled mapping
-            if (matchedMapping == null) {
+            if (matchedMappings.isEmpty()) {
                 logger.debug("Skipping tag {} - no enabled mapping matches (fullPath: {})", tagPath, fullPath);
                 return;
             }
+
+            Set<String> publishedRoutes = new HashSet<>();
+            for (com.inductiveautomation.ignition.examples.mqtt.common.model.TopicMapping matchedMapping : matchedMappings) {
+                publishTagValueToRoute(tagPath, value, matchedMapping, publishedRoutes);
+            }
             
-            // Get the broker ID from the mapping
+        } catch (Exception e) {
+            logger.error("Error publishing tag {}: {}", tagPath, e.getMessage());
+        }
+    }
+
+    private void publishTagValueToRoute(
+        TagPath tagPath,
+        QualifiedValue value,
+        com.inductiveautomation.ignition.examples.mqtt.common.model.TopicMapping matchedMapping,
+        Set<String> publishedRoutes
+    ) {
+        try {
             Long brokerId = matchedMapping.getBrokerId();
             if (brokerId == null) {
                 logger.warn("Skipping tag {} - mapping has no broker assigned", tagPath);
                 return;
             }
-            
-            // Per-tag match logging is intentionally omitted to reduce gateway log volume.
-            
+
             // Map tag to topic using the matched mapping (not searching again)
             String topic = topicMapper.mapTagToTopicWithMapping(tagPath, matchedMapping);
+            String routeKey = topicMapper.buildEffectiveRouteKey(brokerId, topic, matchedMapping);
+            if (!publishedRoutes.add(routeKey)) {
+                logger.debug("Skipping duplicate effective publish route for tag {} to broker {} topic {}", tagPath, brokerId, topic);
+                return;
+            }
 
             // Build payload
             Map<String, Object> properties = tagPropertyCache.get(tagPath);
@@ -1042,7 +1065,13 @@ public class TagSubscriptionManager {
             }
             
         } catch (Exception e) {
-            logger.error("Error publishing tag {}: {}", tagPath, e.getMessage());
+            logger.error(
+                "Error publishing tag {} for mapping '{}' -> '{}': {}",
+                tagPath,
+                matchedMapping.getSourcePattern(),
+                matchedMapping.getTopicPrefix(),
+                e.getMessage()
+            );
         }
     }
     

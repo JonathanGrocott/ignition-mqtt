@@ -595,7 +595,7 @@
 .mapping-item {
     display: grid;
     grid-template-columns: 1fr auto;
-    align-items: center;
+    align-items: start;
     gap: 10px;
     padding: 12px 15px;
     border-bottom: 1px solid #dee2e6;
@@ -616,6 +616,10 @@
     background: #f5f5f5;
 }
 
+.mapping-main {
+    min-width: 0;
+}
+
 .mapping-details {
     display: flex;
     align-items: center;
@@ -623,6 +627,11 @@
     flex: 1;
     font-family: 'Monaco', 'Courier New', monospace;
     font-size: 13px;
+    min-width: 0;
+}
+
+.mapping-details span {
+    overflow-wrap: anywhere;
 }
 
 .mapping-source-display {
@@ -635,15 +644,65 @@
     font-weight: 500;
 }
 
+.mapping-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-top: 8px;
+    font-size: 12px;
+    color: #6c757d;
+}
+
+.mapping-meta span {
+    padding: 2px 7px;
+    border: 1px solid #e5e7eb;
+    border-radius: 999px;
+    background: #f8f9fa;
+}
+
 .mapping-actions {
     display: flex;
     align-items: center;
     gap: 10px;
 }
 
-.mapping-payload {
+.mapping-advanced {
     grid-column: 1 / -1;
-    margin-top: 8px;
+    margin-top: 4px;
+}
+
+.mapping-advanced-summary,
+.mapping-payload-summary,
+.advanced-settings-summary {
+    cursor: pointer;
+    color: #495057;
+    font-size: 13px;
+    font-weight: 600;
+    list-style: none;
+}
+
+.mapping-advanced-summary::-webkit-details-marker,
+.mapping-payload-summary::-webkit-details-marker,
+.advanced-settings-summary::-webkit-details-marker {
+    display: none;
+}
+
+.mapping-advanced-summary::before,
+.mapping-payload-summary::before,
+.advanced-settings-summary::before {
+    content: '▸';
+    display: inline-block;
+    margin-right: 6px;
+    transition: transform 0.2s ease;
+}
+
+.mapping-advanced[open] > .mapping-advanced-summary::before,
+.mapping-payload[open] > .mapping-payload-summary::before,
+.advanced-settings[open] > .advanced-settings-summary::before {
+    transform: rotate(90deg);
+}
+
+.mapping-advanced[open] {
     padding-top: 10px;
     border-top: 1px dashed #e0e0e0;
 }
@@ -651,7 +710,7 @@
 .mapping-topic-options {
     display: grid;
     gap: 10px;
-    margin-bottom: 12px;
+    margin: 8px 0 12px 0;
 }
 
 .mapping-option-row {
@@ -684,14 +743,34 @@
     background: #fafafa;
 }
 
+.mapping-payload {
+    margin-top: 8px;
+}
+
 .mapping-payload-header {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin-bottom: 8px;
+    margin: 8px 0;
     font-size: 13px;
     font-weight: 600;
     color: #333;
+}
+
+.advanced-settings {
+    margin-top: 18px;
+    padding-top: 14px;
+    border-top: 1px dashed #e0e0e0;
+}
+
+.advanced-settings-body {
+    margin-top: 12px;
+}
+
+.advanced-settings-note {
+    margin: 0 0 10px 0;
+    color: #6c757d;
+    font-size: 13px;
 }
 
 .toggle-switch {
