@@ -211,23 +211,23 @@ broker definitions. For example:
 ```json
 [
   {
-    "sourcePattern": "[default]enterprise/renton/hbl",
-    "topicPrefix": "enterprise/renton_40_20/hbl",
+    "sourcePattern": "[default]enterprise/site1",
+    "topicPrefix": "enterprise/site1/area1",
     "brokerId": 1,
     "enabled": true
   },
   {
-    "sourcePattern": "[default]enterprise/renton/hbl",
-    "topicPrefix": "enterprise/renton_04_20/hbl",
+    "sourcePattern": "[default]enterprise/site1",
+    "topicPrefix": "enterprise/site1/area2",
     "brokerId": 1,
     "enabled": true
   }
 ]
 ```
 
-With per-tag topic mode, `[default]enterprise/renton/hbl/Line1/Asset1/Temp`
-publishes to both `enterprise/renton_40_20/hbl/line1/asset1/temp` and
-`enterprise/renton_04_20/hbl/line1/asset1/temp`.
+With per-tag topic mode, `[default]enterprise/site1/area1/Line1/Asset1/Temp`
+publishes to both `enterprise/site1/area1/line1/asset1/temp` and
+`enterprise/site1/area2/line1/asset1/temp`.
 
 ## Quick Start
 
