@@ -2,6 +2,7 @@ package com.inductiveautomation.ignition.examples.mqtt.gateway;
 
 import com.inductiveautomation.ignition.examples.mqtt.common.model.ConnectionState;
 import com.inductiveautomation.ignition.examples.mqtt.common.model.MqttBrokerConfig;
+import com.inductiveautomation.ignition.examples.mqtt.common.tls.MqttConnectionOptionsFactory;
 import org.eclipse.paho.client.mqttv3.*;
 import org.eclipse.paho.client.mqttv3.persist.MemoryPersistence;
 import org.slf4j.Logger;
@@ -92,6 +93,7 @@ public class MqttPublisherManager {
         statistics.incrementConnectionAttempts();
         
         try {
+            String brokerUrl = cfg.getEffectiveBrokerUrl();
             // Close existing client if present
             if (mqttClient != null && mqttClient.isConnected()) {
                 mqttClient.disconnect();
@@ -99,7 +101,7 @@ public class MqttPublisherManager {
             
             // Create new MQTT client
             mqttClient = new MqttClient(
-                cfg.getBrokerUrl(),
+                brokerUrl,
                 cfg.getClientId(),
                 new MemoryPersistence()
             );
@@ -109,7 +111,7 @@ public class MqttPublisherManager {
                 @Override
                 public void connectionLost(Throwable cause) {
                     logger.warn("MQTT connection lost for client '{}' to {}: {}", 
-                        cfg.getClientId(), cfg.getBrokerUrl(), cause.getMessage());
+                        cfg.getClientId(), brokerUrl, cause.getMessage());
                     setConnectionState(ConnectionState.RECONNECTING);
                     scheduleReconnect();
                 }
@@ -137,8 +139,12 @@ public class MqttPublisherManager {
             slowReconnectMode = false;
             statistics.recordSuccessfulConnection();
             logger.info("Successfully connected to MQTT broker: {} (client ID: '{}')", 
-                cfg.getBrokerUrl(), cfg.getClientId());
+                brokerUrl, cfg.getClientId());
             
+        } catch (IllegalArgumentException e) {
+            logger.error("Invalid TLS/MQTT connection configuration for {}: {}", cfg.getBrokerUrl(), e.getMessage());
+            statistics.incrementConnectionFailures();
+            setConnectionState(ConnectionState.ERROR);
         } catch (MqttException e) {
             logger.error("Failed to connect to MQTT broker: {} - {}", 
                         cfg.getBrokerUrl(), e.getMessage(), e);
@@ -152,26 +158,7 @@ public class MqttPublisherManager {
      * Builds MQTT connection options from configuration
      */
     private MqttConnectOptions buildConnectOptions(MqttBrokerConfig cfg) {
-        MqttConnectOptions options = new MqttConnectOptions();
-        
-        // Authentication
-        if (cfg.getUsername() != null && !cfg.getUsername().isEmpty()) {
-            options.setUserName(cfg.getUsername());
-        }
-        if (cfg.getPassword() != null && !cfg.getPassword().isEmpty()) {
-            options.setPassword(cfg.getPassword().toCharArray());
-        }
-        
-        // Connection settings
-        options.setCleanSession(cfg.isCleanSession());
-        options.setConnectionTimeout(cfg.getConnectionTimeout());
-        options.setKeepAliveInterval(cfg.getKeepAlive());
-        options.setAutomaticReconnect(false); // We handle reconnection ourselves
-        
-        // TODO: Add TLS support when cfg.isUseTls() is true
-        // This will require certificate configuration in future phases
-        
-        return options;
+        return MqttConnectionOptionsFactory.build(cfg);
     }
     
     /**

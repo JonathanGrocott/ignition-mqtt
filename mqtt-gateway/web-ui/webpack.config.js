@@ -43,7 +43,8 @@ module.exports = {
     // These resolve to the current gateway's hostname automatically
     externals: {
         'react': '/res/sys/js/react.js',
-        'react-dom': '/res/sys/js/react-dom.js'
+        'react-dom': '/res/sys/js/react-dom.js',
+        'react-redux': 'react-redux'
     },
     devtool: 'source-map',
     optimization: {

@@ -1,6 +1,9 @@
 import React, { useState, useEffect } from 'react';
+import { useSelector } from 'react-redux';
 import { saveTagConfig, getBrokerConfig } from '../api';
 import { MqttTagConfig, TopicMapping, MqttBrokerConfig, PayloadFieldConfig } from '../types';
+
+type GatewayReduxState = { userSession?: { csrfToken?: string } };
 
 const payloadPropertyGroups = [
     {
@@ -80,6 +83,7 @@ interface Props {
 }
 
 const TagSelection: React.FC<Props> = ({ config, onConfigSaved }) => {
+    const csrfToken = useSelector((state: GatewayReduxState) => state.userSession?.csrfToken || '');
     const [formData, setFormData] = useState<MqttTagConfig>({
         name: 'Default Tag Publishing',
         enabled: false,
@@ -387,7 +391,7 @@ const TagSelection: React.FC<Props> = ({ config, onConfigSaved }) => {
         }
 
         try {
-            const response = await saveTagConfig(formData);
+            const response = await saveTagConfig(formData, csrfToken);
 
             if (response.success && response.data) {
                 setMessage({ type: 'success', text: 'Tag configuration saved successfully' });

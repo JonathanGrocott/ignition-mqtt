@@ -2,6 +2,7 @@ package com.inductiveautomation.ignition.examples.mqtt.sparkplug.gateway;
 
 import com.inductiveautomation.ignition.examples.mqtt.common.model.ConnectionState;
 import com.inductiveautomation.ignition.examples.mqtt.common.model.MqttBrokerConfig;
+import com.inductiveautomation.ignition.examples.mqtt.common.tls.MqttConnectionOptionsFactory;
 import org.eclipse.paho.client.mqttv3.*;
 import org.eclipse.paho.client.mqttv3.persist.MemoryPersistence;
 import org.slf4j.Logger;
@@ -81,12 +82,13 @@ public class SparkplugPublisherManager {
 
         setConnectionState(ConnectionState.CONNECTING);
         try {
+            String brokerUrl = cfg.getEffectiveBrokerUrl();
             if (mqttClient != null && mqttClient.isConnected()) {
                 mqttClient.disconnect();
             }
 
             mqttClient = new MqttClient(
-                cfg.getBrokerUrl(),
+                brokerUrl,
                 cfg.getClientId(),
                 new MemoryPersistence()
             );
@@ -95,7 +97,7 @@ public class SparkplugPublisherManager {
                 @Override
                 public void connectionLost(Throwable cause) {
                     logger.warn("Sparkplug MQTT connection lost for client '{}' to {}: {}",
-                        cfg.getClientId(), cfg.getBrokerUrl(), cause.getMessage());
+                        cfg.getClientId(), brokerUrl, cause.getMessage());
                     setConnectionState(ConnectionState.RECONNECTING);
                     scheduleReconnect();
                 }
@@ -119,8 +121,11 @@ public class SparkplugPublisherManager {
             reconnectAttempts.set(0);
             slowReconnectMode = false;
             logger.info("Connected to Sparkplug MQTT broker: {} (client ID: '{}')",
-                cfg.getBrokerUrl(), cfg.getClientId());
+                brokerUrl, cfg.getClientId());
 
+        } catch (IllegalArgumentException e) {
+            logger.error("Invalid TLS/MQTT connection configuration for {}: {}", cfg.getBrokerUrl(), e.getMessage());
+            setConnectionState(ConnectionState.ERROR);
         } catch (MqttException e) {
             logger.error("Failed to connect to Sparkplug MQTT broker: {} - {}",
                 cfg.getBrokerUrl(), e.getMessage(), e);
@@ -136,19 +141,7 @@ public class SparkplugPublisherManager {
         int willQos,
         boolean willRetained
     ) {
-        MqttConnectOptions options = new MqttConnectOptions();
-
-        if (cfg.getUsername() != null && !cfg.getUsername().isEmpty()) {
-            options.setUserName(cfg.getUsername());
-        }
-        if (cfg.getPassword() != null && !cfg.getPassword().isEmpty()) {
-            options.setPassword(cfg.getPassword().toCharArray());
-        }
-
-        options.setCleanSession(cfg.isCleanSession());
-        options.setConnectionTimeout(cfg.getConnectionTimeout());
-        options.setKeepAliveInterval(cfg.getKeepAlive());
-        options.setAutomaticReconnect(false);
+        MqttConnectOptions options = MqttConnectionOptionsFactory.build(cfg);
 
         if (willTopic != null && willPayload != null) {
             options.setWill(willTopic, willPayload, willQos, willRetained);

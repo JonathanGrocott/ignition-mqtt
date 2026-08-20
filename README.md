@@ -76,9 +76,9 @@ SKIP_MODULE_SIGNING=1 ./build.sh both
 GitHub releases are created by pushing a version tag. The release workflow builds both modules, signs them with the IA module signing tool, verifies that each `.modl` contains `certificates.p7b` and `signatures.properties`, and attaches only the signed `.modl` files to the release.
 
 ```bash
-git tag v1.1.4
-git push origin dev/enable-module-signing
-git push origin v1.1.4
+git push origin main
+git tag -a v1.1.6 -m "Release v1.1.6"
+git push origin v1.1.6
 ```
 
 ## Installation
@@ -182,6 +182,9 @@ See `mqtt-uns-config-combined-example.json` in the repository for a complete con
 - `brokerUrl`: MQTT broker URL (tcp://host:port or ssl://host:port)
 - `clientId`: Unique client identifier
 - `username`/`password`: Authentication credentials (optional)
+- `useTls`: Enables TLS and normalizes `tcp://`/`mqtts://` URLs to Paho's `ssl://` transport
+- `tlsTrustMode`: `SYSTEM_DEFAULT` to use the Gateway JVM trust store or `UPLOADED_CA` for a broker-specific CA bundle
+- `caCertificatePem`: PEM-encoded X.509 CA certificate or bundle (accepted on writes and never returned by the API)
 - `qos`: Quality of Service (0, 1, or 2)
 - `retained`: Whether messages should be retained by broker
 - `cleanSession`: Whether to use clean session
@@ -260,16 +263,17 @@ For detailed setup instructions for various brokers, see the [MQTT documentation
 
 ## Development Status
 
-**Current Version**: 1.1.0
+**Current Version**: 1.1.6
 
 ### Status
-- **MQTT UNS Publisher**: Production-ready for MQTT 3.1.1 brokers (non‑TLS).
+- **MQTT UNS Publisher**: Supports MQTT 3.1.1 over plaintext or server-authenticated TLS, including broker-specific CA bundles.
 - **MQTT SparkplugB Publisher**: Preview/experimental. Core publish path works, but spec compliance gaps remain.
 
-### Recent Updates (v1.1.0)
-- ✅ Fixed broker connection when saving tag configuration
-- ✅ Enhanced debug logging for troubleshooting
-- ✅ Improved broker lifecycle management
+### Recent Updates (v1.1.6)
+- ✅ Added server-authenticated TLS with system or uploaded CA trust
+- ✅ Replaced the simulated broker test with a real MQTT connection test
+- ✅ Added TLS certificate validation and actionable connection errors
+- ✅ Protected configuration writes with authenticated sessions and CSRF checks
 
 ### Completed Features
 - ✅ Multi-broker support with dynamic connection management
@@ -280,16 +284,17 @@ For detailed setup instructions for various brokers, see the [MQTT documentation
 - ✅ Event-driven tag monitoring
 - ✅ Automatic broker connection/disconnection based on topic mappings
 - ✅ Test connection functionality
+- ✅ TLS hostname verification with system or uploaded CA trust
+- ✅ Broker-specific PEM CA upload and certificate metadata
 
 ### Future Enhancements
-- [ ] TLS/SSL support for secure MQTT connections
 - [ ] SparkplugB spec compliance improvements (state handling, metrics typing, command handling)
 - [ ] Custom payload templates
 - [ ] Batch publishing for high-volume scenarios
 - [ ] Comprehensive unit and integration tests
 
 ### Known Limitations
-- TLS/SSL connections not yet supported (plaintext MQTT only)
+- Mutual TLS/client certificates are not currently supported
 - SparkplugB module is preview; some spec compliance gaps remain
 - Not compatible with Ignition Maker Edition (third-party modules not supported)
 - Known issue: switching from UNS config to Sparkplug config may require navigating to a different page first
@@ -493,7 +498,8 @@ wrapper.java.additional.X=-Dignition.allowunsignedmodules=true
 2. Verify configuration file exists at correct location
 3. Check Gateway logs: `tail -f logs/wrapper.log`
 4. Test broker with mosquitto_pub/sub
-5. Verify broker URL format: `tcp://hostname:port`
+5. Verify broker URL format: `tcp://hostname:port` for plaintext or `ssl://hostname:port` for TLS
+6. For a private CA, select **Uploaded CA certificate bundle**, upload the PEM file, and run **Test Connection**
 
 ### No Messages Publishing
 

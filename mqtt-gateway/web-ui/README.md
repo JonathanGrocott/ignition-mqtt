@@ -58,10 +58,11 @@ The UI communicates with the following REST API endpoints:
 
 ### Broker Settings Tab
 - Configure MQTT broker connection (URL, client ID, credentials)
-- TLS/SSL toggle (backend support pending)
+- TLS/SSL transport with hostname verification
+- Gateway system trust or uploaded PEM CA certificate bundles
 - QoS, retained messages, clean session options
 - Connection timeout and keep-alive settings
-- Test connection before saving
+- Real MQTT connection test using the same TLS/authentication path as publishing
 - Enable/disable module
 
 ### Tag Publishing Tab

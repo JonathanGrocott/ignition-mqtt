@@ -19,7 +19,6 @@ const API_BASE = '/data/mqtt-uns-publisher';
  */
 async function apiFetch<T>(url: string, options?: RequestInit): Promise<ApiResponse<T>> {
     try {
-        console.log('[API] Fetching:', url);
         const response = await fetch(url, {
             ...options,
             headers: {
@@ -28,17 +27,10 @@ async function apiFetch<T>(url: string, options?: RequestInit): Promise<ApiRespo
             }
         });
 
-        console.log('[API] Response status:', response.status, response.statusText);
-        console.log('[API] Content-Type:', response.headers.get('content-type'));
-        
-        // Get the raw text first to see what we're dealing with
         const text = await response.text();
-        console.log('[API] Raw response text:', text);
-        console.log('[API] Response text length:', text.length);
         
         // Handle empty response (e.g., 204 No Content or empty body)
         if (!text || text.trim().length === 0) {
-            console.warn('[API] Empty response body received');
             if (!response.ok) {
                 return {
                     success: false,
@@ -56,10 +48,7 @@ async function apiFetch<T>(url: string, options?: RequestInit): Promise<ApiRespo
         let data;
         try {
             data = JSON.parse(text);
-            console.log('[API] Parsed data:', data);
         } catch (parseError) {
-            console.error('[API] JSON parse error:', parseError);
-            console.error('[API] Failed to parse text:', text);
             return {
                 success: false,
                 error: `Invalid JSON response: ${parseError instanceof Error ? parseError.message : 'Parse error'}`
@@ -76,12 +65,21 @@ async function apiFetch<T>(url: string, options?: RequestInit): Promise<ApiRespo
         return data as ApiResponse<T>;
 
     } catch (error) {
-        console.error('[API] apiFetch error:', error);
         return {
             success: false,
             error: error instanceof Error ? error.message : 'Network error'
         };
     }
+}
+
+function writeOptions(method: 'POST' | 'DELETE', csrfToken: string, body?: string): RequestInit {
+    return {
+        method,
+        headers: {
+            'X-CSRF-Token': csrfToken
+        },
+        body
+    };
 }
 
 /**
@@ -101,20 +99,18 @@ export async function getBrokerById(id: number): Promise<ApiResponse<MqttBrokerC
 /**
  * Save broker configuration (create new or update existing)
  */
-export async function saveBrokerConfig(config: MqttBrokerConfig): Promise<ApiResponse<MqttBrokerConfig>> {
-    return apiFetch<MqttBrokerConfig>(`${API_BASE}/config/broker`, {
-        method: 'POST',
-        body: JSON.stringify(config)
-    });
+export async function saveBrokerConfig(config: MqttBrokerConfig, csrfToken: string): Promise<ApiResponse<MqttBrokerConfig>> {
+    return apiFetch<MqttBrokerConfig>(
+        `${API_BASE}/config/broker`,
+        writeOptions('POST', csrfToken, JSON.stringify(config))
+    );
 }
 
 /**
  * Delete a broker by ID
  */
-export async function deleteBroker(id: number): Promise<ApiResponse<void>> {
-    return apiFetch<void>(`${API_BASE}/config/broker?id=${id}`, {
-        method: 'DELETE'
-    });
+export async function deleteBroker(id: number, csrfToken: string): Promise<ApiResponse<void>> {
+    return apiFetch<void>(`${API_BASE}/config/broker?id=${id}`, writeOptions('DELETE', csrfToken));
 }
 
 /**
@@ -127,11 +123,11 @@ export async function getTagConfig(): Promise<ApiResponse<MqttTagConfig>> {
 /**
  * Save tag configuration
  */
-export async function saveTagConfig(config: MqttTagConfig): Promise<ApiResponse<MqttTagConfig>> {
-    return apiFetch<MqttTagConfig>(`${API_BASE}/config/tags`, {
-        method: 'POST',
-        body: JSON.stringify(config)
-    });
+export async function saveTagConfig(config: MqttTagConfig, csrfToken: string): Promise<ApiResponse<MqttTagConfig>> {
+    return apiFetch<MqttTagConfig>(
+        `${API_BASE}/config/tags`,
+        writeOptions('POST', csrfToken, JSON.stringify(config))
+    );
 }
 
 /**
@@ -144,11 +140,11 @@ export async function getModuleStatus(): Promise<ApiResponse<ModuleStatus>> {
 /**
  * Test MQTT broker connection
  */
-export async function testConnection(config: TestConnectionRequest): Promise<ApiResponse<TestConnectionResult>> {
-    return apiFetch<TestConnectionResult>(`${API_BASE}/test-connection`, {
-        method: 'POST',
-        body: JSON.stringify(config)
-    });
+export async function testConnection(config: TestConnectionRequest, csrfToken: string): Promise<ApiResponse<TestConnectionResult>> {
+    return apiFetch<TestConnectionResult>(
+        `${API_BASE}/test-connection`,
+        writeOptions('POST', csrfToken, JSON.stringify(config))
+    );
 }
 
 /**
