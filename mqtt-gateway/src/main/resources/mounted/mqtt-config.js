@@ -1,13 +1,13 @@
 (function webpackUniversalModuleDefinition(root, factory) {
 	if(typeof exports === 'object' && typeof module === 'object')
-		module.exports = factory(require("/res/sys/js/react.js"));
+		module.exports = factory(require("/res/sys/js/react.js"), require("react-redux"));
 	else if(typeof define === 'function' && define.amd)
-		define("com.inductiveautomation.mqtt.uns.gateway", ["/res/sys/js/react.js"], factory);
+		define("com.inductiveautomation.mqtt.uns.gateway", ["/res/sys/js/react.js", "react-redux"], factory);
 	else if(typeof exports === 'object')
-		exports["com.inductiveautomation.mqtt.uns.gateway"] = factory(require("/res/sys/js/react.js"));
+		exports["com.inductiveautomation.mqtt.uns.gateway"] = factory(require("/res/sys/js/react.js"), require("react-redux"));
 	else
-		root["com.inductiveautomation.mqtt.uns.gateway"] = factory(root["/res/sys/js/react.js"]);
-})(this, (__WEBPACK_EXTERNAL_MODULE__704__) => {
+		root["com.inductiveautomation.mqtt.uns.gateway"] = factory(root["/res/sys/js/react.js"], root["react-redux"]);
+})(this, (__WEBPACK_EXTERNAL_MODULE__704__, __WEBPACK_EXTERNAL_MODULE__148__) => {
 return /******/ (() => { // webpackBootstrap
 /******/ 	"use strict";
 /******/ 	var __webpack_modules__ = ({
@@ -135,6 +135,13 @@ function styleTagTransform(css, styleElement) {
   }
 }
 module.exports = styleTagTransform;
+
+/***/ },
+
+/***/ 148
+(module) {
+
+module.exports = __WEBPACK_EXTERNAL_MODULE__148__;
 
 /***/ },
 
@@ -419,6 +426,92 @@ ___CSS_LOADER_EXPORT___.push([module.id, `/* MQTT UNS Publisher Gateway Configur
 .form-group.checkbox input[type="checkbox"] {
     margin-right: 8px;
     width: auto;
+}
+
+.tls-settings {
+    margin-top: 20px;
+    padding: 18px;
+    border: 1px solid #cbd5e1;
+    border-radius: 6px;
+    background: #f8fafc;
+}
+
+.tls-settings h3 {
+    margin: 0 0 16px 0;
+}
+
+.certificate-upload input[type="file"] {
+    display: block;
+    width: 100%;
+    box-sizing: border-box;
+    padding: 10px;
+    border: 1px dashed #94a3b8;
+    border-radius: 4px;
+    background: white;
+}
+
+.certificate-status {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 12px;
+    margin-bottom: 12px;
+    border: 1px solid #86efac;
+    border-radius: 4px;
+    background: #f0fdf4;
+}
+
+.certificate-status strong,
+.certificate-status span {
+    display: block;
+}
+
+.certificate-status span {
+    margin-top: 3px;
+    color: #166534;
+    font-size: 12px;
+}
+
+.certificate-details {
+    padding: 12px;
+    margin-top: 10px;
+    border: 1px solid #dbe3ec;
+    border-radius: 4px;
+    background: white;
+}
+
+.certificate-details.invalid {
+    border-color: #f59e0b;
+    background: #fffbeb;
+}
+
+.certificate-details > div {
+    display: grid;
+    grid-template-columns: 100px minmax(0, 1fr);
+    gap: 8px;
+    margin-top: 6px;
+    font-size: 12px;
+}
+
+.certificate-details > div:first-child,
+.certificate-details .certificate-warning {
+    display: block;
+    margin-top: 0;
+}
+
+.certificate-details code {
+    overflow-wrap: anywhere;
+    white-space: normal;
+}
+
+.certificate-warning {
+    padding: 8px 10px;
+    margin-top: 10px;
+    border-radius: 4px;
+    background: #fef3c7;
+    color: #92400e;
+    font-size: 12px;
 }
 
 /* Payload Configuration */
@@ -1449,7 +1542,7 @@ ___CSS_LOADER_EXPORT___.push([module.id, `/* MQTT UNS Publisher Gateway Configur
     display: block;
     margin-bottom: 4px;
 }
-`, "",{"version":3,"sources":["webpack://./src/styles.css"],"names":[],"mappings":"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","sourcesContent":["/* MQTT UNS Publisher Gateway Configuration UI Styles */\n\n.mqtt-config-page {\n    max-width: 1200px;\n    margin: 0 auto;\n    padding: 20px;\n    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;\n}\n\n.page-header {\n    margin-bottom: 30px;\n}\n\n.page-header h1 {\n    margin: 0 0 10px 0;\n    font-size: 28px;\n    color: #333;\n}\n\n.page-description {\n    margin: 0;\n    color: #666;\n    font-size: 14px;\n}\n\n/* Loading and Error States */\n.loading {\n    text-align: center;\n    padding: 40px;\n    color: #666;\n}\n\n.error-banner {\n    background: #fee;\n    border: 1px solid #fcc;\n    border-radius: 4px;\n    padding: 15px;\n    margin-bottom: 20px;\n    color: #c00;\n}\n\n.btn-retry {\n    margin-left: 10px;\n    padding: 4px 12px;\n    background: white;\n    border: 1px solid #c00;\n    border-radius: 3px;\n    color: #c00;\n    cursor: pointer;\n}\n\n.btn-retry:hover {\n    background: #c00;\n    color: white;\n}\n\n/* Tabs */\n.tabs {\n    display: flex;\n    gap: 5px;\n    margin-bottom: 20px;\n    border-bottom: 2px solid #ddd;\n}\n\n.tab {\n    padding: 12px 24px;\n    background: #f5f5f5;\n    border: 1px solid #ddd;\n    border-bottom: none;\n    border-radius: 4px 4px 0 0;\n    cursor: pointer;\n    font-size: 14px;\n    transition: all 0.2s;\n}\n\n.tab:hover {\n    background: #e8e8e8;\n}\n\n.tab.active {\n    background: white;\n    border-bottom: 2px solid white;\n    margin-bottom: -2px;\n    font-weight: 600;\n}\n\n.tab-content {\n    background: white;\n    padding: 30px;\n    border: 1px solid #ddd;\n    border-radius: 0 4px 4px 4px;\n}\n\n/* Forms */\n.form-section {\n    margin-bottom: 30px;\n}\n\n.form-section h2 {\n    margin: 0 0 20px 0;\n    font-size: 20px;\n    color: #333;\n    border-bottom: 1px solid #eee;\n    padding-bottom: 10px;\n}\n\n.form-group {\n    margin-bottom: 20px;\n}\n\n.form-group label {\n    display: block;\n    margin-bottom: 6px;\n    font-weight: 500;\n    font-size: 14px;\n    color: #333;\n}\n\n.form-group input[type=\"text\"],\n.form-group input[type=\"password\"],\n.form-group input[type=\"number\"],\n.form-group select,\n.form-group textarea {\n    width: 100%;\n    padding: 8px 12px;\n    border: 1px solid #ddd;\n    border-radius: 4px;\n    font-size: 14px;\n    box-sizing: border-box;\n}\n\n.form-group small {\n    display: block;\n    margin-top: 4px;\n    color: #666;\n    font-size: 12px;\n}\n\n.form-row {\n    display: grid;\n    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));\n    gap: 20px;\n}\n\n.form-group.checkbox label {\n    display: flex;\n    align-items: center;\n    font-weight: normal;\n}\n\n.form-group.checkbox input[type=\"checkbox\"] {\n    margin-right: 8px;\n    width: auto;\n}\n\n/* Payload Configuration */\n.payload-core {\n    margin-top: 12px;\n    border: 1px solid #eee;\n    border-radius: 6px;\n    padding: 12px;\n    background: #fafafa;\n}\n\n.payload-core-row {\n    display: flex;\n    justify-content: space-between;\n    align-items: center;\n    padding: 6px 0;\n    border-bottom: 1px solid #eee;\n}\n\n.payload-core-row:last-child {\n    border-bottom: none;\n}\n\n.payload-radio-group {\n    display: flex;\n    gap: 12px;\n    align-items: center;\n}\n\n.payload-radio-group label {\n    display: inline-flex;\n    align-items: center;\n    gap: 6px;\n    font-weight: normal;\n    margin: 0;\n}\n\n.payload-properties {\n    margin-top: 16px;\n    display: grid;\n    gap: 16px;\n}\n\n.payload-group {\n    border: 1px solid #eee;\n    border-radius: 6px;\n    padding: 0;\n    background: #fff;\n}\n\n.payload-group-summary {\n    margin: 0;\n    padding: 12px;\n    font-size: 14px;\n    color: #333;\n    cursor: pointer;\n    font-weight: 600;\n    list-style: none;\n}\n\n.payload-group-summary::-webkit-details-marker {\n    display: none;\n}\n\n.payload-group-summary::before {\n    content: '▸';\n    display: inline-block;\n    margin-right: 8px;\n    transition: transform 0.2s ease;\n}\n\n.payload-group[open] .payload-group-summary::before {\n    transform: rotate(90deg);\n}\n\n.payload-group-fields {\n    display: grid;\n    gap: 8px;\n    padding: 0 12px 12px 12px;\n}\n\n.payload-property-row {\n    display: flex;\n    justify-content: space-between;\n    align-items: center;\n    padding-bottom: 6px;\n    border-bottom: 1px dashed #eee;\n}\n\n.payload-property-row:last-child {\n    border-bottom: none;\n    padding-bottom: 0;\n}\n\n/* List Input */\n.list-input {\n    display: flex;\n    gap: 10px;\n    margin-bottom: 10px;\n}\n\n.list-input input {\n    flex: 1;\n}\n\n.btn-add {\n    padding: 8px 16px;\n    background: #007bff;\n    color: white;\n    border: none;\n    border-radius: 4px;\n    cursor: pointer;\n    white-space: nowrap;\n}\n\n.btn-add:hover {\n    background: #0056b3;\n}\n\n.item-list {\n    list-style: none;\n    padding: 0;\n    margin: 10px 0;\n    border: 1px solid #ddd;\n    border-radius: 4px;\n    max-height: 200px;\n    overflow-y: auto;\n}\n\n.item-list li {\n    padding: 10px;\n    border-bottom: 1px solid #eee;\n    display: flex;\n    justify-content: space-between;\n    align-items: center;\n}\n\n.item-list li:last-child {\n    border-bottom: none;\n}\n\n.btn-remove {\n    padding: 4px 12px;\n    background: #dc3545;\n    color: white;\n    border: none;\n    border-radius: 3px;\n    font-size: 12px;\n    cursor: pointer;\n}\n\n.btn-remove:hover {\n    background: #c82333;\n}\n\n/* Messages */\n.message {\n    padding: 12px;\n    border-radius: 4px;\n    margin: 20px 0;\n}\n\n.message.success {\n    background: #d4edda;\n    border: 1px solid #c3e6cb;\n    color: #155724;\n}\n\n.message.error {\n    background: #f8d7da;\n    border: 1px solid #f5c6cb;\n    color: #721c24;\n}\n\n.message.info {\n    background: #d1ecf1;\n    border: 1px solid #bee5eb;\n    color: #0c5460;\n}\n\n/* Form Actions */\n.form-actions {\n    display: flex;\n    gap: 10px;\n    margin-top: 30px;\n    padding-top: 20px;\n    border-top: 1px solid #eee;\n}\n\n.btn-primary,\n.btn-secondary {\n    padding: 10px 24px;\n    border: none;\n    border-radius: 4px;\n    font-size: 14px;\n    font-weight: 500;\n    cursor: pointer;\n    transition: all 0.2s;\n}\n\n.btn-primary {\n    background: #28a745;\n    color: white;\n}\n\n.btn-primary:hover:not(:disabled) {\n    background: #218838;\n}\n\n.btn-secondary {\n    background: #6c757d;\n    color: white;\n}\n\n.btn-secondary:hover:not(:disabled) {\n    background: #5a6268;\n}\n\n.btn-primary:disabled,\n.btn-secondary:disabled {\n    opacity: 0.5;\n    cursor: not-allowed;\n}\n\n/* Status Dashboard */\n.status-dashboard {\n    min-height: 400px;\n}\n\n.status-header {\n    display: flex;\n    justify-content: space-between;\n    align-items: center;\n    margin-bottom: 20px;\n}\n\n.auto-refresh {\n    display: flex;\n    align-items: center;\n    gap: 8px;\n    font-size: 14px;\n    color: #666;\n}\n\n.auto-refresh input[type=\"checkbox\"] {\n    margin: 0;\n}\n\n.status-grid {\n    display: grid;\n    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));\n    gap: 20px;\n    margin-bottom: 30px;\n}\n\n.status-card {\n    background: #f8f9fa;\n    border: 1px solid #dee2e6;\n    border-radius: 8px;\n    padding: 20px;\n}\n\n.status-card h3 {\n    margin: 0 0 15px 0;\n    font-size: 16px;\n    color: #495057;\n}\n\n.status-content {\n    text-align: center;\n}\n\n.badge {\n    display: inline-block;\n    padding: 6px 12px;\n    border-radius: 4px;\n    font-size: 14px;\n    font-weight: 600;\n    text-transform: uppercase;\n}\n\n.badge-success {\n    background: #d4edda;\n    color: #155724;\n}\n\n.badge-warning {\n    background: #fff3cd;\n    color: #856404;\n}\n\n.badge-error {\n    background: #f8d7da;\n    color: #721c24;\n}\n\n.badge-unknown {\n    background: #e2e3e5;\n    color: #383d41;\n}\n\n.status-message {\n    margin: 10px 0 0 0;\n    font-size: 14px;\n    color: #6c757d;\n}\n\n.broker-url {\n    margin: 10px 0 0 0;\n    font-size: 13px;\n    font-family: monospace;\n    color: #495057;\n}\n\n.broker-counts {\n    margin: 10px 0 0 0;\n    font-size: 14px;\n    font-weight: 500;\n    color: #495057;\n}\n\n.hint-text {\n    margin: 8px 0 0 0;\n    font-size: 12px;\n    color: #6c757d;\n    font-style: italic;\n}\n\n.hint-text strong {\n    font-weight: 600;\n    font-style: normal;\n    color: #495057;\n}\n\n.reconnect-info {\n    margin: 8px 0 0 0;\n    font-size: 12px;\n    color: #856404;\n}\n\n.stat-value {\n    font-size: 32px;\n    font-weight: 700;\n    color: #212529;\n    margin-bottom: 5px;\n}\n\n.stat-label {\n    margin: 0;\n    font-size: 13px;\n    color: #6c757d;\n}\n\n/* Statistics Section */\n.statistics-section {\n    background: #f8f9fa;\n    border: 1px solid #dee2e6;\n    border-radius: 8px;\n    padding: 20px;\n}\n\n.statistics-section h3 {\n    margin: 0 0 20px 0;\n    font-size: 18px;\n    color: #333;\n}\n\n.stats-grid {\n    display: grid;\n    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));\n    gap: 20px;\n}\n\n.stat-item {\n    display: flex;\n    flex-direction: column;\n}\n\n.stat-item label {\n    font-size: 13px;\n    color: #6c757d;\n    margin-bottom: 5px;\n}\n\n.stat-item .stat-value {\n    font-size: 24px;\n    font-weight: 600;\n    color: #212529;\n}\n\n.stat-item .stat-value.error {\n    color: #dc3545;\n}\n\n/* Topic Mappings */\n.section-description {\n    font-size: 14px;\n    color: #666;\n    margin: 0 0 15px 0;\n    line-height: 1.5;\n}\n\n.section-description code {\n    background: #f5f5f5;\n    padding: 2px 6px;\n    border-radius: 3px;\n    font-family: 'Monaco', 'Courier New', monospace;\n    font-size: 13px;\n}\n\n.mapping-input {\n    display: flex;\n    gap: 10px;\n    align-items: center;\n    margin-bottom: 15px;\n}\n\n.mapping-input .mapping-source {\n    flex: 1;\n    min-width: 0;\n}\n\n.mapping-input .mapping-topic {\n    flex: 1.5;\n    min-width: 0;\n}\n\n.mapping-input .mapping-arrow {\n    color: #666;\n    font-size: 18px;\n    font-weight: bold;\n    flex-shrink: 0;\n}\n\n.mappings-list {\n    border: 1px solid #dee2e6;\n    border-radius: 4px;\n    margin: 15px 0;\n    background: #f8f9fa;\n}\n\n.mapping-item {\n    display: grid;\n    grid-template-columns: 1fr auto;\n    align-items: start;\n    gap: 10px;\n    padding: 12px 15px;\n    border-bottom: 1px solid #dee2e6;\n    background: white;\n    transition: background 0.2s;\n}\n\n.mapping-item:last-child {\n    border-bottom: none;\n}\n\n.mapping-item:hover {\n    background: #f8f9fa;\n}\n\n.mapping-item.disabled {\n    opacity: 0.5;\n    background: #f5f5f5;\n}\n\n.mapping-main {\n    min-width: 0;\n}\n\n.mapping-details {\n    display: flex;\n    align-items: center;\n    gap: 12px;\n    flex: 1;\n    font-family: 'Monaco', 'Courier New', monospace;\n    font-size: 13px;\n    min-width: 0;\n}\n\n.mapping-details span {\n    overflow-wrap: anywhere;\n}\n\n.mapping-source-display {\n    color: #0066cc;\n    font-weight: 500;\n}\n\n.mapping-topic-display {\n    color: #28a745;\n    font-weight: 500;\n}\n\n.mapping-meta {\n    display: flex;\n    flex-wrap: wrap;\n    gap: 6px;\n    margin-top: 8px;\n    font-size: 12px;\n    color: #6c757d;\n}\n\n.mapping-meta span {\n    padding: 2px 7px;\n    border: 1px solid #e5e7eb;\n    border-radius: 999px;\n    background: #f8f9fa;\n}\n\n.mapping-actions {\n    display: flex;\n    align-items: center;\n    gap: 10px;\n}\n\n.mapping-advanced {\n    grid-column: 1 / -1;\n    margin-top: 4px;\n}\n\n.mapping-advanced-summary,\n.mapping-payload-summary,\n.advanced-settings-summary {\n    cursor: pointer;\n    color: #495057;\n    font-size: 13px;\n    font-weight: 600;\n    list-style: none;\n}\n\n.mapping-advanced-summary::-webkit-details-marker,\n.mapping-payload-summary::-webkit-details-marker,\n.advanced-settings-summary::-webkit-details-marker {\n    display: none;\n}\n\n.mapping-advanced-summary::before,\n.mapping-payload-summary::before,\n.advanced-settings-summary::before {\n    content: '▸';\n    display: inline-block;\n    margin-right: 6px;\n    transition: transform 0.2s ease;\n}\n\n.mapping-advanced[open] > .mapping-advanced-summary::before,\n.mapping-payload[open] > .mapping-payload-summary::before,\n.advanced-settings[open] > .advanced-settings-summary::before {\n    transform: rotate(90deg);\n}\n\n.mapping-advanced[open] {\n    padding-top: 10px;\n    border-top: 1px dashed #e0e0e0;\n}\n\n.mapping-topic-options {\n    display: grid;\n    gap: 10px;\n    margin: 8px 0 12px 0;\n}\n\n.mapping-option-row {\n    display: flex;\n    justify-content: space-between;\n    align-items: center;\n    gap: 12px;\n    font-size: 13px;\n    color: #333;\n}\n\n.mapping-option-row input[type=\"number\"] {\n    max-width: 140px;\n}\n\n.mapping-checkbox {\n    display: inline-flex;\n    align-items: center;\n    gap: 8px;\n    font-size: 13px;\n    color: #333;\n}\n\n.mapping-batch-settings {\n    display: grid;\n    gap: 8px;\n    padding: 10px;\n    border: 1px solid #eee;\n    border-radius: 6px;\n    background: #fafafa;\n}\n\n.mapping-payload {\n    margin-top: 8px;\n}\n\n.mapping-payload-header {\n    display: flex;\n    justify-content: space-between;\n    align-items: center;\n    margin: 8px 0;\n    font-size: 13px;\n    font-weight: 600;\n    color: #333;\n}\n\n.advanced-settings {\n    margin-top: 18px;\n    padding-top: 14px;\n    border-top: 1px dashed #e0e0e0;\n}\n\n.advanced-settings-body {\n    margin-top: 12px;\n}\n\n.advanced-settings-note {\n    margin: 0 0 10px 0;\n    color: #6c757d;\n    font-size: 13px;\n}\n\n.toggle-switch {\n    position: relative;\n    display: inline-block;\n    width: 44px;\n    height: 24px;\n    margin: 0;\n}\n\n.toggle-switch input {\n    opacity: 0;\n    width: 0;\n    height: 0;\n}\n\n.toggle-slider {\n    position: absolute;\n    cursor: pointer;\n    top: 0;\n    left: 0;\n    right: 0;\n    bottom: 0;\n    background-color: #ccc;\n    transition: 0.3s;\n    border-radius: 24px;\n}\n\n.toggle-slider:before {\n    position: absolute;\n    content: \"\";\n    height: 18px;\n    width: 18px;\n    left: 3px;\n    bottom: 3px;\n    background-color: white;\n    transition: 0.3s;\n    border-radius: 50%;\n}\n\n.toggle-switch input:checked + .toggle-slider {\n    background-color: #28a745;\n}\n\n.toggle-switch input:checked + .toggle-slider:before {\n    transform: translateX(20px);\n}\n\n.btn-remove-small {\n    background: none;\n    border: none;\n    color: #dc3545;\n    font-size: 20px;\n    line-height: 1;\n    cursor: pointer;\n    padding: 0 5px;\n    transition: color 0.2s;\n}\n\n.btn-remove-small:hover {\n    color: #c82333;\n}\n\n.no-mappings {\n    padding: 20px;\n    text-align: center;\n    color: #666;\n    background: #f8f9fa;\n    border: 1px dashed #dee2e6;\n    border-radius: 4px;\n    margin: 10px 0;\n}\n\n.no-mappings code {\n    background: white;\n    padding: 3px 8px;\n    border-radius: 3px;\n    font-family: 'Monaco', 'Courier New', monospace;\n    color: #0066cc;\n}\n\n/* Active Subscriptions View */\n.subscriptions-view {\n    margin-top: 30px;\n}\n\n.subscriptions-header {\n    display: flex;\n    justify-content: space-between;\n    align-items: center;\n    margin-bottom: 15px;\n}\n\n.subscriptions-count {\n    color: #666;\n    font-size: 14px;\n}\n\n.btn-refresh {\n    padding: 6px 12px;\n    background: #f8f9fa;\n    border: 1px solid #dee2e6;\n    border-radius: 4px;\n    cursor: pointer;\n    font-size: 13px;\n    transition: all 0.2s;\n}\n\n.btn-refresh:hover {\n    background: #e9ecef;\n    border-color: #adb5bd;\n}\n\n.subscriptions-table {\n    width: 100%;\n    border-collapse: collapse;\n    background: white;\n    border: 1px solid #dee2e6;\n    border-radius: 4px;\n    overflow: hidden;\n}\n\n.subscriptions-table th {\n    background: #f8f9fa;\n    padding: 12px;\n    text-align: left;\n    font-weight: 600;\n    color: #495057;\n    border-bottom: 2px solid #dee2e6;\n    font-size: 13px;\n}\n\n.subscriptions-table td {\n    padding: 10px 12px;\n    border-bottom: 1px solid #dee2e6;\n    font-size: 13px;\n}\n\n.subscriptions-table tr:last-child td {\n    border-bottom: none;\n}\n\n.subscriptions-table tr:hover {\n    background: #f8f9fa;\n}\n\n.tag-path {\n    font-family: 'Monaco', 'Courier New', monospace;\n    color: #0066cc;\n}\n\n.mqtt-topic {\n    font-family: 'Monaco', 'Courier New', monospace;\n    color: #28a745;\n    font-size: 12px;\n}\n\n.publish-count {\n    text-align: right;\n    color: #666;\n}\n\n.last-published {\n    color: #999;\n    font-size: 12px;\n}\n\n.quality-good {\n    color: #28a745;\n    font-weight: 500;\n}\n\n.quality-bad {\n    color: #dc3545;\n    font-weight: 500;\n}\n\n.quality-uncertain {\n    color: #ffc107;\n    font-weight: 500;\n}\n\n/* Multi-Broker Settings Layout */\n.broker-settings.multi-broker {\n    display: grid;\n    grid-template-columns: 300px 1fr;\n    gap: 20px;\n    height: calc(100vh - 250px);\n    min-height: 600px;\n}\n\n.broker-list-panel {\n    background: #f8f9fa;\n    border: 1px solid #dee2e6;\n    border-radius: 6px;\n    display: flex;\n    flex-direction: column;\n    overflow: hidden;\n}\n\n.broker-list-panel .panel-header {\n    padding: 15px;\n    border-bottom: 1px solid #dee2e6;\n    background: white;\n    display: flex;\n    justify-content: space-between;\n    align-items: center;\n}\n\n.broker-list-panel .panel-header h2 {\n    margin: 0;\n    font-size: 16px;\n    font-weight: 600;\n}\n\n.broker-list {\n    flex: 1;\n    overflow-y: auto;\n    padding: 10px;\n}\n\n.broker-item {\n    background: white;\n    border: 2px solid #dee2e6;\n    border-radius: 6px;\n    padding: 12px;\n    margin-bottom: 8px;\n    cursor: pointer;\n    transition: all 0.2s;\n}\n\n.broker-item:hover {\n    border-color: #007bff;\n    box-shadow: 0 2px 4px rgba(0,0,0,0.1);\n}\n\n.broker-item.selected {\n    border-color: #007bff;\n    background: #e7f3ff;\n}\n\n.broker-item-header {\n    display: flex;\n    justify-content: space-between;\n    align-items: center;\n    margin-bottom: 6px;\n}\n\n.broker-item-header strong {\n    font-size: 14px;\n    color: #333;\n}\n\n.broker-item-url {\n    font-size: 12px;\n    color: #666;\n    font-family: 'Monaco', 'Courier New', monospace;\n}\n\n.badge {\n    font-size: 10px;\n    padding: 2px 8px;\n    border-radius: 10px;\n    font-weight: 600;\n    text-transform: uppercase;\n}\n\n.badge-success {\n    background: #d4edda;\n    color: #155724;\n}\n\n.broker-edit-panel {\n    background: white;\n    border: 1px solid #dee2e6;\n    border-radius: 6px;\n    padding: 20px;\n    overflow-y: auto;\n}\n\n.broker-edit-panel .panel-header {\n    margin: -20px -20px 20px -20px;\n    padding: 15px 20px;\n    border-bottom: 1px solid #dee2e6;\n    background: #f8f9fa;\n}\n\n.broker-edit-panel .panel-header h2 {\n    margin: 0;\n    font-size: 18px;\n    font-weight: 600;\n}\n\n.broker-edit-panel .empty-state {\n    text-align: center;\n    color: #999;\n    padding: 60px 20px;\n}\n\n.btn-small {\n    font-size: 12px;\n    padding: 6px 12px;\n}\n\n.form-actions .left-actions {\n    flex: 1;\n}\n\n.form-actions .right-actions {\n    display: flex;\n    gap: 10px;\n}\n\n.btn-danger {\n    background: #dc3545;\n    color: white;\n    border: 1px solid #dc3545;\n}\n\n.btn-danger:hover {\n    background: #c82333;\n    border-color: #bd2130;\n}\n\n/* Topic Mappings by Broker */\n.mapping-input-container {\n    display: flex;\n    flex-direction: column;\n    gap: 10px;\n}\n\n.mapping-input-row {\n    display: flex;\n    gap: 10px;\n    align-items: center;\n}\n\n.broker-select {\n    flex: 1;\n    padding: 8px;\n    border: 1px solid #ced4da;\n    border-radius: 4px;\n    font-size: 14px;\n}\n\n.mappings-by-broker {\n    margin-top: 20px;\n}\n\n.broker-mappings-group {\n    margin-bottom: 30px;\n}\n\n.broker-mappings-group.unassigned-group {\n    background: #fff3cd;\n    border: 2px solid #ffc107;\n    border-radius: 8px;\n    padding: 15px;\n}\n\n.broker-mappings-group.unassigned-group .broker-group-header {\n    border-bottom-color: #ffc107;\n    color: #856404;\n}\n\n.warning-text {\n    font-size: 13px;\n    color: #856404;\n    margin: 0 0 12px 0;\n    font-style: italic;\n}\n\n.broker-group-header {\n    display: flex;\n    align-items: center;\n    gap: 12px;\n    margin-bottom: 12px;\n    padding-bottom: 8px;\n    border-bottom: 2px solid #007bff;\n    font-size: 16px;\n    color: #333;\n}\n\n.broker-group-header .broker-url {\n    font-size: 13px;\n    color: #666;\n    font-family: 'Monaco', 'Courier New', monospace;\n    font-weight: normal;\n}\n\n.broker-group-header .mapping-count {\n    font-size: 12px;\n    color: #999;\n    font-weight: normal;\n    margin-left: auto;\n}\n\n.warning-message {\n    background: #fff3cd;\n    border: 1px solid #ffc107;\n    border-radius: 4px;\n    padding: 12px;\n    color: #856404;\n    margin-bottom: 15px;\n}\n\n.warning-message strong {\n    display: block;\n    margin-bottom: 4px;\n}\n"],"sourceRoot":""}]);
+`, "",{"version":3,"sources":["webpack://./src/styles.css"],"names":[],"mappings":"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","sourcesContent":["/* MQTT UNS Publisher Gateway Configuration UI Styles */\n\n.mqtt-config-page {\n    max-width: 1200px;\n    margin: 0 auto;\n    padding: 20px;\n    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;\n}\n\n.page-header {\n    margin-bottom: 30px;\n}\n\n.page-header h1 {\n    margin: 0 0 10px 0;\n    font-size: 28px;\n    color: #333;\n}\n\n.page-description {\n    margin: 0;\n    color: #666;\n    font-size: 14px;\n}\n\n/* Loading and Error States */\n.loading {\n    text-align: center;\n    padding: 40px;\n    color: #666;\n}\n\n.error-banner {\n    background: #fee;\n    border: 1px solid #fcc;\n    border-radius: 4px;\n    padding: 15px;\n    margin-bottom: 20px;\n    color: #c00;\n}\n\n.btn-retry {\n    margin-left: 10px;\n    padding: 4px 12px;\n    background: white;\n    border: 1px solid #c00;\n    border-radius: 3px;\n    color: #c00;\n    cursor: pointer;\n}\n\n.btn-retry:hover {\n    background: #c00;\n    color: white;\n}\n\n/* Tabs */\n.tabs {\n    display: flex;\n    gap: 5px;\n    margin-bottom: 20px;\n    border-bottom: 2px solid #ddd;\n}\n\n.tab {\n    padding: 12px 24px;\n    background: #f5f5f5;\n    border: 1px solid #ddd;\n    border-bottom: none;\n    border-radius: 4px 4px 0 0;\n    cursor: pointer;\n    font-size: 14px;\n    transition: all 0.2s;\n}\n\n.tab:hover {\n    background: #e8e8e8;\n}\n\n.tab.active {\n    background: white;\n    border-bottom: 2px solid white;\n    margin-bottom: -2px;\n    font-weight: 600;\n}\n\n.tab-content {\n    background: white;\n    padding: 30px;\n    border: 1px solid #ddd;\n    border-radius: 0 4px 4px 4px;\n}\n\n/* Forms */\n.form-section {\n    margin-bottom: 30px;\n}\n\n.form-section h2 {\n    margin: 0 0 20px 0;\n    font-size: 20px;\n    color: #333;\n    border-bottom: 1px solid #eee;\n    padding-bottom: 10px;\n}\n\n.form-group {\n    margin-bottom: 20px;\n}\n\n.form-group label {\n    display: block;\n    margin-bottom: 6px;\n    font-weight: 500;\n    font-size: 14px;\n    color: #333;\n}\n\n.form-group input[type=\"text\"],\n.form-group input[type=\"password\"],\n.form-group input[type=\"number\"],\n.form-group select,\n.form-group textarea {\n    width: 100%;\n    padding: 8px 12px;\n    border: 1px solid #ddd;\n    border-radius: 4px;\n    font-size: 14px;\n    box-sizing: border-box;\n}\n\n.form-group small {\n    display: block;\n    margin-top: 4px;\n    color: #666;\n    font-size: 12px;\n}\n\n.form-row {\n    display: grid;\n    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));\n    gap: 20px;\n}\n\n.form-group.checkbox label {\n    display: flex;\n    align-items: center;\n    font-weight: normal;\n}\n\n.form-group.checkbox input[type=\"checkbox\"] {\n    margin-right: 8px;\n    width: auto;\n}\n\n.tls-settings {\n    margin-top: 20px;\n    padding: 18px;\n    border: 1px solid #cbd5e1;\n    border-radius: 6px;\n    background: #f8fafc;\n}\n\n.tls-settings h3 {\n    margin: 0 0 16px 0;\n}\n\n.certificate-upload input[type=\"file\"] {\n    display: block;\n    width: 100%;\n    box-sizing: border-box;\n    padding: 10px;\n    border: 1px dashed #94a3b8;\n    border-radius: 4px;\n    background: white;\n}\n\n.certificate-status {\n    display: flex;\n    align-items: center;\n    justify-content: space-between;\n    gap: 12px;\n    padding: 12px;\n    margin-bottom: 12px;\n    border: 1px solid #86efac;\n    border-radius: 4px;\n    background: #f0fdf4;\n}\n\n.certificate-status strong,\n.certificate-status span {\n    display: block;\n}\n\n.certificate-status span {\n    margin-top: 3px;\n    color: #166534;\n    font-size: 12px;\n}\n\n.certificate-details {\n    padding: 12px;\n    margin-top: 10px;\n    border: 1px solid #dbe3ec;\n    border-radius: 4px;\n    background: white;\n}\n\n.certificate-details.invalid {\n    border-color: #f59e0b;\n    background: #fffbeb;\n}\n\n.certificate-details > div {\n    display: grid;\n    grid-template-columns: 100px minmax(0, 1fr);\n    gap: 8px;\n    margin-top: 6px;\n    font-size: 12px;\n}\n\n.certificate-details > div:first-child,\n.certificate-details .certificate-warning {\n    display: block;\n    margin-top: 0;\n}\n\n.certificate-details code {\n    overflow-wrap: anywhere;\n    white-space: normal;\n}\n\n.certificate-warning {\n    padding: 8px 10px;\n    margin-top: 10px;\n    border-radius: 4px;\n    background: #fef3c7;\n    color: #92400e;\n    font-size: 12px;\n}\n\n/* Payload Configuration */\n.payload-core {\n    margin-top: 12px;\n    border: 1px solid #eee;\n    border-radius: 6px;\n    padding: 12px;\n    background: #fafafa;\n}\n\n.payload-core-row {\n    display: flex;\n    justify-content: space-between;\n    align-items: center;\n    padding: 6px 0;\n    border-bottom: 1px solid #eee;\n}\n\n.payload-core-row:last-child {\n    border-bottom: none;\n}\n\n.payload-radio-group {\n    display: flex;\n    gap: 12px;\n    align-items: center;\n}\n\n.payload-radio-group label {\n    display: inline-flex;\n    align-items: center;\n    gap: 6px;\n    font-weight: normal;\n    margin: 0;\n}\n\n.payload-properties {\n    margin-top: 16px;\n    display: grid;\n    gap: 16px;\n}\n\n.payload-group {\n    border: 1px solid #eee;\n    border-radius: 6px;\n    padding: 0;\n    background: #fff;\n}\n\n.payload-group-summary {\n    margin: 0;\n    padding: 12px;\n    font-size: 14px;\n    color: #333;\n    cursor: pointer;\n    font-weight: 600;\n    list-style: none;\n}\n\n.payload-group-summary::-webkit-details-marker {\n    display: none;\n}\n\n.payload-group-summary::before {\n    content: '▸';\n    display: inline-block;\n    margin-right: 8px;\n    transition: transform 0.2s ease;\n}\n\n.payload-group[open] .payload-group-summary::before {\n    transform: rotate(90deg);\n}\n\n.payload-group-fields {\n    display: grid;\n    gap: 8px;\n    padding: 0 12px 12px 12px;\n}\n\n.payload-property-row {\n    display: flex;\n    justify-content: space-between;\n    align-items: center;\n    padding-bottom: 6px;\n    border-bottom: 1px dashed #eee;\n}\n\n.payload-property-row:last-child {\n    border-bottom: none;\n    padding-bottom: 0;\n}\n\n/* List Input */\n.list-input {\n    display: flex;\n    gap: 10px;\n    margin-bottom: 10px;\n}\n\n.list-input input {\n    flex: 1;\n}\n\n.btn-add {\n    padding: 8px 16px;\n    background: #007bff;\n    color: white;\n    border: none;\n    border-radius: 4px;\n    cursor: pointer;\n    white-space: nowrap;\n}\n\n.btn-add:hover {\n    background: #0056b3;\n}\n\n.item-list {\n    list-style: none;\n    padding: 0;\n    margin: 10px 0;\n    border: 1px solid #ddd;\n    border-radius: 4px;\n    max-height: 200px;\n    overflow-y: auto;\n}\n\n.item-list li {\n    padding: 10px;\n    border-bottom: 1px solid #eee;\n    display: flex;\n    justify-content: space-between;\n    align-items: center;\n}\n\n.item-list li:last-child {\n    border-bottom: none;\n}\n\n.btn-remove {\n    padding: 4px 12px;\n    background: #dc3545;\n    color: white;\n    border: none;\n    border-radius: 3px;\n    font-size: 12px;\n    cursor: pointer;\n}\n\n.btn-remove:hover {\n    background: #c82333;\n}\n\n/* Messages */\n.message {\n    padding: 12px;\n    border-radius: 4px;\n    margin: 20px 0;\n}\n\n.message.success {\n    background: #d4edda;\n    border: 1px solid #c3e6cb;\n    color: #155724;\n}\n\n.message.error {\n    background: #f8d7da;\n    border: 1px solid #f5c6cb;\n    color: #721c24;\n}\n\n.message.info {\n    background: #d1ecf1;\n    border: 1px solid #bee5eb;\n    color: #0c5460;\n}\n\n/* Form Actions */\n.form-actions {\n    display: flex;\n    gap: 10px;\n    margin-top: 30px;\n    padding-top: 20px;\n    border-top: 1px solid #eee;\n}\n\n.btn-primary,\n.btn-secondary {\n    padding: 10px 24px;\n    border: none;\n    border-radius: 4px;\n    font-size: 14px;\n    font-weight: 500;\n    cursor: pointer;\n    transition: all 0.2s;\n}\n\n.btn-primary {\n    background: #28a745;\n    color: white;\n}\n\n.btn-primary:hover:not(:disabled) {\n    background: #218838;\n}\n\n.btn-secondary {\n    background: #6c757d;\n    color: white;\n}\n\n.btn-secondary:hover:not(:disabled) {\n    background: #5a6268;\n}\n\n.btn-primary:disabled,\n.btn-secondary:disabled {\n    opacity: 0.5;\n    cursor: not-allowed;\n}\n\n/* Status Dashboard */\n.status-dashboard {\n    min-height: 400px;\n}\n\n.status-header {\n    display: flex;\n    justify-content: space-between;\n    align-items: center;\n    margin-bottom: 20px;\n}\n\n.auto-refresh {\n    display: flex;\n    align-items: center;\n    gap: 8px;\n    font-size: 14px;\n    color: #666;\n}\n\n.auto-refresh input[type=\"checkbox\"] {\n    margin: 0;\n}\n\n.status-grid {\n    display: grid;\n    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));\n    gap: 20px;\n    margin-bottom: 30px;\n}\n\n.status-card {\n    background: #f8f9fa;\n    border: 1px solid #dee2e6;\n    border-radius: 8px;\n    padding: 20px;\n}\n\n.status-card h3 {\n    margin: 0 0 15px 0;\n    font-size: 16px;\n    color: #495057;\n}\n\n.status-content {\n    text-align: center;\n}\n\n.badge {\n    display: inline-block;\n    padding: 6px 12px;\n    border-radius: 4px;\n    font-size: 14px;\n    font-weight: 600;\n    text-transform: uppercase;\n}\n\n.badge-success {\n    background: #d4edda;\n    color: #155724;\n}\n\n.badge-warning {\n    background: #fff3cd;\n    color: #856404;\n}\n\n.badge-error {\n    background: #f8d7da;\n    color: #721c24;\n}\n\n.badge-unknown {\n    background: #e2e3e5;\n    color: #383d41;\n}\n\n.status-message {\n    margin: 10px 0 0 0;\n    font-size: 14px;\n    color: #6c757d;\n}\n\n.broker-url {\n    margin: 10px 0 0 0;\n    font-size: 13px;\n    font-family: monospace;\n    color: #495057;\n}\n\n.broker-counts {\n    margin: 10px 0 0 0;\n    font-size: 14px;\n    font-weight: 500;\n    color: #495057;\n}\n\n.hint-text {\n    margin: 8px 0 0 0;\n    font-size: 12px;\n    color: #6c757d;\n    font-style: italic;\n}\n\n.hint-text strong {\n    font-weight: 600;\n    font-style: normal;\n    color: #495057;\n}\n\n.reconnect-info {\n    margin: 8px 0 0 0;\n    font-size: 12px;\n    color: #856404;\n}\n\n.stat-value {\n    font-size: 32px;\n    font-weight: 700;\n    color: #212529;\n    margin-bottom: 5px;\n}\n\n.stat-label {\n    margin: 0;\n    font-size: 13px;\n    color: #6c757d;\n}\n\n/* Statistics Section */\n.statistics-section {\n    background: #f8f9fa;\n    border: 1px solid #dee2e6;\n    border-radius: 8px;\n    padding: 20px;\n}\n\n.statistics-section h3 {\n    margin: 0 0 20px 0;\n    font-size: 18px;\n    color: #333;\n}\n\n.stats-grid {\n    display: grid;\n    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));\n    gap: 20px;\n}\n\n.stat-item {\n    display: flex;\n    flex-direction: column;\n}\n\n.stat-item label {\n    font-size: 13px;\n    color: #6c757d;\n    margin-bottom: 5px;\n}\n\n.stat-item .stat-value {\n    font-size: 24px;\n    font-weight: 600;\n    color: #212529;\n}\n\n.stat-item .stat-value.error {\n    color: #dc3545;\n}\n\n/* Topic Mappings */\n.section-description {\n    font-size: 14px;\n    color: #666;\n    margin: 0 0 15px 0;\n    line-height: 1.5;\n}\n\n.section-description code {\n    background: #f5f5f5;\n    padding: 2px 6px;\n    border-radius: 3px;\n    font-family: 'Monaco', 'Courier New', monospace;\n    font-size: 13px;\n}\n\n.mapping-input {\n    display: flex;\n    gap: 10px;\n    align-items: center;\n    margin-bottom: 15px;\n}\n\n.mapping-input .mapping-source {\n    flex: 1;\n    min-width: 0;\n}\n\n.mapping-input .mapping-topic {\n    flex: 1.5;\n    min-width: 0;\n}\n\n.mapping-input .mapping-arrow {\n    color: #666;\n    font-size: 18px;\n    font-weight: bold;\n    flex-shrink: 0;\n}\n\n.mappings-list {\n    border: 1px solid #dee2e6;\n    border-radius: 4px;\n    margin: 15px 0;\n    background: #f8f9fa;\n}\n\n.mapping-item {\n    display: grid;\n    grid-template-columns: 1fr auto;\n    align-items: start;\n    gap: 10px;\n    padding: 12px 15px;\n    border-bottom: 1px solid #dee2e6;\n    background: white;\n    transition: background 0.2s;\n}\n\n.mapping-item:last-child {\n    border-bottom: none;\n}\n\n.mapping-item:hover {\n    background: #f8f9fa;\n}\n\n.mapping-item.disabled {\n    opacity: 0.5;\n    background: #f5f5f5;\n}\n\n.mapping-main {\n    min-width: 0;\n}\n\n.mapping-details {\n    display: flex;\n    align-items: center;\n    gap: 12px;\n    flex: 1;\n    font-family: 'Monaco', 'Courier New', monospace;\n    font-size: 13px;\n    min-width: 0;\n}\n\n.mapping-details span {\n    overflow-wrap: anywhere;\n}\n\n.mapping-source-display {\n    color: #0066cc;\n    font-weight: 500;\n}\n\n.mapping-topic-display {\n    color: #28a745;\n    font-weight: 500;\n}\n\n.mapping-meta {\n    display: flex;\n    flex-wrap: wrap;\n    gap: 6px;\n    margin-top: 8px;\n    font-size: 12px;\n    color: #6c757d;\n}\n\n.mapping-meta span {\n    padding: 2px 7px;\n    border: 1px solid #e5e7eb;\n    border-radius: 999px;\n    background: #f8f9fa;\n}\n\n.mapping-actions {\n    display: flex;\n    align-items: center;\n    gap: 10px;\n}\n\n.mapping-advanced {\n    grid-column: 1 / -1;\n    margin-top: 4px;\n}\n\n.mapping-advanced-summary,\n.mapping-payload-summary,\n.advanced-settings-summary {\n    cursor: pointer;\n    color: #495057;\n    font-size: 13px;\n    font-weight: 600;\n    list-style: none;\n}\n\n.mapping-advanced-summary::-webkit-details-marker,\n.mapping-payload-summary::-webkit-details-marker,\n.advanced-settings-summary::-webkit-details-marker {\n    display: none;\n}\n\n.mapping-advanced-summary::before,\n.mapping-payload-summary::before,\n.advanced-settings-summary::before {\n    content: '▸';\n    display: inline-block;\n    margin-right: 6px;\n    transition: transform 0.2s ease;\n}\n\n.mapping-advanced[open] > .mapping-advanced-summary::before,\n.mapping-payload[open] > .mapping-payload-summary::before,\n.advanced-settings[open] > .advanced-settings-summary::before {\n    transform: rotate(90deg);\n}\n\n.mapping-advanced[open] {\n    padding-top: 10px;\n    border-top: 1px dashed #e0e0e0;\n}\n\n.mapping-topic-options {\n    display: grid;\n    gap: 10px;\n    margin: 8px 0 12px 0;\n}\n\n.mapping-option-row {\n    display: flex;\n    justify-content: space-between;\n    align-items: center;\n    gap: 12px;\n    font-size: 13px;\n    color: #333;\n}\n\n.mapping-option-row input[type=\"number\"] {\n    max-width: 140px;\n}\n\n.mapping-checkbox {\n    display: inline-flex;\n    align-items: center;\n    gap: 8px;\n    font-size: 13px;\n    color: #333;\n}\n\n.mapping-batch-settings {\n    display: grid;\n    gap: 8px;\n    padding: 10px;\n    border: 1px solid #eee;\n    border-radius: 6px;\n    background: #fafafa;\n}\n\n.mapping-payload {\n    margin-top: 8px;\n}\n\n.mapping-payload-header {\n    display: flex;\n    justify-content: space-between;\n    align-items: center;\n    margin: 8px 0;\n    font-size: 13px;\n    font-weight: 600;\n    color: #333;\n}\n\n.advanced-settings {\n    margin-top: 18px;\n    padding-top: 14px;\n    border-top: 1px dashed #e0e0e0;\n}\n\n.advanced-settings-body {\n    margin-top: 12px;\n}\n\n.advanced-settings-note {\n    margin: 0 0 10px 0;\n    color: #6c757d;\n    font-size: 13px;\n}\n\n.toggle-switch {\n    position: relative;\n    display: inline-block;\n    width: 44px;\n    height: 24px;\n    margin: 0;\n}\n\n.toggle-switch input {\n    opacity: 0;\n    width: 0;\n    height: 0;\n}\n\n.toggle-slider {\n    position: absolute;\n    cursor: pointer;\n    top: 0;\n    left: 0;\n    right: 0;\n    bottom: 0;\n    background-color: #ccc;\n    transition: 0.3s;\n    border-radius: 24px;\n}\n\n.toggle-slider:before {\n    position: absolute;\n    content: \"\";\n    height: 18px;\n    width: 18px;\n    left: 3px;\n    bottom: 3px;\n    background-color: white;\n    transition: 0.3s;\n    border-radius: 50%;\n}\n\n.toggle-switch input:checked + .toggle-slider {\n    background-color: #28a745;\n}\n\n.toggle-switch input:checked + .toggle-slider:before {\n    transform: translateX(20px);\n}\n\n.btn-remove-small {\n    background: none;\n    border: none;\n    color: #dc3545;\n    font-size: 20px;\n    line-height: 1;\n    cursor: pointer;\n    padding: 0 5px;\n    transition: color 0.2s;\n}\n\n.btn-remove-small:hover {\n    color: #c82333;\n}\n\n.no-mappings {\n    padding: 20px;\n    text-align: center;\n    color: #666;\n    background: #f8f9fa;\n    border: 1px dashed #dee2e6;\n    border-radius: 4px;\n    margin: 10px 0;\n}\n\n.no-mappings code {\n    background: white;\n    padding: 3px 8px;\n    border-radius: 3px;\n    font-family: 'Monaco', 'Courier New', monospace;\n    color: #0066cc;\n}\n\n/* Active Subscriptions View */\n.subscriptions-view {\n    margin-top: 30px;\n}\n\n.subscriptions-header {\n    display: flex;\n    justify-content: space-between;\n    align-items: center;\n    margin-bottom: 15px;\n}\n\n.subscriptions-count {\n    color: #666;\n    font-size: 14px;\n}\n\n.btn-refresh {\n    padding: 6px 12px;\n    background: #f8f9fa;\n    border: 1px solid #dee2e6;\n    border-radius: 4px;\n    cursor: pointer;\n    font-size: 13px;\n    transition: all 0.2s;\n}\n\n.btn-refresh:hover {\n    background: #e9ecef;\n    border-color: #adb5bd;\n}\n\n.subscriptions-table {\n    width: 100%;\n    border-collapse: collapse;\n    background: white;\n    border: 1px solid #dee2e6;\n    border-radius: 4px;\n    overflow: hidden;\n}\n\n.subscriptions-table th {\n    background: #f8f9fa;\n    padding: 12px;\n    text-align: left;\n    font-weight: 600;\n    color: #495057;\n    border-bottom: 2px solid #dee2e6;\n    font-size: 13px;\n}\n\n.subscriptions-table td {\n    padding: 10px 12px;\n    border-bottom: 1px solid #dee2e6;\n    font-size: 13px;\n}\n\n.subscriptions-table tr:last-child td {\n    border-bottom: none;\n}\n\n.subscriptions-table tr:hover {\n    background: #f8f9fa;\n}\n\n.tag-path {\n    font-family: 'Monaco', 'Courier New', monospace;\n    color: #0066cc;\n}\n\n.mqtt-topic {\n    font-family: 'Monaco', 'Courier New', monospace;\n    color: #28a745;\n    font-size: 12px;\n}\n\n.publish-count {\n    text-align: right;\n    color: #666;\n}\n\n.last-published {\n    color: #999;\n    font-size: 12px;\n}\n\n.quality-good {\n    color: #28a745;\n    font-weight: 500;\n}\n\n.quality-bad {\n    color: #dc3545;\n    font-weight: 500;\n}\n\n.quality-uncertain {\n    color: #ffc107;\n    font-weight: 500;\n}\n\n/* Multi-Broker Settings Layout */\n.broker-settings.multi-broker {\n    display: grid;\n    grid-template-columns: 300px 1fr;\n    gap: 20px;\n    height: calc(100vh - 250px);\n    min-height: 600px;\n}\n\n.broker-list-panel {\n    background: #f8f9fa;\n    border: 1px solid #dee2e6;\n    border-radius: 6px;\n    display: flex;\n    flex-direction: column;\n    overflow: hidden;\n}\n\n.broker-list-panel .panel-header {\n    padding: 15px;\n    border-bottom: 1px solid #dee2e6;\n    background: white;\n    display: flex;\n    justify-content: space-between;\n    align-items: center;\n}\n\n.broker-list-panel .panel-header h2 {\n    margin: 0;\n    font-size: 16px;\n    font-weight: 600;\n}\n\n.broker-list {\n    flex: 1;\n    overflow-y: auto;\n    padding: 10px;\n}\n\n.broker-item {\n    background: white;\n    border: 2px solid #dee2e6;\n    border-radius: 6px;\n    padding: 12px;\n    margin-bottom: 8px;\n    cursor: pointer;\n    transition: all 0.2s;\n}\n\n.broker-item:hover {\n    border-color: #007bff;\n    box-shadow: 0 2px 4px rgba(0,0,0,0.1);\n}\n\n.broker-item.selected {\n    border-color: #007bff;\n    background: #e7f3ff;\n}\n\n.broker-item-header {\n    display: flex;\n    justify-content: space-between;\n    align-items: center;\n    margin-bottom: 6px;\n}\n\n.broker-item-header strong {\n    font-size: 14px;\n    color: #333;\n}\n\n.broker-item-url {\n    font-size: 12px;\n    color: #666;\n    font-family: 'Monaco', 'Courier New', monospace;\n}\n\n.badge {\n    font-size: 10px;\n    padding: 2px 8px;\n    border-radius: 10px;\n    font-weight: 600;\n    text-transform: uppercase;\n}\n\n.badge-success {\n    background: #d4edda;\n    color: #155724;\n}\n\n.broker-edit-panel {\n    background: white;\n    border: 1px solid #dee2e6;\n    border-radius: 6px;\n    padding: 20px;\n    overflow-y: auto;\n}\n\n.broker-edit-panel .panel-header {\n    margin: -20px -20px 20px -20px;\n    padding: 15px 20px;\n    border-bottom: 1px solid #dee2e6;\n    background: #f8f9fa;\n}\n\n.broker-edit-panel .panel-header h2 {\n    margin: 0;\n    font-size: 18px;\n    font-weight: 600;\n}\n\n.broker-edit-panel .empty-state {\n    text-align: center;\n    color: #999;\n    padding: 60px 20px;\n}\n\n.btn-small {\n    font-size: 12px;\n    padding: 6px 12px;\n}\n\n.form-actions .left-actions {\n    flex: 1;\n}\n\n.form-actions .right-actions {\n    display: flex;\n    gap: 10px;\n}\n\n.btn-danger {\n    background: #dc3545;\n    color: white;\n    border: 1px solid #dc3545;\n}\n\n.btn-danger:hover {\n    background: #c82333;\n    border-color: #bd2130;\n}\n\n/* Topic Mappings by Broker */\n.mapping-input-container {\n    display: flex;\n    flex-direction: column;\n    gap: 10px;\n}\n\n.mapping-input-row {\n    display: flex;\n    gap: 10px;\n    align-items: center;\n}\n\n.broker-select {\n    flex: 1;\n    padding: 8px;\n    border: 1px solid #ced4da;\n    border-radius: 4px;\n    font-size: 14px;\n}\n\n.mappings-by-broker {\n    margin-top: 20px;\n}\n\n.broker-mappings-group {\n    margin-bottom: 30px;\n}\n\n.broker-mappings-group.unassigned-group {\n    background: #fff3cd;\n    border: 2px solid #ffc107;\n    border-radius: 8px;\n    padding: 15px;\n}\n\n.broker-mappings-group.unassigned-group .broker-group-header {\n    border-bottom-color: #ffc107;\n    color: #856404;\n}\n\n.warning-text {\n    font-size: 13px;\n    color: #856404;\n    margin: 0 0 12px 0;\n    font-style: italic;\n}\n\n.broker-group-header {\n    display: flex;\n    align-items: center;\n    gap: 12px;\n    margin-bottom: 12px;\n    padding-bottom: 8px;\n    border-bottom: 2px solid #007bff;\n    font-size: 16px;\n    color: #333;\n}\n\n.broker-group-header .broker-url {\n    font-size: 13px;\n    color: #666;\n    font-family: 'Monaco', 'Courier New', monospace;\n    font-weight: normal;\n}\n\n.broker-group-header .mapping-count {\n    font-size: 12px;\n    color: #999;\n    font-weight: normal;\n    margin-left: auto;\n}\n\n.warning-message {\n    background: #fff3cd;\n    border: 1px solid #ffc107;\n    border-radius: 4px;\n    padding: 12px;\n    color: #856404;\n    margin-bottom: 15px;\n}\n\n.warning-message strong {\n    display: block;\n    margin-bottom: 4px;\n}\n"],"sourceRoot":""}]);
 // Exports
 /* harmony default export */ const __WEBPACK_DEFAULT_EXPORT__ = (___CSS_LOADER_EXPORT___);
 
@@ -1671,7 +1764,6 @@ const API_BASE = '/data/mqtt-uns-publisher';
  */
 async function apiFetch(url, options) {
     try {
-        console.log('[API] Fetching:', url);
         const response = await fetch(url, {
             ...options,
             headers: {
@@ -1679,15 +1771,9 @@ async function apiFetch(url, options) {
                 ...options?.headers
             }
         });
-        console.log('[API] Response status:', response.status, response.statusText);
-        console.log('[API] Content-Type:', response.headers.get('content-type'));
-        // Get the raw text first to see what we're dealing with
         const text = await response.text();
-        console.log('[API] Raw response text:', text);
-        console.log('[API] Response text length:', text.length);
         // Handle empty response (e.g., 204 No Content or empty body)
         if (!text || text.trim().length === 0) {
-            console.warn('[API] Empty response body received');
             if (!response.ok) {
                 return {
                     success: false,
@@ -1704,11 +1790,8 @@ async function apiFetch(url, options) {
         let data;
         try {
             data = JSON.parse(text);
-            console.log('[API] Parsed data:', data);
         }
         catch (parseError) {
-            console.error('[API] JSON parse error:', parseError);
-            console.error('[API] Failed to parse text:', text);
             return {
                 success: false,
                 error: `Invalid JSON response: ${parseError instanceof Error ? parseError.message : 'Parse error'}`
@@ -1723,12 +1806,20 @@ async function apiFetch(url, options) {
         return data;
     }
     catch (error) {
-        console.error('[API] apiFetch error:', error);
         return {
             success: false,
             error: error instanceof Error ? error.message : 'Network error'
         };
     }
+}
+function writeOptions(method, csrfToken, body) {
+    return {
+        method,
+        headers: {
+            'X-CSRF-Token': csrfToken
+        },
+        body
+    };
 }
 /**
  * Get all broker configurations
@@ -1745,19 +1836,14 @@ async function getBrokerById(id) {
 /**
  * Save broker configuration (create new or update existing)
  */
-async function saveBrokerConfig(config) {
-    return apiFetch(`${API_BASE}/config/broker`, {
-        method: 'POST',
-        body: JSON.stringify(config)
-    });
+async function saveBrokerConfig(config, csrfToken) {
+    return apiFetch(`${API_BASE}/config/broker`, writeOptions('POST', csrfToken, JSON.stringify(config)));
 }
 /**
  * Delete a broker by ID
  */
-async function deleteBroker(id) {
-    return apiFetch(`${API_BASE}/config/broker?id=${id}`, {
-        method: 'DELETE'
-    });
+async function deleteBroker(id, csrfToken) {
+    return apiFetch(`${API_BASE}/config/broker?id=${id}`, writeOptions('DELETE', csrfToken));
 }
 /**
  * Get tag configuration
@@ -1768,11 +1854,8 @@ async function getTagConfig() {
 /**
  * Save tag configuration
  */
-async function saveTagConfig(config) {
-    return apiFetch(`${API_BASE}/config/tags`, {
-        method: 'POST',
-        body: JSON.stringify(config)
-    });
+async function saveTagConfig(config, csrfToken) {
+    return apiFetch(`${API_BASE}/config/tags`, writeOptions('POST', csrfToken, JSON.stringify(config)));
 }
 /**
  * Get module status and statistics
@@ -1783,11 +1866,8 @@ async function getModuleStatus() {
 /**
  * Test MQTT broker connection
  */
-async function testConnection(config) {
-    return apiFetch(`${API_BASE}/test-connection`, {
-        method: 'POST',
-        body: JSON.stringify(config)
-    });
+async function testConnection(config, csrfToken) {
+    return apiFetch(`${API_BASE}/test-connection`, writeOptions('POST', csrfToken, JSON.stringify(config)));
 }
 /**
  * Get all configuration (brokers + tags)
@@ -1796,10 +1876,14 @@ async function getAllConfig() {
     return apiFetch(`${API_BASE}/config`);
 }
 
+// EXTERNAL MODULE: external "react-redux"
+var external_react_redux_ = __webpack_require__(148);
 ;// ./src/components/BrokerSettings.tsx
 
 
+
 const BrokerSettings = ({ onBrokersChanged }) => {
+    const csrfToken = (0,external_react_redux_.useSelector)((state) => state.userSession?.csrfToken || '');
     const [brokers, setBrokers] = (0,react_js_.useState)([]);
     const [selectedBrokerId, setSelectedBrokerId] = (0,react_js_.useState)(null);
     const [editingBroker, setEditingBroker] = (0,react_js_.useState)(null);
@@ -1807,6 +1891,8 @@ const BrokerSettings = ({ onBrokersChanged }) => {
     const [loading, setLoading] = (0,react_js_.useState)(true);
     const [saving, setSaving] = (0,react_js_.useState)(false);
     const [testing, setTesting] = (0,react_js_.useState)(false);
+    const [certificateFileName, setCertificateFileName] = (0,react_js_.useState)(null);
+    const [certificateInputKey, setCertificateInputKey] = (0,react_js_.useState)(0);
     const [message, setMessage] = (0,react_js_.useState)(null);
     // Load all brokers on mount
     (0,react_js_.useEffect)(() => {
@@ -1835,8 +1921,10 @@ const BrokerSettings = ({ onBrokersChanged }) => {
         setSelectedBrokerId(broker.id || null);
         setEditingBroker({
             ...broker,
+            tlsTrustMode: broker.tlsTrustMode || 'SYSTEM_DEFAULT',
             slowReconnectIntervalSeconds: broker.slowReconnectIntervalSeconds ?? 600
         });
+        setCertificateFileName(null);
         setIsAddingNew(false);
         setMessage(null);
     };
@@ -1848,6 +1936,7 @@ const BrokerSettings = ({ onBrokersChanged }) => {
             username: '',
             password: '',
             useTls: false,
+            tlsTrustMode: 'SYSTEM_DEFAULT',
             qos: 1,
             retained: false,
             cleanSession: true,
@@ -1860,6 +1949,64 @@ const BrokerSettings = ({ onBrokersChanged }) => {
         setIsAddingNew(true);
         setSelectedBrokerId(null);
         setMessage(null);
+        setCertificateFileName(null);
+    };
+    const normalizeUrlForTls = (url, enabled) => {
+        if (enabled) {
+            return url
+                .replace(/^mqtts:\/\//i, 'ssl://')
+                .replace(/^mqtt:\/\//i, 'ssl://')
+                .replace(/^tcp:\/\//i, 'ssl://');
+        }
+        return url.replace(/^ssl:\/\//i, 'tcp://').replace(/^mqtts:\/\//i, 'tcp://');
+    };
+    const handleTlsToggle = (e) => {
+        const enabled = e.target.checked;
+        setEditingBroker(prev => prev ? {
+            ...prev,
+            useTls: enabled,
+            brokerUrl: normalizeUrlForTls(prev.brokerUrl, enabled)
+        } : null);
+    };
+    const handleCertificateUpload = async (e) => {
+        const file = e.target.files?.[0];
+        if (!file)
+            return;
+        if (file.size > 256 * 1024) {
+            setMessage({ type: 'error', text: 'CA certificate bundle must be 256 KB or smaller' });
+            setCertificateInputKey(key => key + 1);
+            return;
+        }
+        try {
+            const pem = await file.text();
+            setEditingBroker(prev => prev ? {
+                ...prev,
+                caCertificatePem: pem,
+                caCertificateConfigured: true,
+                caCertificates: undefined,
+                caCertificateError: undefined,
+                removeCaCertificate: false,
+                tlsTrustMode: 'UPLOADED_CA'
+            } : null);
+            setCertificateFileName(file.name);
+            setMessage({ type: 'info', text: 'Certificate selected. Test or save the broker to validate it.' });
+        }
+        catch {
+            setMessage({ type: 'error', text: 'Unable to read the selected certificate file' });
+        }
+    };
+    const handleRemoveCertificate = () => {
+        setEditingBroker(prev => prev ? {
+            ...prev,
+            caCertificatePem: undefined,
+            caCertificateConfigured: false,
+            caCertificates: [],
+            caCertificateError: undefined,
+            removeCaCertificate: true
+        } : null);
+        setCertificateFileName(null);
+        setCertificateInputKey(key => key + 1);
+        setMessage({ type: 'info', text: 'The stored CA certificate will be removed when you save.' });
     };
     const handleChange = (e) => {
         if (!editingBroker)
@@ -1890,17 +2037,21 @@ const BrokerSettings = ({ onBrokersChanged }) => {
         setTesting(true);
         setMessage(null);
         const testRequest = {
+            id: editingBroker.id,
             brokerUrl: editingBroker.brokerUrl,
             clientId: editingBroker.clientId,
             username: editingBroker.username,
             password: editingBroker.password,
             useTls: editingBroker.useTls,
+            tlsTrustMode: editingBroker.tlsTrustMode,
+            caCertificatePem: editingBroker.caCertificatePem,
+            removeCaCertificate: editingBroker.removeCaCertificate,
             connectionTimeout: editingBroker.connectionTimeout,
             keepAliveInterval: editingBroker.keepAliveInterval,
             cleanSession: editingBroker.cleanSession
         };
         try {
-            const response = await testConnection(testRequest);
+            const response = await testConnection(testRequest, csrfToken);
             if (response.success && response.data?.connected) {
                 setMessage({
                     type: 'success',
@@ -1931,9 +2082,10 @@ const BrokerSettings = ({ onBrokersChanged }) => {
         setSaving(true);
         setMessage(null);
         try {
-            const response = await saveBrokerConfig(editingBroker);
+            const response = await saveBrokerConfig(editingBroker, csrfToken);
             if (response.success && response.data) {
                 setMessage({ type: 'success', text: 'Broker saved successfully' });
+                setCertificateFileName(null);
                 await loadBrokers();
                 selectBroker(response.data);
                 onBrokersChanged();
@@ -1957,7 +2109,7 @@ const BrokerSettings = ({ onBrokersChanged }) => {
             return;
         }
         try {
-            const response = await deleteBroker(brokerId);
+            const response = await deleteBroker(brokerId, csrfToken);
             if (response.success) {
                 setMessage({ type: 'success', text: 'Broker deleted successfully' });
                 await loadBrokers();
@@ -1984,6 +2136,7 @@ const BrokerSettings = ({ onBrokersChanged }) => {
             const broker = brokers.find(b => b.id === selectedBrokerId);
             if (broker) {
                 setEditingBroker({ ...broker });
+                setCertificateFileName(null);
             }
         }
         else {
@@ -2028,7 +2181,7 @@ const BrokerSettings = ({ onBrokersChanged }) => {
                         react_js_default().createElement("input", { type: "text", id: "username", name: "username", value: editingBroker.username || '', onChange: handleChange, placeholder: "Leave empty for anonymous" })),
                     react_js_default().createElement("div", { className: "form-group" },
                         react_js_default().createElement("label", { htmlFor: "password" }, "Password (optional)"),
-                        react_js_default().createElement("input", { type: "password", id: "password", name: "password", value: editingBroker.password || '', onChange: handleChange, placeholder: "Leave empty for no password" })))),
+                        react_js_default().createElement("input", { type: "password", id: "password", name: "password", value: editingBroker.password || '', onChange: handleChange, placeholder: editingBroker.hasPassword ? 'Stored password will be preserved' : 'Leave empty for no password' })))),
             react_js_default().createElement("div", { className: "form-section" },
                 react_js_default().createElement("h3", null, "MQTT Settings"),
                 react_js_default().createElement("div", { className: "form-row" },
@@ -2052,7 +2205,7 @@ const BrokerSettings = ({ onBrokersChanged }) => {
                 react_js_default().createElement("div", { className: "form-row" },
                     react_js_default().createElement("div", { className: "form-group checkbox" },
                         react_js_default().createElement("label", null,
-                            react_js_default().createElement("input", { type: "checkbox", name: "useTls", checked: editingBroker.useTls, onChange: handleChange }),
+                            react_js_default().createElement("input", { type: "checkbox", name: "useTls", checked: editingBroker.useTls, onChange: handleTlsToggle }),
                             "Use TLS/SSL encryption")),
                     react_js_default().createElement("div", { className: "form-group checkbox" },
                         react_js_default().createElement("label", null,
@@ -2065,7 +2218,44 @@ const BrokerSettings = ({ onBrokersChanged }) => {
                     react_js_default().createElement("div", { className: "form-group checkbox" },
                         react_js_default().createElement("label", null,
                             react_js_default().createElement("input", { type: "checkbox", name: "enabled", checked: editingBroker.enabled, onChange: handleChange }),
-                            "Enabled")))),
+                            "Enabled"))),
+                editingBroker.useTls && (react_js_default().createElement("div", { className: "tls-settings" },
+                    react_js_default().createElement("h3", null, "TLS Trust"),
+                    react_js_default().createElement("div", { className: "form-group" },
+                        react_js_default().createElement("label", { htmlFor: "tlsTrustMode" }, "Certificate trust source"),
+                        react_js_default().createElement("select", { id: "tlsTrustMode", name: "tlsTrustMode", value: editingBroker.tlsTrustMode, onChange: handleChange },
+                            react_js_default().createElement("option", { value: "SYSTEM_DEFAULT" }, "Gateway JVM system trust store"),
+                            react_js_default().createElement("option", { value: "UPLOADED_CA" }, "Uploaded CA certificate bundle")),
+                        react_js_default().createElement("small", null, "Hostname verification is always enabled for TLS connections.")),
+                    editingBroker.tlsTrustMode === 'UPLOADED_CA' && (react_js_default().createElement("div", { className: "certificate-upload" },
+                        react_js_default().createElement("div", { className: "form-group" },
+                            react_js_default().createElement("label", { htmlFor: "caCertificate" }, "CA certificate or PEM bundle"),
+                            react_js_default().createElement("input", { key: certificateInputKey, id: "caCertificate", type: "file", accept: ".pem,.crt,.cer,application/x-x509-ca-cert,text/plain", onChange: handleCertificateUpload }),
+                            react_js_default().createElement("small", null, "PEM-encoded X.509 CA certificates only; maximum 256 KB and 16 certificates.")),
+                        (certificateFileName || editingBroker.caCertificateConfigured) && (react_js_default().createElement("div", { className: "certificate-status" },
+                            react_js_default().createElement("div", null,
+                                react_js_default().createElement("strong", null, certificateFileName || 'Stored CA certificate bundle'),
+                                react_js_default().createElement("span", null, certificateFileName ? 'Selected for validation' : 'Configured')),
+                            react_js_default().createElement("button", { type: "button", className: "btn-secondary btn-small", onClick: handleRemoveCertificate }, "Remove"))),
+                        editingBroker.caCertificateError && (react_js_default().createElement("div", { className: "certificate-warning" }, editingBroker.caCertificateError)),
+                        editingBroker.caCertificates?.map((certificate, index) => (react_js_default().createElement("div", { className: `certificate-details ${certificate.currentlyValid ? '' : 'invalid'}`, key: certificate.sha256Fingerprint },
+                            react_js_default().createElement("div", null,
+                                react_js_default().createElement("strong", null,
+                                    "Certificate ",
+                                    index + 1)),
+                            react_js_default().createElement("div", null,
+                                react_js_default().createElement("span", null, "Subject"),
+                                react_js_default().createElement("code", null, certificate.subject)),
+                            react_js_default().createElement("div", null,
+                                react_js_default().createElement("span", null, "Issuer"),
+                                react_js_default().createElement("code", null, certificate.issuer)),
+                            react_js_default().createElement("div", null,
+                                react_js_default().createElement("span", null, "Valid until"),
+                                react_js_default().createElement("code", null, new Date(certificate.notAfter).toLocaleString())),
+                            react_js_default().createElement("div", null,
+                                react_js_default().createElement("span", null, "SHA-256"),
+                                react_js_default().createElement("code", null, certificate.sha256Fingerprint)),
+                            !certificate.currentlyValid && (react_js_default().createElement("div", { className: "certificate-warning" }, "This certificate is outside its validity period.")))))))))),
             message && (react_js_default().createElement("div", { className: `message ${message.type}` }, message.text)),
             react_js_default().createElement("div", { className: "form-actions" },
                 react_js_default().createElement("div", { className: "left-actions" }, !isAddingNew && editingBroker.id && (react_js_default().createElement("button", { type: "button", onClick: () => handleDelete(editingBroker.id), className: "btn-danger" }, "Delete Broker"))),
@@ -2077,6 +2267,7 @@ const BrokerSettings = ({ onBrokersChanged }) => {
 /* harmony default export */ const components_BrokerSettings = (BrokerSettings);
 
 ;// ./src/components/TagSelection.tsx
+
 
 
 const payloadPropertyGroups = [
@@ -2151,6 +2342,7 @@ const payloadPropertyGroups = [
     }
 ];
 const TagSelection = ({ config, onConfigSaved }) => {
+    const csrfToken = (0,external_react_redux_.useSelector)((state) => state.userSession?.csrfToken || '');
     const [formData, setFormData] = (0,react_js_.useState)({
         name: 'Default Tag Publishing',
         enabled: false,
@@ -2422,7 +2614,7 @@ const TagSelection = ({ config, onConfigSaved }) => {
             return;
         }
         try {
-            const response = await saveTagConfig(formData);
+            const response = await saveTagConfig(formData, csrfToken);
             if (response.success && response.data) {
                 setMessage({ type: 'success', text: 'Tag configuration saved successfully' });
                 onConfigSaved(response.data);

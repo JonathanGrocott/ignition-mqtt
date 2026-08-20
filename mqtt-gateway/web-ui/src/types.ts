@@ -9,7 +9,14 @@ export interface MqttBrokerConfig {
     clientId: string;
     username?: string;
     password?: string;
+    hasPassword?: boolean;
     useTls: boolean;
+    tlsTrustMode: 'SYSTEM_DEFAULT' | 'UPLOADED_CA';
+    caCertificatePem?: string;
+    caCertificateConfigured?: boolean;
+    caCertificates?: TlsCertificateInfo[];
+    caCertificateError?: string;
+    removeCaCertificate?: boolean;
     qos: number;
     retained: boolean;
     cleanSession: boolean;
@@ -17,6 +24,16 @@ export interface MqttBrokerConfig {
     keepAliveInterval: number;
     slowReconnectIntervalSeconds: number;
     enabled: boolean;
+}
+
+export interface TlsCertificateInfo {
+    subject: string;
+    issuer: string;
+    serialNumber: string;
+    sha256Fingerprint: string;
+    notBefore: string;
+    notAfter: string;
+    currentlyValid: boolean;
 }
 
 export interface MqttTagConfig {
@@ -88,11 +105,15 @@ export interface ApiResponse<T> {
 }
 
 export interface TestConnectionRequest {
+    id?: number;
     brokerUrl: string;
     clientId: string;
     username?: string;
     password?: string;
     useTls?: boolean;
+    tlsTrustMode?: 'SYSTEM_DEFAULT' | 'UPLOADED_CA';
+    caCertificatePem?: string;
+    removeCaCertificate?: boolean;
     connectionTimeout?: number;
     keepAliveInterval?: number;
     cleanSession?: boolean;
@@ -104,7 +125,7 @@ export interface TestConnectionResult {
     brokerUrl?: string;
     message?: string;
     error?: string;
-    errorCode?: number;
+    errorCode?: string;
 }
 
 export interface ActiveTagSubscription {

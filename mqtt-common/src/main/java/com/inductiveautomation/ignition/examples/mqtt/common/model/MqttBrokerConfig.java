@@ -1,6 +1,9 @@
 package com.inductiveautomation.ignition.examples.mqtt.common.model;
 
 import com.google.gson.annotations.SerializedName;
+import com.inductiveautomation.ignition.examples.mqtt.common.tls.MqttConnectionOptionsFactory;
+import com.inductiveautomation.ignition.examples.mqtt.common.tls.MqttTlsSupport;
+import com.inductiveautomation.ignition.examples.mqtt.common.tls.TlsTrustMode;
 
 import java.util.Objects;
 import java.util.UUID;
@@ -33,6 +36,12 @@ public class MqttBrokerConfig {
     
     @SerializedName("useTls")
     private boolean useTls;
+
+    @SerializedName("tlsTrustMode")
+    private TlsTrustMode tlsTrustMode;
+
+    @SerializedName("caCertificatePem")
+    private String caCertificatePem;
     
     @SerializedName("qos")
     private int qos;
@@ -63,6 +72,8 @@ public class MqttBrokerConfig {
         this.username = "";
         this.password = "";
         this.useTls = false;
+        this.tlsTrustMode = TlsTrustMode.SYSTEM_DEFAULT;
+        this.caCertificatePem = null;
         this.qos = DEFAULT_QOS;
         this.retained = false;
         this.keepAlive = DEFAULT_KEEP_ALIVE;
@@ -166,6 +177,30 @@ public class MqttBrokerConfig {
     public void setUseTls(boolean useTls) {
         this.useTls = useTls;
     }
+
+    public TlsTrustMode getTlsTrustMode() {
+        return tlsTrustMode == null ? TlsTrustMode.SYSTEM_DEFAULT : tlsTrustMode;
+    }
+
+    public void setTlsTrustMode(TlsTrustMode tlsTrustMode) {
+        this.tlsTrustMode = tlsTrustMode == null ? TlsTrustMode.SYSTEM_DEFAULT : tlsTrustMode;
+    }
+
+    public void setTlsTrustMode(String tlsTrustMode) {
+        this.tlsTrustMode = TlsTrustMode.fromValue(tlsTrustMode);
+    }
+
+    public String getCaCertificatePem() {
+        return caCertificatePem;
+    }
+
+    public void setCaCertificatePem(String caCertificatePem) {
+        this.caCertificatePem = caCertificatePem;
+    }
+
+    public String getEffectiveBrokerUrl() {
+        return MqttConnectionOptionsFactory.normalizeBrokerUrl(brokerUrl, useTls);
+    }
     
     public int getQos() {
         return qos;
@@ -227,9 +262,7 @@ public class MqttBrokerConfig {
         if (brokerUrl == null || brokerUrl.trim().isEmpty()) {
             throw new IllegalArgumentException("Broker URL cannot be empty");
         }
-        if (!brokerUrl.startsWith("tcp://") && !brokerUrl.startsWith("ssl://")) {
-            throw new IllegalArgumentException("Broker URL must start with tcp:// or ssl://");
-        }
+        String effectiveBrokerUrl = getEffectiveBrokerUrl();
         if (clientId == null || clientId.trim().isEmpty()) {
             throw new IllegalArgumentException("Client ID cannot be empty");
         }
@@ -244,6 +277,9 @@ public class MqttBrokerConfig {
         }
         if (slowReconnectIntervalSeconds < 0) {
             throw new IllegalArgumentException("Slow reconnect interval must be >= 0");
+        }
+        if (effectiveBrokerUrl.startsWith("ssl://") && getTlsTrustMode() == TlsTrustMode.UPLOADED_CA) {
+            MqttTlsSupport.parseCaCertificates(caCertificatePem);
         }
     }
     
@@ -263,12 +299,14 @@ public class MqttBrokerConfig {
                Objects.equals(name, that.name) &&
                Objects.equals(brokerUrl, that.brokerUrl) &&
                Objects.equals(clientId, that.clientId) &&
-               Objects.equals(username, that.username);
+               Objects.equals(username, that.username) &&
+               getTlsTrustMode() == that.getTlsTrustMode() &&
+               Objects.equals(caCertificatePem, that.caCertificatePem);
     }
     
     @Override
     public int hashCode() {
-        return Objects.hash(id, name, brokerUrl, clientId, username, useTls, qos, retained,
+        return Objects.hash(id, name, brokerUrl, clientId, username, useTls, getTlsTrustMode(), caCertificatePem, qos, retained,
                           keepAlive, connectionTimeout, slowReconnectIntervalSeconds, cleanSession);
     }
     
@@ -302,6 +340,8 @@ public class MqttBrokerConfig {
         copy.username = this.username;
         copy.password = this.password;
         copy.useTls = this.useTls;
+        copy.tlsTrustMode = this.getTlsTrustMode();
+        copy.caCertificatePem = this.caCertificatePem;
         copy.qos = this.qos;
         copy.retained = this.retained;
         copy.keepAlive = this.keepAlive;

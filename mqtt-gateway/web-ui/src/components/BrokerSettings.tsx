@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useSelector } from 'react-redux';
 import { getBrokerConfig, saveBrokerConfig, deleteBroker, testConnection } from '../api';
 import { MqttBrokerConfig, TestConnectionRequest } from '../types';
 
@@ -7,6 +8,7 @@ interface Props {
 }
 
 const BrokerSettings: React.FC<Props> = ({ onBrokersChanged }) => {
+    const csrfToken = useSelector((state: { userSession?: { csrfToken?: string } }) => state.userSession?.csrfToken || '');
     const [brokers, setBrokers] = useState<MqttBrokerConfig[]>([]);
     const [selectedBrokerId, setSelectedBrokerId] = useState<number | null>(null);
     const [editingBroker, setEditingBroker] = useState<MqttBrokerConfig | null>(null);
@@ -14,6 +16,8 @@ const BrokerSettings: React.FC<Props> = ({ onBrokersChanged }) => {
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
     const [testing, setTesting] = useState(false);
+    const [certificateFileName, setCertificateFileName] = useState<string | null>(null);
+    const [certificateInputKey, setCertificateInputKey] = useState(0);
     const [message, setMessage] = useState<{ type: 'success' | 'error' | 'info'; text: string } | null>(null);
 
     // Load all brokers on mount
@@ -43,8 +47,10 @@ const BrokerSettings: React.FC<Props> = ({ onBrokersChanged }) => {
         setSelectedBrokerId(broker.id || null);
         setEditingBroker({
             ...broker,
+            tlsTrustMode: broker.tlsTrustMode || 'SYSTEM_DEFAULT',
             slowReconnectIntervalSeconds: broker.slowReconnectIntervalSeconds ?? 600
         });
+        setCertificateFileName(null);
         setIsAddingNew(false);
         setMessage(null);
     };
@@ -57,6 +63,7 @@ const BrokerSettings: React.FC<Props> = ({ onBrokersChanged }) => {
             username: '',
             password: '',
             useTls: false,
+            tlsTrustMode: 'SYSTEM_DEFAULT',
             qos: 1,
             retained: false,
             cleanSession: true,
@@ -69,6 +76,67 @@ const BrokerSettings: React.FC<Props> = ({ onBrokersChanged }) => {
         setIsAddingNew(true);
         setSelectedBrokerId(null);
         setMessage(null);
+        setCertificateFileName(null);
+    };
+
+    const normalizeUrlForTls = (url: string, enabled: boolean): string => {
+        if (enabled) {
+            return url
+                .replace(/^mqtts:\/\//i, 'ssl://')
+                .replace(/^mqtt:\/\//i, 'ssl://')
+                .replace(/^tcp:\/\//i, 'ssl://');
+        }
+        return url.replace(/^ssl:\/\//i, 'tcp://').replace(/^mqtts:\/\//i, 'tcp://');
+    };
+
+    const handleTlsToggle = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const enabled = e.target.checked;
+        setEditingBroker(prev => prev ? {
+            ...prev,
+            useTls: enabled,
+            brokerUrl: normalizeUrlForTls(prev.brokerUrl, enabled)
+        } : null);
+    };
+
+    const handleCertificateUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+        if (file.size > 256 * 1024) {
+            setMessage({ type: 'error', text: 'CA certificate bundle must be 256 KB or smaller' });
+            setCertificateInputKey(key => key + 1);
+            return;
+        }
+
+        try {
+            const pem = await file.text();
+            setEditingBroker(prev => prev ? {
+                ...prev,
+                caCertificatePem: pem,
+                caCertificateConfigured: true,
+                caCertificates: undefined,
+                caCertificateError: undefined,
+                removeCaCertificate: false,
+                tlsTrustMode: 'UPLOADED_CA'
+            } : null);
+            setCertificateFileName(file.name);
+            setMessage({ type: 'info', text: 'Certificate selected. Test or save the broker to validate it.' });
+        } catch {
+            setMessage({ type: 'error', text: 'Unable to read the selected certificate file' });
+        }
+    };
+
+    const handleRemoveCertificate = () => {
+        setEditingBroker(prev => prev ? {
+            ...prev,
+            caCertificatePem: undefined,
+            caCertificateConfigured: false,
+            caCertificates: [],
+            caCertificateError: undefined,
+            removeCaCertificate: true
+        } : null);
+        setCertificateFileName(null);
+        setCertificateInputKey(key => key + 1);
+        setMessage({ type: 'info', text: 'The stored CA certificate will be removed when you save.' });
     };
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
@@ -101,18 +169,22 @@ const BrokerSettings: React.FC<Props> = ({ onBrokersChanged }) => {
         setMessage(null);
 
         const testRequest: TestConnectionRequest = {
+            id: editingBroker.id,
             brokerUrl: editingBroker.brokerUrl,
             clientId: editingBroker.clientId,
             username: editingBroker.username,
             password: editingBroker.password,
             useTls: editingBroker.useTls,
+            tlsTrustMode: editingBroker.tlsTrustMode,
+            caCertificatePem: editingBroker.caCertificatePem,
+            removeCaCertificate: editingBroker.removeCaCertificate,
             connectionTimeout: editingBroker.connectionTimeout,
             keepAliveInterval: editingBroker.keepAliveInterval,
             cleanSession: editingBroker.cleanSession
         };
 
         try {
-            const response = await testConnection(testRequest);
+            const response = await testConnection(testRequest, csrfToken);
 
             if (response.success && response.data?.connected) {
                 setMessage({
@@ -143,10 +215,11 @@ const BrokerSettings: React.FC<Props> = ({ onBrokersChanged }) => {
         setMessage(null);
 
         try {
-            const response = await saveBrokerConfig(editingBroker);
+            const response = await saveBrokerConfig(editingBroker, csrfToken);
 
             if (response.success && response.data) {
                 setMessage({ type: 'success', text: 'Broker saved successfully' });
+                setCertificateFileName(null);
                 await loadBrokers();
                 selectBroker(response.data);
                 onBrokersChanged();
@@ -169,7 +242,7 @@ const BrokerSettings: React.FC<Props> = ({ onBrokersChanged }) => {
         }
 
         try {
-            const response = await deleteBroker(brokerId);
+            const response = await deleteBroker(brokerId, csrfToken);
 
             if (response.success) {
                 setMessage({ type: 'success', text: 'Broker deleted successfully' });
@@ -196,6 +269,7 @@ const BrokerSettings: React.FC<Props> = ({ onBrokersChanged }) => {
             const broker = brokers.find(b => b.id === selectedBrokerId);
             if (broker) {
                 setEditingBroker({ ...broker });
+                setCertificateFileName(null);
             }
         } else {
             setEditingBroker(null);
@@ -319,7 +393,7 @@ const BrokerSettings: React.FC<Props> = ({ onBrokersChanged }) => {
                                         name="password"
                                         value={editingBroker.password || ''}
                                         onChange={handleChange}
-                                        placeholder="Leave empty for no password"
+                                        placeholder={editingBroker.hasPassword ? 'Stored password will be preserved' : 'Leave empty for no password'}
                                     />
                                 </div>
                             </div>
@@ -388,7 +462,7 @@ const BrokerSettings: React.FC<Props> = ({ onBrokersChanged }) => {
                                             type="checkbox"
                                             name="useTls"
                                             checked={editingBroker.useTls}
-                                            onChange={handleChange}
+                                            onChange={handleTlsToggle}
                                         />
                                         Use TLS/SSL encryption
                                     </label>
@@ -430,6 +504,70 @@ const BrokerSettings: React.FC<Props> = ({ onBrokersChanged }) => {
                                     </label>
                                 </div>
                             </div>
+
+                            {editingBroker.useTls && (
+                                <div className="tls-settings">
+                                    <h3>TLS Trust</h3>
+                                    <div className="form-group">
+                                        <label htmlFor="tlsTrustMode">Certificate trust source</label>
+                                        <select
+                                            id="tlsTrustMode"
+                                            name="tlsTrustMode"
+                                            value={editingBroker.tlsTrustMode}
+                                            onChange={handleChange}
+                                        >
+                                            <option value="SYSTEM_DEFAULT">Gateway JVM system trust store</option>
+                                            <option value="UPLOADED_CA">Uploaded CA certificate bundle</option>
+                                        </select>
+                                        <small>Hostname verification is always enabled for TLS connections.</small>
+                                    </div>
+
+                                    {editingBroker.tlsTrustMode === 'UPLOADED_CA' && (
+                                        <div className="certificate-upload">
+                                            <div className="form-group">
+                                                <label htmlFor="caCertificate">CA certificate or PEM bundle</label>
+                                                <input
+                                                    key={certificateInputKey}
+                                                    id="caCertificate"
+                                                    type="file"
+                                                    accept=".pem,.crt,.cer,application/x-x509-ca-cert,text/plain"
+                                                    onChange={handleCertificateUpload}
+                                                />
+                                                <small>PEM-encoded X.509 CA certificates only; maximum 256 KB and 16 certificates.</small>
+                                            </div>
+
+                                            {(certificateFileName || editingBroker.caCertificateConfigured) && (
+                                                <div className="certificate-status">
+                                                    <div>
+                                                        <strong>{certificateFileName || 'Stored CA certificate bundle'}</strong>
+                                                        <span>{certificateFileName ? 'Selected for validation' : 'Configured'}</span>
+                                                    </div>
+                                                    <button type="button" className="btn-secondary btn-small" onClick={handleRemoveCertificate}>
+                                                        Remove
+                                                    </button>
+                                                </div>
+                                            )}
+
+                                            {editingBroker.caCertificateError && (
+                                                <div className="certificate-warning">{editingBroker.caCertificateError}</div>
+                                            )}
+
+                                            {editingBroker.caCertificates?.map((certificate, index) => (
+                                                <div className={`certificate-details ${certificate.currentlyValid ? '' : 'invalid'}`} key={certificate.sha256Fingerprint}>
+                                                    <div><strong>Certificate {index + 1}</strong></div>
+                                                    <div><span>Subject</span><code>{certificate.subject}</code></div>
+                                                    <div><span>Issuer</span><code>{certificate.issuer}</code></div>
+                                                    <div><span>Valid until</span><code>{new Date(certificate.notAfter).toLocaleString()}</code></div>
+                                                    <div><span>SHA-256</span><code>{certificate.sha256Fingerprint}</code></div>
+                                                    {!certificate.currentlyValid && (
+                                                        <div className="certificate-warning">This certificate is outside its validity period.</div>
+                                                    )}
+                                                </div>
+                                            ))}
+                                        </div>
+                                    )}
+                                </div>
+                            )}
                         </div>
 
                         {message && (

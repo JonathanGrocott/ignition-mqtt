@@ -3,6 +3,8 @@ package com.inductiveautomation.ignition.examples.mqtt.gateway.records;
 import com.inductiveautomation.ignition.gateway.localdb.persistence.*;
 import simpleorm.dataset.SFieldFlags;
 
+import java.nio.charset.StandardCharsets;
+
 /**
  * Stores MQTT broker connection configuration in the internal database.
  * This replaces the JSON file-based MqttBrokerConfig approach with proper database persistence.
@@ -41,6 +43,11 @@ public class MqttBrokerConfigRecord extends PersistentRecord {
     
     public static final BooleanField UseTls = new BooleanField(META, "UseTls")
         .setDefault(false);
+
+    public static final StringField TlsTrustMode = new StringField(META, "TlsTrustMode")
+        .setDefault("SYSTEM_DEFAULT");
+
+    public static final BlobField CaCertificate = new BlobField(META, "CaCertificate");
     
     public static final IntField Qos = new IntField(META, "Qos")
         .setDefault(1);
@@ -120,6 +127,33 @@ public class MqttBrokerConfigRecord extends PersistentRecord {
     
     public void setUseTls(boolean useTls) {
         setBoolean(UseTls, useTls);
+    }
+
+    public String getTlsTrustMode() {
+        String value = getString(TlsTrustMode);
+        return value == null || value.isBlank() ? "SYSTEM_DEFAULT" : value;
+    }
+
+    public void setTlsTrustMode(String trustMode) {
+        setString(TlsTrustMode, trustMode);
+    }
+
+    public String getCaCertificatePem() {
+        byte[] value = getBytes(CaCertificate);
+        return value == null || value.length == 0 ? null : new String(value, StandardCharsets.UTF_8);
+    }
+
+    public void setCaCertificatePem(String pem) {
+        if (pem == null || pem.isBlank()) {
+            setNull(CaCertificate);
+        } else {
+            setBytes(CaCertificate, pem.getBytes(StandardCharsets.UTF_8));
+        }
+    }
+
+    public boolean hasCaCertificate() {
+        byte[] value = getBytes(CaCertificate);
+        return value != null && value.length > 0;
     }
     
     public int getQos() {

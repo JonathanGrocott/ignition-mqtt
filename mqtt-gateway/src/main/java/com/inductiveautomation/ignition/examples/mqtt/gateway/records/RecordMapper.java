@@ -100,6 +100,8 @@ public class RecordMapper {
         config.setUsername(record.getUsername());
         config.setPassword(record.getPassword());
         config.setUseTls(record.isUseTls());
+        config.setTlsTrustMode(record.getTlsTrustMode());
+        config.setCaCertificatePem(record.getCaCertificatePem());
         config.setQos(record.getQos());
         config.setRetained(record.isRetained());
         config.setKeepAlive(record.getKeepAliveInterval());
@@ -123,6 +125,8 @@ public class RecordMapper {
         record.setUsername(model.getUsername());
         record.setPassword(model.getPassword());
         record.setUseTls(model.isUseTls());
+        record.setTlsTrustMode(model.getTlsTrustMode().name());
+        record.setCaCertificatePem(model.getCaCertificatePem());
         record.setQos(model.getQos());
         record.setRetained(model.isRetained());
         record.setKeepAliveInterval(model.getKeepAlive());

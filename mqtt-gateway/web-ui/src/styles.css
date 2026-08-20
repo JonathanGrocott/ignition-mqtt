@@ -153,6 +153,92 @@
     width: auto;
 }
 
+.tls-settings {
+    margin-top: 20px;
+    padding: 18px;
+    border: 1px solid #cbd5e1;
+    border-radius: 6px;
+    background: #f8fafc;
+}
+
+.tls-settings h3 {
+    margin: 0 0 16px 0;
+}
+
+.certificate-upload input[type="file"] {
+    display: block;
+    width: 100%;
+    box-sizing: border-box;
+    padding: 10px;
+    border: 1px dashed #94a3b8;
+    border-radius: 4px;
+    background: white;
+}
+
+.certificate-status {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 12px;
+    margin-bottom: 12px;
+    border: 1px solid #86efac;
+    border-radius: 4px;
+    background: #f0fdf4;
+}
+
+.certificate-status strong,
+.certificate-status span {
+    display: block;
+}
+
+.certificate-status span {
+    margin-top: 3px;
+    color: #166534;
+    font-size: 12px;
+}
+
+.certificate-details {
+    padding: 12px;
+    margin-top: 10px;
+    border: 1px solid #dbe3ec;
+    border-radius: 4px;
+    background: white;
+}
+
+.certificate-details.invalid {
+    border-color: #f59e0b;
+    background: #fffbeb;
+}
+
+.certificate-details > div {
+    display: grid;
+    grid-template-columns: 100px minmax(0, 1fr);
+    gap: 8px;
+    margin-top: 6px;
+    font-size: 12px;
+}
+
+.certificate-details > div:first-child,
+.certificate-details .certificate-warning {
+    display: block;
+    margin-top: 0;
+}
+
+.certificate-details code {
+    overflow-wrap: anywhere;
+    white-space: normal;
+}
+
+.certificate-warning {
+    padding: 8px 10px;
+    margin-top: 10px;
+    border-radius: 4px;
+    background: #fef3c7;
+    color: #92400e;
+    font-size: 12px;
+}
+
 /* Payload Configuration */
 .payload-core {
     margin-top: 12px;

@@ -7,22 +7,36 @@ import com.inductiveautomation.ignition.common.gson.JsonElement;
 import com.inductiveautomation.ignition.common.gson.JsonParser;
 import com.inductiveautomation.ignition.examples.mqtt.common.model.MqttBrokerConfig;
 import com.inductiveautomation.ignition.examples.mqtt.common.model.TagPublishConfig;
+import com.inductiveautomation.ignition.examples.mqtt.common.tls.MqttConnectionOptionsFactory;
+import com.inductiveautomation.ignition.examples.mqtt.common.tls.MqttTlsSupport;
+import com.inductiveautomation.ignition.examples.mqtt.common.tls.TlsCertificateInfo;
 import com.inductiveautomation.ignition.examples.mqtt.gateway.MqttGatewayHook;
 import com.inductiveautomation.ignition.examples.mqtt.gateway.records.MqttBrokerConfigRecord;
 import com.inductiveautomation.ignition.examples.mqtt.gateway.records.MqttTagConfigRecord;
+import com.inductiveautomation.ignition.examples.mqtt.gateway.records.RecordMapper;
 import com.inductiveautomation.ignition.gateway.dataroutes.RequestContext;
 import com.inductiveautomation.ignition.gateway.dataroutes.RouteGroup;
-import com.inductiveautomation.ignition.gateway.dataroutes.AccessControlStrategy;
 import com.inductiveautomation.ignition.gateway.dataroutes.HttpMethod;
 import com.inductiveautomation.ignition.gateway.localdb.persistence.PersistenceInterface;
 import com.inductiveautomation.ignition.gateway.model.GatewayContext;
+import com.inductiveautomation.ignition.gateway.web.session.WebUiSession;
 import jakarta.servlet.http.HttpServletResponse;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.eclipse.paho.client.mqttv3.MqttClient;
+import org.eclipse.paho.client.mqttv3.MqttConnectOptions;
+import org.eclipse.paho.client.mqttv3.MqttException;
+import org.eclipse.paho.client.mqttv3.persist.MemoryPersistence;
 import simpleorm.dataset.SQuery;
 
 import java.io.BufferedReader;
+import java.net.ConnectException;
+import java.net.SocketTimeoutException;
+import java.net.UnknownHostException;
+import java.security.cert.CertificateExpiredException;
+import java.security.cert.CertificateNotYetValidException;
 import java.util.*;
+import javax.net.ssl.SSLHandshakeException;
 
 /**
  * Mounts REST API routes for MQTT UNS Publisher module.
@@ -53,7 +67,7 @@ public final class MqttDataRoutes {
             .type(RouteGroup.TYPE_JSON)
             .handler(MqttDataRoutes::handleBrokerGetOrDelete)
             .method(HttpMethod.GET)
-            .accessControl(AccessControlStrategy.OPEN_ROUTE)
+            .accessControl(WebUiSession.SESSION_READ)
             .mount();
         
         // POST to create/update broker
@@ -62,7 +76,7 @@ public final class MqttDataRoutes {
             .type(RouteGroup.TYPE_JSON)
             .handler(MqttDataRoutes::handleBrokerPost)
             .method(HttpMethod.POST)
-            .accessControl(AccessControlStrategy.OPEN_ROUTE)
+            .accessControl(WebUiSession.SESSION_WRITE)
             .mount();
         
         // DELETE with ?id param to delete broker
@@ -71,7 +85,7 @@ public final class MqttDataRoutes {
             .type(RouteGroup.TYPE_JSON)
             .handler(MqttDataRoutes::handleBrokerGetOrDelete)
             .method(HttpMethod.DELETE)
-            .accessControl(AccessControlStrategy.OPEN_ROUTE)
+            .accessControl(WebUiSession.SESSION_WRITE)
             .mount();
         logger.debug("Successfully mounted: /config/broker (GET/POST/DELETE)");
         
@@ -80,7 +94,7 @@ public final class MqttDataRoutes {
             .type(RouteGroup.TYPE_JSON)
             .handler(MqttDataRoutes::handleTagConfig)
             .method(HttpMethod.GET)
-            .accessControl(AccessControlStrategy.OPEN_ROUTE)
+            .accessControl(WebUiSession.SESSION_READ)
             .mount();
         
         logger.debug("Mounting route: /config/tags (POST)");
@@ -88,7 +102,7 @@ public final class MqttDataRoutes {
             .type(RouteGroup.TYPE_JSON)
             .handler(MqttDataRoutes::handleTagConfig)
             .method(HttpMethod.POST)
-            .accessControl(AccessControlStrategy.OPEN_ROUTE)
+            .accessControl(WebUiSession.SESSION_WRITE)
             .mount();
         logger.debug("Successfully mounted: /config/tags");
         
@@ -98,7 +112,7 @@ public final class MqttDataRoutes {
             .type(RouteGroup.TYPE_JSON)
             .handler(statusRoute)
             .method(HttpMethod.GET)
-            .accessControl(AccessControlStrategy.OPEN_ROUTE)
+            .accessControl(WebUiSession.SESSION_READ)
             .mount();
         logger.debug("Successfully mounted: /status");
         
@@ -107,11 +121,11 @@ public final class MqttDataRoutes {
             .type(RouteGroup.TYPE_JSON)
             .handler(MqttDataRoutes::handleTestConnection)
             .method(HttpMethod.POST)
-            .accessControl(AccessControlStrategy.OPEN_ROUTE)
+            .accessControl(WebUiSession.SESSION_WRITE)
             .mount();
         logger.debug("Successfully mounted: /test-connection");
         
-        logger.debug("Mounted 4 REST API routes with open access");
+        logger.debug("Mounted authenticated MQTT configuration routes");
     }
     
     /**
@@ -220,44 +234,56 @@ public final class MqttDataRoutes {
      */
     private static Object handleTestConnection(RequestContext req, HttpServletResponse res) {
         logger.debug("handleTestConnection called! Method: {}, Path: {}", req.getMethod().name(), req.getPath());
-        
+        MqttClient testClient = null;
         try {
             res.setContentType("application/json");
-            
             String body = readRequestBody(req);
-            logger.debug("Request body: {}", body);
-            
             @SuppressWarnings("unchecked")
             Map<String, Object> data = gson.fromJson(body, Map.class);
-            logger.debug("Parsed data: {}", data);
-            
-            // Create test config
-            String brokerUrl = (String) data.get("brokerUrl");
-            String clientId = (String) data.get("clientId");
-            
-            // Simple validation
-            if (brokerUrl == null || brokerUrl.isEmpty()) {
-                return errorJson("Broker URL is required");
-            }
-            
-            logger.debug("Testing connection to broker: {} with client ID: {}", brokerUrl, clientId);
-            
-            // Create response matching ApiResponse<TestConnectionResult> format
+
+            MqttBrokerConfig config = buildTestConfig(data);
+            config.validate();
+            String brokerUrl = config.getEffectiveBrokerUrl();
+            String requestedClientId = config.getClientId();
+            String testClientId = requestedClientId + "-test-" + UUID.randomUUID().toString().substring(0, 8);
+            MqttConnectOptions options = MqttConnectionOptionsFactory.build(config);
+
+            logger.info("Testing MQTT connection to {} with temporary client ID '{}'", brokerUrl, testClientId);
+            testClient = new MqttClient(brokerUrl, testClientId, new MemoryPersistence());
+            long startTime = System.currentTimeMillis();
+            testClient.connect(options);
+            long connectionTime = System.currentTimeMillis() - startTime;
+
             JsonObject response = new JsonObject();
             response.addProperty("success", true);
-            
             JsonObject testResult = new JsonObject();
-            testResult.addProperty("connected", true);  // Simplified - actual test would try connecting
-            testResult.addProperty("message", "Test not yet implemented");
-            testResult.addProperty("connectionTimeMs", 0);
-            
+            testResult.addProperty("connected", testClient.isConnected());
+            testResult.addProperty("message", "Connection test successful");
+            testResult.addProperty("connectionTimeMs", connectionTime);
+            testResult.addProperty("brokerUrl", brokerUrl);
             response.add("data", testResult);
-            
-            logger.debug("Test connection response: {}", response);
             return response;
         } catch (Exception e) {
-            logger.error("Error handling test connection request", e);
-            return errorJson("Error: " + e.getMessage());
+            ConnectionTestError error = classifyConnectionError(e);
+            logger.warn("MQTT connection test failed [{}]: {}", error.code, error.message);
+            JsonObject response = errorJson(error.message);
+            JsonObject data = new JsonObject();
+            data.addProperty("connected", false);
+            data.addProperty("errorCode", error.code);
+            data.addProperty("message", error.message);
+            response.add("data", data);
+            return response;
+        } finally {
+            if (testClient != null) {
+                try {
+                    if (testClient.isConnected()) {
+                        testClient.disconnect(2_000);
+                    }
+                    testClient.close();
+                } catch (Exception closeError) {
+                    logger.debug("Unable to close MQTT test client cleanly", closeError);
+                }
+            }
         }
     }
     
@@ -281,21 +307,7 @@ public final class MqttDataRoutes {
         
         JsonArray brokers = new JsonArray();
         for (MqttBrokerConfigRecord record : records) {
-            JsonObject brokerJson = new JsonObject();
-            brokerJson.addProperty("id", record.getId());
-            brokerJson.addProperty("name", record.getName());
-            brokerJson.addProperty("brokerUrl", record.getBrokerUrl());
-            brokerJson.addProperty("clientId", record.getClientId());
-            brokerJson.addProperty("username", record.getUsername());
-            brokerJson.addProperty("useTls", record.isUseTls());
-            brokerJson.addProperty("qos", record.getQos());
-            brokerJson.addProperty("retained", record.isRetained());
-            brokerJson.addProperty("cleanSession", record.isCleanSession());
-            brokerJson.addProperty("connectionTimeout", record.getConnectionTimeout());
-            brokerJson.addProperty("keepAliveInterval", record.getKeepAliveInterval());
-            brokerJson.addProperty("slowReconnectIntervalSeconds", record.getSlowReconnectIntervalSeconds());
-            brokerJson.addProperty("enabled", record.isEnabled());
-            brokers.add(brokerJson);
+            brokers.add(brokerRecordToJson(record));
         }
         
         response.add("data", brokers);
@@ -336,22 +348,7 @@ public final class MqttDataRoutes {
         JsonObject response = new JsonObject();
         response.addProperty("success", true);
         
-        JsonObject data = new JsonObject();
-        data.addProperty("id", record.getId());
-        data.addProperty("name", record.getName());
-        data.addProperty("brokerUrl", record.getBrokerUrl());
-        data.addProperty("clientId", record.getClientId());
-        data.addProperty("username", record.getUsername());
-        data.addProperty("useTls", record.isUseTls());
-        data.addProperty("qos", record.getQos());
-        data.addProperty("retained", record.isRetained());
-        data.addProperty("cleanSession", record.isCleanSession());
-        data.addProperty("connectionTimeout", record.getConnectionTimeout());
-        data.addProperty("keepAliveInterval", record.getKeepAliveInterval());
-        data.addProperty("slowReconnectIntervalSeconds", record.getSlowReconnectIntervalSeconds());
-        data.addProperty("enabled", record.isEnabled());
-        
-        response.add("data", data);
+        response.add("data", brokerRecordToJson(record));
         return response;
     }
     
@@ -490,6 +487,17 @@ public final class MqttDataRoutes {
             }
         }
         if (data.containsKey("useTls")) record.setUseTls(toBoolean(data.get("useTls")));
+        if (data.containsKey("tlsTrustMode")) record.setTlsTrustMode((String) data.get("tlsTrustMode"));
+        if (data.containsKey("caCertificatePem")) {
+            String pem = (String) data.get("caCertificatePem");
+            if (pem != null && !pem.isBlank()) {
+                MqttTlsSupport.parseCaCertificates(pem);
+                record.setCaCertificatePem(pem);
+            }
+        }
+        if (toBoolean(data.get("removeCaCertificate"))) {
+            record.setCaCertificatePem(null);
+        }
         if (data.containsKey("qos")) record.setQos(toInt(data.get("qos")));
         if (data.containsKey("retained")) record.setRetained(toBoolean(data.get("retained")));
         if (data.containsKey("cleanSession")) record.setCleanSession(toBoolean(data.get("cleanSession")));
@@ -500,6 +508,11 @@ public final class MqttDataRoutes {
         }
         if (data.containsKey("enabled")) record.setEnabled(toBoolean(data.get("enabled")));
         
+        MqttBrokerConfig validatedConfig = RecordMapper.toModel(record);
+        validatedConfig.validate();
+        String normalizedBrokerUrl = validatedConfig.getEffectiveBrokerUrl();
+        record.setBrokerUrl(normalizedBrokerUrl);
+        record.setUseTls(normalizedBrokerUrl.startsWith("ssl://"));
         db.save(record);
         
         logger.debug("Saved broker configuration: {} (ID: {})", record.getName(), record.getId());
@@ -512,22 +525,7 @@ public final class MqttDataRoutes {
         JsonObject response = new JsonObject();
         response.addProperty("success", true);
         
-        JsonObject savedData = new JsonObject();
-        savedData.addProperty("id", record.getId());
-        savedData.addProperty("name", record.getName());
-        savedData.addProperty("brokerUrl", record.getBrokerUrl());
-        savedData.addProperty("clientId", record.getClientId());
-        savedData.addProperty("username", record.getUsername());
-        savedData.addProperty("useTls", record.isUseTls());
-        savedData.addProperty("qos", record.getQos());
-        savedData.addProperty("retained", record.isRetained());
-        savedData.addProperty("cleanSession", record.isCleanSession());
-        savedData.addProperty("connectionTimeout", record.getConnectionTimeout());
-        savedData.addProperty("keepAliveInterval", record.getKeepAliveInterval());
-        savedData.addProperty("slowReconnectIntervalSeconds", record.getSlowReconnectIntervalSeconds());
-        savedData.addProperty("enabled", record.isEnabled());
-        
-        response.add("data", savedData);
+        response.add("data", brokerRecordToJson(record));
         
         return response;
     }
@@ -804,6 +802,156 @@ public final class MqttDataRoutes {
         response.add("data", savedData);
         
         return response;
+    }
+
+    private static MqttBrokerConfig buildTestConfig(Map<String, Object> data) throws Exception {
+        MqttBrokerConfig config = new MqttBrokerConfig();
+        Object idValue = data.get("id");
+        if (idValue instanceof Number id && hook != null && hook.getGatewayContext() != null) {
+            MqttBrokerConfigRecord record = hook.getGatewayContext()
+                .getPersistenceInterface()
+                .find(MqttBrokerConfigRecord.META, id.longValue());
+            if (record == null) {
+                throw new IllegalArgumentException("Broker not found with ID: " + id.longValue());
+            }
+            config = RecordMapper.toModel(record);
+        }
+
+        if (data.containsKey("brokerUrl")) config.setBrokerUrl((String) data.get("brokerUrl"));
+        if (data.containsKey("clientId")) config.setClientId((String) data.get("clientId"));
+        if (data.containsKey("username")) config.setUsername((String) data.get("username"));
+        if (data.containsKey("password")) {
+            String password = (String) data.get("password");
+            if (password != null && !password.isEmpty()) {
+                config.setPassword(password);
+            }
+        }
+        if (data.containsKey("useTls")) config.setUseTls(toBoolean(data.get("useTls")));
+        if (data.containsKey("tlsTrustMode")) config.setTlsTrustMode((String) data.get("tlsTrustMode"));
+        if (data.containsKey("caCertificatePem")) {
+            String pem = (String) data.get("caCertificatePem");
+            if (pem != null && !pem.isBlank()) {
+                config.setCaCertificatePem(pem);
+            }
+        }
+        if (toBoolean(data.get("removeCaCertificate"))) config.setCaCertificatePem(null);
+        if (data.containsKey("connectionTimeout")) config.setConnectionTimeout(toInt(data.get("connectionTimeout")));
+        if (data.containsKey("keepAliveInterval")) config.setKeepAlive(toInt(data.get("keepAliveInterval")));
+        if (data.containsKey("cleanSession")) config.setCleanSession(toBoolean(data.get("cleanSession")));
+        return config;
+    }
+
+    private static JsonObject brokerRecordToJson(MqttBrokerConfigRecord record) {
+        JsonObject data = new JsonObject();
+        data.addProperty("id", record.getId());
+        data.addProperty("name", record.getName());
+        data.addProperty("brokerUrl", record.getBrokerUrl());
+        data.addProperty("clientId", record.getClientId());
+        data.addProperty("username", record.getUsername());
+        data.addProperty("hasPassword", record.getPassword() != null && !record.getPassword().isEmpty());
+        data.addProperty("useTls", record.isUseTls());
+        data.addProperty("tlsTrustMode", record.getTlsTrustMode());
+        data.addProperty("caCertificateConfigured", record.hasCaCertificate());
+        data.addProperty("qos", record.getQos());
+        data.addProperty("retained", record.isRetained());
+        data.addProperty("cleanSession", record.isCleanSession());
+        data.addProperty("connectionTimeout", record.getConnectionTimeout());
+        data.addProperty("keepAliveInterval", record.getKeepAliveInterval());
+        data.addProperty("slowReconnectIntervalSeconds", record.getSlowReconnectIntervalSeconds());
+        data.addProperty("enabled", record.isEnabled());
+
+        if (record.hasCaCertificate()) {
+            try {
+                JsonArray certificates = new JsonArray();
+                for (TlsCertificateInfo info : MqttTlsSupport.describeCertificates(record.getCaCertificatePem())) {
+                    JsonObject certificate = new JsonObject();
+                    certificate.addProperty("subject", info.getSubject());
+                    certificate.addProperty("issuer", info.getIssuer());
+                    certificate.addProperty("serialNumber", info.getSerialNumber());
+                    certificate.addProperty("sha256Fingerprint", info.getSha256Fingerprint());
+                    certificate.addProperty("notBefore", info.getNotBefore());
+                    certificate.addProperty("notAfter", info.getNotAfter());
+                    certificate.addProperty("currentlyValid", info.isCurrentlyValid());
+                    certificates.add(certificate);
+                }
+                data.add("caCertificates", certificates);
+            } catch (IllegalArgumentException e) {
+                logger.warn("Unable to describe stored CA certificate for broker {}", record.getId());
+                data.addProperty("caCertificateError", "Stored certificate could not be parsed");
+            }
+        }
+        return data;
+    }
+
+    private static ConnectionTestError classifyConnectionError(Exception exception) {
+        String allMessages = exceptionMessages(exception).toLowerCase(Locale.ROOT);
+        if (findCause(exception, UnknownHostException.class) != null) {
+            return new ConnectionTestError("DNS_LOOKUP_FAILED", "Broker hostname could not be resolved");
+        }
+        if (findCause(exception, CertificateExpiredException.class) != null || allMessages.contains("expired")) {
+            return new ConnectionTestError("TLS_CERTIFICATE_EXPIRED", "The broker certificate or uploaded CA certificate is expired");
+        }
+        if (findCause(exception, CertificateNotYetValidException.class) != null || allMessages.contains("not yet valid")) {
+            return new ConnectionTestError("TLS_CERTIFICATE_NOT_YET_VALID", "The broker certificate or uploaded CA certificate is not yet valid");
+        }
+        if (findCause(exception, SSLHandshakeException.class) != null) {
+            if (allMessages.contains("subject alternative") || allMessages.contains("no name matching") || allMessages.contains("hostname")) {
+                return new ConnectionTestError("TLS_HOSTNAME_MISMATCH", "The broker certificate does not match the configured hostname");
+            }
+            if (allMessages.contains("pkix") || allMessages.contains("unable to find valid certification path")) {
+                return new ConnectionTestError("TLS_UNTRUSTED_CERTIFICATE", "The broker certificate could not be validated using the selected trust source");
+            }
+            return new ConnectionTestError("TLS_HANDSHAKE_FAILED", "TLS handshake failed: verify the broker URL, CA certificate, and server certificate");
+        }
+        if (findCause(exception, SocketTimeoutException.class) != null) {
+            return new ConnectionTestError("CONNECTION_TIMEOUT", "Connection to the MQTT broker timed out");
+        }
+        if (findCause(exception, ConnectException.class) != null) {
+            return new ConnectionTestError("CONNECTION_REFUSED", "Connection to the MQTT broker was refused");
+        }
+        MqttException mqttException = findCause(exception, MqttException.class);
+        if (mqttException != null) {
+            int reasonCode = mqttException.getReasonCode();
+            if (reasonCode == 4 || reasonCode == 5) {
+                return new ConnectionTestError("MQTT_AUTHENTICATION_FAILED", "MQTT authentication failed; verify the username and password");
+            }
+            return new ConnectionTestError("MQTT_CONNECTION_FAILED", "MQTT connection failed (reason code " + reasonCode + ")");
+        }
+        if (exception instanceof IllegalArgumentException) {
+            return new ConnectionTestError("INVALID_CONFIGURATION", exception.getMessage());
+        }
+        return new ConnectionTestError("CONNECTION_FAILED", "Connection test failed: " + safeMessage(exception));
+    }
+
+    private static String exceptionMessages(Throwable throwable) {
+        StringBuilder result = new StringBuilder();
+        Throwable current = throwable;
+        while (current != null) {
+            if (current.getMessage() != null) {
+                result.append(' ').append(current.getMessage());
+            }
+            current = current.getCause();
+        }
+        return result.toString();
+    }
+
+    private static String safeMessage(Throwable throwable) {
+        String message = throwable.getMessage();
+        return message == null || message.isBlank() ? throwable.getClass().getSimpleName() : message;
+    }
+
+    private static <T extends Throwable> T findCause(Throwable throwable, Class<T> type) {
+        Throwable current = throwable;
+        while (current != null) {
+            if (type.isInstance(current)) {
+                return type.cast(current);
+            }
+            current = current.getCause();
+        }
+        return null;
+    }
+
+    private record ConnectionTestError(String code, String message) {
     }
     
     private static JsonObject errorJson(String message) {
